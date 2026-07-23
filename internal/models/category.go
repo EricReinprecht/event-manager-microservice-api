@@ -7,19 +7,12 @@ import (
 	"gorm.io/gorm"
 )
 
-type User struct {
+type Category struct {
 	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 
-	Email string `gorm:"uniqueIndex;not null"`
+	Name string `gorm:"unique;not null"`
 
-	AvatarID *uuid.UUID
-
-	Avatar *Media
-
-	PasswordHash string `gorm:"not null"`
-
-	FirstName string
-	LastName  string
+	Parties []Party
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

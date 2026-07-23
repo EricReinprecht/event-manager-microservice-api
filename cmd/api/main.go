@@ -22,9 +22,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = db.AutoMigrate(
+	db.AutoMigrate(
 		&models.User{},
+		&models.Category{},
 		&models.Party{},
+		&models.Media{},
+		&models.PartyMedia{},
 	)
 
 	if err != nil {

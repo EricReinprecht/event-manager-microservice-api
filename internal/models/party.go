@@ -4,23 +4,36 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Party struct {
 	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 
-	Title string `gorm:"not null"`
+	Title string
 
 	Description string
 
-	Date time.Time `gorm:"not null"`
+	Date time.Time
 
 	Location string
 
-	OrganizerID uuid.UUID `gorm:"type:uuid;not null"`
+	ThumbnailID *uuid.UUID
 
-	Organizer User `gorm:"foreignKey:OrganizerID"`
+	Thumbnail *Media
+
+	Images []Media `gorm:"many2many:party_media;"`
+
+	CategoryID uuid.UUID
+
+	Category Category
+
+	OrganizerID uuid.UUID
+
+	Organizer User
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
+
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
