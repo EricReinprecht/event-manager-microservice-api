@@ -22,7 +22,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Category{},
 		&models.Party{},
@@ -32,7 +32,10 @@ func main() {
 		&models.Ticket{},
 		&models.Purchase{},
 		&models.PurchaseItem{},
-	)
+		&models.PartyMember{},
+	); err != nil {
+		log.Fatal(err)
+	}
 
 	if err != nil {
 		log.Fatal(err)
@@ -52,6 +55,7 @@ func main() {
 	mediaRepository := repository.NewMediaRepository(db)
 	ticketCategoryRepository := repository.NewTicketCategoryRepository(db)
 	ticketRepository := repository.NewTicketRepository(db)
+	partyMemberRepository := repository.NewPartyMemberRepository(db)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -62,8 +66,13 @@ func main() {
 		jwt,
 	)
 
+	partyMemberService := service.NewPartyMemberService(
+		partyMemberRepository,
+	)
+
 	partyService := service.NewPartyService(
 		partyRepository,
+		partyMemberRepository,
 	)
 
 	categoryService := service.NewCategoryService(
@@ -100,6 +109,7 @@ func main() {
 		mediaService,
 		ticketCategoryService,
 		ticketService,
+		partyMemberService,
 	); err != nil {
 		log.Fatal(err)
 	}

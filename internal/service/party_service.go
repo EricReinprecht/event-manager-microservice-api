@@ -7,19 +7,23 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
 )
 
 type PartyService struct {
-	parties *repository.PartyRepository
+	parties          *repository.PartyRepository
+	memberRepository *repository.PartyMemberRepository
 }
 
 func NewPartyService(
-	parties *repository.PartyRepository,
+	repository *repository.PartyRepository,
+	memberRepository *repository.PartyMemberRepository,
 ) *PartyService {
 
 	return &PartyService{
-		parties: parties,
+		parties:          repository,
+		memberRepository: memberRepository,
 	}
 }
 
@@ -29,11 +33,32 @@ func (s *PartyService) Create(
 	imageIDs []uuid.UUID,
 ) error {
 
-	return s.parties.Create(
+	err := s.parties.Create(
 		ctx,
 		party,
 		imageIDs,
 	)
+
+	if err != nil {
+		return err
+	}
+
+	member := &models.PartyMember{
+		UserID:  party.OrganizerID,
+		PartyID: party.ID,
+		Role:    enum.RoleOrganizer,
+	}
+
+	err = s.memberRepository.Create(
+		ctx,
+		member,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *PartyService) FindAll(

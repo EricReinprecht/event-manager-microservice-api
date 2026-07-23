@@ -15,6 +15,7 @@ func Start(
 	mediaService *service.MediaService,
 	ticketCategoryService *service.TicketCategoryService,
 	ticketService *service.TicketService,
+	partyMemberService *service.PartyMemberService,
 ) error {
 
 	router := gin.Default()
@@ -27,6 +28,7 @@ func Start(
 		mediaService,
 		ticketCategoryService,
 		ticketService,
+		partyMemberService,
 	)
 
 	return router.Run(port)
