@@ -11,9 +11,14 @@ import (
 func Register(
 	router *gin.Engine,
 	authService *service.AuthService,
+	partyService *service.PartyService,
 ) {
 
 	authHandler := handlers.NewAuthHandler(authService)
+
+	partyHandler := handlers.NewPartyHandler(
+		partyService,
+	)
 
 	// Public routes
 	router.GET(
@@ -43,5 +48,10 @@ func Register(
 	protected.GET(
 		"/users/me",
 		handlers.Me,
+	)
+
+	protected.POST(
+		"/parties",
+		partyHandler.Create,
 	)
 }

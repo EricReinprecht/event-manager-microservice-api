@@ -24,6 +24,7 @@ func main() {
 
 	err = db.AutoMigrate(
 		&models.User{},
+		&models.Party{},
 	)
 
 	if err != nil {
@@ -31,6 +32,7 @@ func main() {
 	}
 
 	userRepository := repository.NewUserRepository(db)
+	partyRepository := repository.NewPartyRepository(db)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -39,6 +41,10 @@ func main() {
 	authService := service.NewAuthService(
 		userRepository,
 		jwt,
+	)
+
+	partyService := service.NewPartyService(
+		partyRepository,
 	)
 
 	sqlDB, err := db.DB()
@@ -54,6 +60,7 @@ func main() {
 	if err := server.Start(
 		":"+cfg.Port,
 		authService,
+		partyService,
 	); err != nil {
 		log.Fatal(err)
 	}

@@ -8,8 +8,9 @@ import (
 )
 
 func Start(
-	addr string,
+	port string,
 	authService *service.AuthService,
+	partyService *service.PartyService,
 ) error {
 
 	router := gin.Default()
@@ -17,7 +18,8 @@ func Start(
 	routes.Register(
 		router,
 		authService,
+		partyService,
 	)
 
-	return router.Run(addr)
+	return router.Run(port)
 }
