@@ -31,6 +31,18 @@ func main() {
 		&models.TicketCategory{},
 	)
 
+	if !db.Migrator().HasIndex(
+		&models.TicketCategory{},
+		"idx_party_ticket_category_name",
+	) {
+		if err := db.Migrator().CreateIndex(
+			&models.TicketCategory{},
+			"idx_party_ticket_category_name",
+		); err != nil {
+			panic(err)
+		}
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
