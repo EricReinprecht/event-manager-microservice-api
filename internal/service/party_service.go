@@ -47,3 +47,25 @@ func (s *PartyService) FindByID(
 
 	return s.parties.FindByID(ctx, id)
 }
+
+func (s *PartyService) Update(
+	ctx context.Context,
+	party *models.Party,
+) error {
+
+	return s.parties.Update(
+		ctx,
+		party,
+	)
+}
+
+func (s *PartyService) Delete(
+	ctx context.Context,
+	party *models.Party,
+) error {
+
+	return s.parties.Delete(
+		ctx,
+		party,
+	)
+}

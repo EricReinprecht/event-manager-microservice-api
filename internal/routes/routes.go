@@ -50,8 +50,30 @@ func Register(
 		handlers.Me,
 	)
 
+	// * Parties * //
 	protected.POST(
 		"/parties",
 		partyHandler.Create,
 	)
+
+	router.GET(
+		"/api/parties",
+		partyHandler.GetAll,
+	)
+
+	router.GET(
+		"/api/parties/:id",
+		partyHandler.GetByID,
+	)
+
+	protected.PUT(
+		"/parties/:id",
+		partyHandler.Update,
+	)
+
+	protected.DELETE(
+		"/parties/:id",
+		partyHandler.Delete,
+	)
+	// * Parties * //
 }

@@ -63,3 +63,25 @@ func (r *PartyRepository) FindByID(
 
 	return &party, err
 }
+
+func (r *PartyRepository) Update(
+	ctx context.Context,
+	party *models.Party,
+) error {
+
+	return r.db.
+		WithContext(ctx).
+		Save(party).
+		Error
+}
+
+func (r *PartyRepository) Delete(
+	ctx context.Context,
+	party *models.Party,
+) error {
+
+	return r.db.
+		WithContext(ctx).
+		Delete(party).
+		Error
+}
