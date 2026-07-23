@@ -1,0 +1,60 @@
+package main
+
+import (
+	"log"
+
+	"github.com/reinp/event-platform/backend/internal/auth"
+	"github.com/reinp/event-platform/backend/internal/config"
+	"github.com/reinp/event-platform/backend/internal/database"
+	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/repository"
+	"github.com/reinp/event-platform/backend/internal/server"
+	"github.com/reinp/event-platform/backend/internal/service"
+)
+
+func main() {
+
+	cfg := config.Load()
+
+	db, err := database.Connect(cfg)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = db.AutoMigrate(
+		&models.User{},
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	userRepository := repository.NewUserRepository(db)
+
+	jwt := auth.NewJWT(
+		cfg.JWTSecret,
+	)
+
+	authService := service.NewAuthService(
+		userRepository,
+		jwt,
+	)
+
+	sqlDB, err := db.DB()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer sqlDB.Close()
+
+	log.Println("Database connected")
+
+	if err := server.Start(
+		":"+cfg.Port,
+		authService,
+	); err != nil {
+		log.Fatal(err)
+	}
+}
