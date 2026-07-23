@@ -13,6 +13,7 @@ func Register(
 	authService *service.AuthService,
 	partyService *service.PartyService,
 	categoryService *service.CategoryService,
+	mediaService *service.MediaService,
 ) {
 
 	authHandler := handlers.NewAuthHandler(authService)
@@ -23,6 +24,10 @@ func Register(
 
 	categoryHandler := handlers.NewCategoryHandler(
 		categoryService,
+	)
+
+	mediaHandler := handlers.NewMediaHandler(
+		mediaService,
 	)
 
 	// Public routes
@@ -108,5 +113,11 @@ func Register(
 		categoryHandler.Delete,
 	)
 	// * Categories * //
+
+	// * Media * //
+	router.POST(
+		"/api/media/upload",
+		mediaHandler.Upload,
+	)
 
 }

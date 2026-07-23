@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -24,13 +25,19 @@ func NewPartyHandler(
 }
 
 type createPartyRequest struct {
-	Title string `json:"title" binding:"required"`
+	Title string `json:"title"`
 
 	Description string `json:"description"`
 
-	Date string `json:"date" binding:"required"`
-
 	Location string `json:"location"`
+
+	StartAt time.Time `json:"start_at" binding:"required"`
+
+	EndAt time.Time `json:"end_at" binding:"required"`
+
+	CategoryID uuid.UUID `json:"category_id"`
+
+	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
 }
 
 type updatePartyRequest struct {
@@ -40,7 +47,13 @@ type updatePartyRequest struct {
 
 	Location string `json:"location"`
 
-	Date string `json:"date"`
+	StartAt time.Time `json:"start_at" binding:"required"`
+
+	EndAt time.Time `json:"end_at" binding:"required"`
+
+	CategoryID uuid.UUID `json:"category_id"`
+
+	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
 }
 
 func (h *PartyHandler) Create(c *gin.Context) {
@@ -51,6 +64,15 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
+		})
+
+		return
+	}
+
+	if req.EndAt.Before(req.StartAt) {
+
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "end date must be after start date",
 		})
 
 		return
@@ -88,7 +110,11 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 		Location: req.Location,
 
+		CategoryID: req.CategoryID,
+
 		OrganizerID: organizerID,
+
+		ThumbnailID: req.ThumbnailID,
 	}
 
 	err = h.service.Create(
@@ -198,6 +224,15 @@ func (h *PartyHandler) Update(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
+		if req.EndAt.Before(req.StartAt) {
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "end date must be after start date",
+			})
+
+			return
+		}
+
 		c.JSON(400, gin.H{
 			"error": err.Error(),
 		})
@@ -206,8 +241,14 @@ func (h *PartyHandler) Update(c *gin.Context) {
 	}
 
 	party.Title = req.Title
+
 	party.Description = req.Description
+
 	party.Location = req.Location
+
+	party.CategoryID = req.CategoryID
+
+	party.ThumbnailID = req.ThumbnailID
 
 	err = h.service.Update(
 		c.Request.Context(),

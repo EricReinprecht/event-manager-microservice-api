@@ -14,7 +14,8 @@ type Party struct {
 
 	Description string
 
-	Date time.Time
+	StartAt time.Time
+	EndAt   time.Time
 
 	Location string
 

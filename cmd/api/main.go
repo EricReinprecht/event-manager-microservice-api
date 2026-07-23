@@ -37,6 +37,7 @@ func main() {
 	userRepository := repository.NewUserRepository(db)
 	partyRepository := repository.NewPartyRepository(db)
 	categoryRepository := repository.NewCategoryRepository(db)
+	mediaRepository := repository.NewMediaRepository(db)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -55,6 +56,10 @@ func main() {
 		categoryRepository,
 	)
 
+	mediaService := service.NewMediaService(
+		mediaRepository,
+	)
+
 	sqlDB, err := db.DB()
 
 	if err != nil {
@@ -70,6 +75,7 @@ func main() {
 		authService,
 		partyService,
 		categoryService,
+		mediaService,
 	); err != nil {
 		log.Fatal(err)
 	}

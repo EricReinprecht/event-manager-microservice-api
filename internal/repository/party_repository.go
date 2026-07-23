@@ -42,6 +42,8 @@ func (r *PartyRepository) FindAll(
 	err := r.db.
 		WithContext(ctx).
 		Preload("Organizer").
+		Preload("Category").
+		Preload("Thumbnail").
 		Find(&parties).
 		Error
 
@@ -58,6 +60,9 @@ func (r *PartyRepository) FindByID(
 	err := r.db.
 		WithContext(ctx).
 		Preload("Organizer").
+		Preload("Category").
+		Preload("Thumbnail").
+		Preload("Images").
 		First(&party, id).
 		Error
 
