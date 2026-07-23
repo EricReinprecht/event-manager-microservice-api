@@ -121,30 +121,30 @@ func Register(
 	// * Categories * //
 
 	// * TicketCategories * //
-	// router.GET(
-	// 	"/api/categories",
-	// 	ticketCategoryHandler.GetAll,
-	// )
-
 	protected.POST(
 		"/parties/:id/ticket-categories",
 		ticketCategoryHandler.Create,
 	)
 
-	// router.GET(
-	// 	"/api/categories/:id",
-	// 	ticketCategoryHandler.GetByID,
-	// )
+	router.GET(
+		"/api/parties/:id/ticket-categories",
+		ticketCategoryHandler.GetAll,
+	)
 
-	// router.PUT(
-	// 	"/api/categories/:id",
-	// 	ticketCategoryHandler.Update,
-	// )
+	router.GET(
+		"/api/ticket-categories/:id",
+		ticketCategoryHandler.GetByID,
+	)
 
-	// router.DELETE(
-	// 	"/api/categories/:id",
-	// 	ticketCategoryHandler.Delete,
-	// )
+	protected.PUT(
+		"/ticket-categories/:id",
+		ticketCategoryHandler.Update,
+	)
+
+	protected.DELETE(
+		"/ticket-categories/:id",
+		ticketCategoryHandler.Delete,
+	)
 	// * TicketCategories * //
 
 	// * Media * //

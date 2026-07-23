@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -14,15 +15,15 @@ var ErrTicketCategoryExists = errors.New(
 )
 
 type TicketCategoryService struct {
-	repo *repository.TicketCategoryRepository
+	ticketCategories *repository.TicketCategoryRepository
 }
 
 func NewTicketCategoryService(
-	repo *repository.TicketCategoryRepository,
+	ticketCategories *repository.TicketCategoryRepository,
 ) *TicketCategoryService {
 
 	return &TicketCategoryService{
-		repo: repo,
+		ticketCategories: ticketCategories,
 	}
 }
 
@@ -31,7 +32,7 @@ func (s *TicketCategoryService) Create(
 	category *models.TicketCategory,
 ) error {
 
-	err := s.repo.Create(
+	err := s.ticketCategories.Create(
 		ctx,
 		category,
 	)
@@ -51,4 +52,48 @@ func (s *TicketCategoryService) Create(
 	}
 
 	return nil
+}
+
+func (s *TicketCategoryService) FindByParty(
+	ctx context.Context,
+	partyID uuid.UUID,
+) ([]models.TicketCategory, error) {
+
+	return s.ticketCategories.FindByParty(
+		ctx,
+		partyID,
+	)
+}
+
+func (s *TicketCategoryService) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.TicketCategory, error) {
+
+	return s.ticketCategories.FindByID(
+		ctx,
+		id,
+	)
+}
+
+func (s *TicketCategoryService) Update(
+	ctx context.Context,
+	category *models.TicketCategory,
+) error {
+
+	return s.ticketCategories.Update(
+		ctx,
+		category,
+	)
+}
+
+func (s *TicketCategoryService) Delete(
+	ctx context.Context,
+	category *models.TicketCategory,
+) error {
+
+	return s.ticketCategories.Delete(
+		ctx,
+		category,
+	)
 }
