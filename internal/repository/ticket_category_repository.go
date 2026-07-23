@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
-	"gorm.io/gorm"
 )
 
 type TicketCategoryRepository struct {
-	db *gorm.DB
+	db database.DBExecutor
 }
 
 func NewTicketCategoryRepository(
-	db *gorm.DB,
+	db database.DBExecutor,
 ) *TicketCategoryRepository {
 
 	return &TicketCategoryRepository{
@@ -26,7 +26,10 @@ func (r *TicketCategoryRepository) Create(
 	category *models.TicketCategory,
 ) error {
 
-	return r.db.WithContext(ctx).Create(category).Error
+	return r.db.
+		WithContext(ctx).
+		Create(category).
+		Error()
 }
 
 func (r *TicketCategoryRepository) FindByID(
@@ -40,7 +43,7 @@ func (r *TicketCategoryRepository) FindByID(
 		WithContext(ctx).
 		Preload("Party").
 		First(&category, "id = ?", id).
-		Error
+		Error()
 
 	return &category, err
 }
@@ -56,7 +59,7 @@ func (r *TicketCategoryRepository) FindByParty(
 		WithContext(ctx).
 		Where("party_id = ?", partyID).
 		Find(&categories).
-		Error
+		Error()
 
 	return categories, err
 }
@@ -69,7 +72,7 @@ func (r *TicketCategoryRepository) Update(
 	return r.db.
 		WithContext(ctx).
 		Save(category).
-		Error
+		Error()
 }
 
 func (r *TicketCategoryRepository) Delete(
@@ -80,5 +83,30 @@ func (r *TicketCategoryRepository) Delete(
 	return r.db.
 		WithContext(ctx).
 		Delete(category).
-		Error
+		Error()
+}
+
+func (r *TicketCategoryRepository) FindByIDForUpdate(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.TicketCategory, error) {
+
+	var category models.TicketCategory
+
+	err := r.db.
+		WithContext(ctx).
+		Raw(
+			`
+			SELECT *
+			FROM ticket_categories
+			WHERE id = ?
+			AND deleted_at IS NULL
+			FOR UPDATE
+			`,
+			id,
+		).
+		Scan(&category).
+		Error()
+
+	return &category, err
 }

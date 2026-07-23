@@ -4,17 +4,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
 type TicketRepository struct {
-	db *gorm.DB
+	db database.DBExecutor
 }
 
 func NewTicketRepository(
-	db *gorm.DB,
+	db database.DBExecutor,
 ) *TicketRepository {
 
 	return &TicketRepository{
@@ -30,7 +30,7 @@ func (r *TicketRepository) Create(
 	return r.db.
 		WithContext(ctx).
 		Create(ticket).
-		Error
+		Error()
 }
 
 func (r *TicketRepository) FindByCode(
@@ -44,10 +44,9 @@ func (r *TicketRepository) FindByCode(
 		WithContext(ctx).
 		Preload("TicketCategory").
 		Preload("TicketCategory.Party").
-		Preload("User").
 		Where("code = ?", code).
 		First(&ticket).
-		Error
+		Error()
 
 	return &ticket, err
 }
@@ -62,7 +61,7 @@ func (r *TicketRepository) FindByID(
 	err := r.db.
 		WithContext(ctx).
 		First(&ticket, "id = ?", id).
-		Error
+		Error()
 
 	return &ticket, err
 }
@@ -75,7 +74,7 @@ func (r *TicketRepository) Update(
 	return r.db.
 		WithContext(ctx).
 		Save(ticket).
-		Error
+		Error()
 }
 
 func (r *TicketRepository) CreatePurchase(
@@ -86,7 +85,7 @@ func (r *TicketRepository) CreatePurchase(
 	return r.db.
 		WithContext(ctx).
 		Create(purchase).
-		Error
+		Error()
 }
 
 func (r *TicketRepository) CreatePurchaseItem(
@@ -97,7 +96,7 @@ func (r *TicketRepository) CreatePurchaseItem(
 	return r.db.
 		WithContext(ctx).
 		Create(item).
-		Error
+		Error()
 }
 
 func (r *TicketRepository) FindByUser(
@@ -109,11 +108,31 @@ func (r *TicketRepository) FindByUser(
 
 	err := r.db.
 		WithContext(ctx).
-		Where("user_id = ?", userID).
 		Preload("TicketCategory").
-		Preload("Party").
+		Preload("TicketCategory.Party").
+		Preload("User").
 		Find(&tickets).
-		Error
+		Error()
 
 	return tickets, err
+}
+
+func (r *TicketRepository) CountByCategory(
+	ctx context.Context,
+	categoryID uuid.UUID,
+) (int64, error) {
+
+	var count int64
+
+	err := r.db.
+		WithContext(ctx).
+		Model(&models.Ticket{}).
+		Where(
+			"ticket_category_id = ?",
+			categoryID,
+		).
+		Count(&count).
+		Error()
+
+	return count, err
 }

@@ -17,6 +17,7 @@ func main() {
 	cfg := config.Load()
 
 	db, err := database.Connect(cfg)
+	executor := database.NewGormExecutor(db)
 
 	if err != nil {
 		log.Fatal(err)
@@ -53,8 +54,8 @@ func main() {
 	partyRepository := repository.NewPartyRepository(db)
 	categoryRepository := repository.NewCategoryRepository(db)
 	mediaRepository := repository.NewMediaRepository(db)
-	ticketCategoryRepository := repository.NewTicketCategoryRepository(db)
-	ticketRepository := repository.NewTicketRepository(db)
+	ticketCategoryRepository := repository.NewTicketCategoryRepository(executor)
+	ticketRepository := repository.NewTicketRepository(executor)
 	partyMemberRepository := repository.NewPartyMemberRepository(db)
 
 	jwt := auth.NewJWT(
@@ -89,6 +90,9 @@ func main() {
 
 	ticketService := service.NewTicketService(
 		ticketRepository,
+		partyRepository,
+		ticketCategoryRepository,
+		executor,
 	)
 
 	sqlDB, err := db.DB()

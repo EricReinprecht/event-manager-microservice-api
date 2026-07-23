@@ -12,9 +12,9 @@ type TicketCategory struct {
 
 	Name string
 
-	Price float64
+	Price int64
 
-	Amount int
+	Capacity int
 
 	PartyID uuid.UUID
 

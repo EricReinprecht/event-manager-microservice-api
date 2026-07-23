@@ -32,7 +32,7 @@ type createTicketCategoryRequest struct {
 
 	Price float64 `json:"price" binding:"required"`
 
-	Amount int `json:"amount" binding:"required"`
+	Capacity int `json:"capacity" binding:"required"`
 }
 
 type updateTicketCategoryRequest struct {
@@ -40,7 +40,7 @@ type updateTicketCategoryRequest struct {
 
 	Price float64 `json:"price" binding:"required"`
 
-	Amount int `json:"amount" binding:"required"`
+	Capacity int `json:"capacity" binding:"required"`
 }
 
 func (h *TicketCategoryHandler) Create(c *gin.Context) {
@@ -90,10 +90,10 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 	}
 
 	category := &models.TicketCategory{
-		Name:    req.Name,
-		Price:   req.Price,
-		Amount:  req.Amount,
-		PartyID: partyID,
+		Name:     req.Name,
+		Price:    req.Price,
+		Capacity: req.Capacity,
+		PartyID:  partyID,
 	}
 
 	err = h.service.Create(
@@ -227,7 +227,7 @@ func (h *TicketCategoryHandler) Update(c *gin.Context) {
 
 	category.Name = req.Name
 	category.Price = req.Price
-	category.Amount = req.Amount
+	category.Capacity = req.Capacity
 
 	err = h.service.Update(
 		c.Request.Context(),

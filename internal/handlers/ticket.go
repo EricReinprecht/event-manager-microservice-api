@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -81,12 +83,17 @@ func (h *TicketHandler) Purchase(c *gin.Context) {
 
 	for _, item := range req.Items {
 
-		if item.Quantity <= 0 {
+		if item.TicketCategoryID == uuid.Nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "ticket category id is required",
+			})
+			return
+		}
 
+		if item.Quantity <= 0 {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "quantity must be greater than zero",
 			})
-
 			return
 		}
 	}
@@ -100,9 +107,32 @@ func (h *TicketHandler) Purchase(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		switch {
+
+		case errors.Is(err, appErrors.ErrPartyNotFound):
+
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": err.Error(),
+			})
+
+		case errors.Is(err, appErrors.ErrTicketCategoryNotFound):
+
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": err.Error(),
+			})
+
+		case errors.Is(err, appErrors.ErrNotEnoughTickets):
+
+			c.JSON(http.StatusConflict, gin.H{
+				"error": err.Error(),
+			})
+
+		default:
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+		}
 
 		return
 	}
