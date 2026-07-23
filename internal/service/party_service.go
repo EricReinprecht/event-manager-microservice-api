@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -83,4 +84,26 @@ func (s *PartyService) UpdateImages(
 		party,
 		imageIDs,
 	)
+}
+
+func (s *PartyService) FindOwnedParty(
+	ctx context.Context,
+	partyID uuid.UUID,
+	userID uuid.UUID,
+) (*models.Party, error) {
+
+	party, err := s.FindByID(
+		ctx,
+		partyID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if party.OrganizerID != userID {
+		return nil, errors.New("not allowed")
+	}
+
+	return party, nil
 }

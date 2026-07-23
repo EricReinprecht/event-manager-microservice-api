@@ -25,6 +25,8 @@ type Party struct {
 
 	Images []Media `gorm:"many2many:party_media;"`
 
+	TicketCategories []TicketCategory
+
 	CategoryID uuid.UUID
 
 	Category Category

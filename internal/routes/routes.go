@@ -14,6 +14,7 @@ func Register(
 	partyService *service.PartyService,
 	categoryService *service.CategoryService,
 	mediaService *service.MediaService,
+	ticketCategoryService *service.TicketCategoryService,
 ) {
 
 	authHandler := handlers.NewAuthHandler(authService)
@@ -28,6 +29,11 @@ func Register(
 
 	mediaHandler := handlers.NewMediaHandler(
 		mediaService,
+	)
+
+	ticketCategoryHandler := handlers.NewTicketCategoryHandler(
+		ticketCategoryService,
+		partyService,
 	)
 
 	// Public routes
@@ -113,6 +119,33 @@ func Register(
 		categoryHandler.Delete,
 	)
 	// * Categories * //
+
+	// * TicketCategories * //
+	// router.GET(
+	// 	"/api/categories",
+	// 	ticketCategoryHandler.GetAll,
+	// )
+
+	protected.POST(
+		"/parties/:id/ticket-categories",
+		ticketCategoryHandler.Create,
+	)
+
+	// router.GET(
+	// 	"/api/categories/:id",
+	// 	ticketCategoryHandler.GetByID,
+	// )
+
+	// router.PUT(
+	// 	"/api/categories/:id",
+	// 	ticketCategoryHandler.Update,
+	// )
+
+	// router.DELETE(
+	// 	"/api/categories/:id",
+	// 	ticketCategoryHandler.Delete,
+	// )
+	// * TicketCategories * //
 
 	// * Media * //
 	router.POST(

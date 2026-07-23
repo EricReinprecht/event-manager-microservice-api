@@ -218,26 +218,27 @@ func (h *PartyHandler) Update(c *gin.Context) {
 		return
 	}
 
-	party, err := h.service.FindByID(
-		c.Request.Context(),
-		id,
+	userID, err := uuid.Parse(
+		c.MustGet("user_id").(string),
 	)
 
 	if err != nil {
-		c.JSON(404, gin.H{
-			"error": "party not found",
+		c.JSON(401, gin.H{
+			"error": "invalid user",
 		})
 		return
 	}
 
-	userID := c.MustGet("user_id").(string)
+	party, err := h.service.FindOwnedParty(
+		c.Request.Context(),
+		id,
+		userID,
+	)
 
-	if party.OrganizerID.String() != userID {
-
+	if err != nil {
 		c.JSON(403, gin.H{
 			"error": "not allowed",
 		})
-
 		return
 	}
 
@@ -320,26 +321,27 @@ func (h *PartyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	party, err := h.service.FindByID(
-		c.Request.Context(),
-		id,
+	userID, err := uuid.Parse(
+		c.MustGet("user_id").(string),
 	)
 
 	if err != nil {
-		c.JSON(404, gin.H{
-			"error": "party not found",
+		c.JSON(401, gin.H{
+			"error": "invalid user",
 		})
 		return
 	}
 
-	userID := c.MustGet("user_id").(string)
+	party, err := h.service.FindOwnedParty(
+		c.Request.Context(),
+		id,
+		userID,
+	)
 
-	if party.OrganizerID.String() != userID {
-
+	if err != nil {
 		c.JSON(403, gin.H{
 			"error": "not allowed",
 		})
-
 		return
 	}
 
