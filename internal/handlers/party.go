@@ -38,6 +38,8 @@ type createPartyRequest struct {
 	CategoryID uuid.UUID `json:"category_id"`
 
 	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
+
+	ImageIDs []uuid.UUID `json:"image_ids"`
 }
 
 type updatePartyRequest struct {
@@ -54,6 +56,8 @@ type updatePartyRequest struct {
 	CategoryID uuid.UUID `json:"category_id"`
 
 	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
+
+	ImageIDs []uuid.UUID `json:"image_ids"`
 }
 
 func (h *PartyHandler) Create(c *gin.Context) {
@@ -89,9 +93,7 @@ func (h *PartyHandler) Create(c *gin.Context) {
 		return
 	}
 
-	organizerID, err := uuid.Parse(
-		userID.(string),
-	)
+	organizerID, err := uuid.Parse(userID.(string))
 
 	if err != nil {
 
@@ -110,6 +112,10 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 		Location: req.Location,
 
+		StartAt: req.StartAt,
+
+		EndAt: req.EndAt,
+
 		CategoryID: req.CategoryID,
 
 		OrganizerID: organizerID,
@@ -120,6 +126,21 @@ func (h *PartyHandler) Create(c *gin.Context) {
 	err = h.service.Create(
 		c.Request.Context(),
 		party,
+		req.ImageIDs,
+	)
+
+	if err != nil {
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	party, err = h.service.FindByID(
+		c.Request.Context(),
+		party.ID,
 	)
 
 	if err != nil {
@@ -250,9 +271,28 @@ func (h *PartyHandler) Update(c *gin.Context) {
 
 	party.ThumbnailID = req.ThumbnailID
 
+	party.StartAt = req.StartAt
+
+	party.EndAt = req.EndAt
+
 	err = h.service.Update(
 		c.Request.Context(),
 		party,
+	)
+
+	if err != nil {
+
+		c.JSON(500, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	err = h.service.UpdateImages(
+		c.Request.Context(),
+		party,
+		req.ImageIDs,
 	)
 
 	if err != nil {

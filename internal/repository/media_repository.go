@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
@@ -30,4 +31,20 @@ func (r *MediaRepository) Create(
 		WithContext(ctx).
 		Create(media).
 		Error
+}
+
+func (r *MediaRepository) FindByIDs(
+	ctx context.Context,
+	ids []uuid.UUID,
+) ([]models.Media, error) {
+
+	var media []models.Media
+
+	err := r.db.
+		WithContext(ctx).
+		Where("id IN ?", ids).
+		Find(&media).
+		Error
+
+	return media, err
 }

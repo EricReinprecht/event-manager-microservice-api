@@ -25,11 +25,13 @@ func NewPartyService(
 func (s *PartyService) Create(
 	ctx context.Context,
 	party *models.Party,
+	imageIDs []uuid.UUID,
 ) error {
 
 	return s.parties.Create(
 		ctx,
 		party,
+		imageIDs,
 	)
 }
 
@@ -67,5 +69,18 @@ func (s *PartyService) Delete(
 	return s.parties.Delete(
 		ctx,
 		party,
+	)
+}
+
+func (s *PartyService) UpdateImages(
+	ctx context.Context,
+	party *models.Party,
+	imageIDs []uuid.UUID,
+) error {
+
+	return s.parties.UpdateImages(
+		ctx,
+		party,
+		imageIDs,
 	)
 }

@@ -21,7 +21,7 @@ type Party struct {
 
 	ThumbnailID *uuid.UUID
 
-	Thumbnail *Media
+	Thumbnail *Media `gorm:"foreignKey:ThumbnailID"`
 
 	Images []Media `gorm:"many2many:party_media;"`
 

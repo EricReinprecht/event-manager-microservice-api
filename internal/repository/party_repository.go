@@ -25,12 +25,29 @@ func NewPartyRepository(
 func (r *PartyRepository) Create(
 	ctx context.Context,
 	party *models.Party,
+	imageIDs []uuid.UUID,
 ) error {
 
-	return r.db.
-		WithContext(ctx).
-		Create(party).
-		Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		if len(imageIDs) > 0 {
+
+			var images []models.Media
+
+			err := tx.
+				Where("id IN ?", imageIDs).
+				Find(&images).
+				Error
+
+			if err != nil {
+				return err
+			}
+
+			party.Images = images
+		}
+
+		return tx.Create(party).Error
+	})
 }
 
 func (r *PartyRepository) FindAll(
@@ -59,11 +76,11 @@ func (r *PartyRepository) FindByID(
 
 	err := r.db.
 		WithContext(ctx).
-		Preload("Organizer").
-		Preload("Category").
 		Preload("Thumbnail").
 		Preload("Images").
-		First(&party, id).
+		Preload("Category").
+		Preload("Organizer").
+		First(&party, "id = ?", id).
 		Error
 
 	return &party, err
@@ -76,7 +93,17 @@ func (r *PartyRepository) Update(
 
 	return r.db.
 		WithContext(ctx).
-		Save(party).
+		Model(&models.Party{}).
+		Where("id = ?", party.ID).
+		Updates(map[string]interface{}{
+			"title":        party.Title,
+			"description":  party.Description,
+			"location":     party.Location,
+			"category_id":  party.CategoryID,
+			"thumbnail_id": party.ThumbnailID,
+			"start_at":     party.StartAt,
+			"end_at":       party.EndAt,
+		}).
 		Error
 }
 
@@ -89,4 +116,33 @@ func (r *PartyRepository) Delete(
 		WithContext(ctx).
 		Delete(party).
 		Error
+}
+
+func (r *PartyRepository) UpdateImages(
+	ctx context.Context,
+	party *models.Party,
+	imageIDs []uuid.UUID,
+) error {
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		var images []models.Media
+
+		if len(imageIDs) > 0 {
+
+			err := tx.
+				Where("id IN ?", imageIDs).
+				Find(&images).
+				Error
+
+			if err != nil {
+				return err
+			}
+		}
+
+		return tx.
+			Model(party).
+			Association("Images").
+			Replace(images)
+	})
 }
