@@ -11,6 +11,7 @@ func Start(
 	port string,
 	authService *service.AuthService,
 	partyService *service.PartyService,
+	categoryService *service.CategoryService,
 ) error {
 
 	router := gin.Default()
@@ -19,6 +20,7 @@ func Start(
 		router,
 		authService,
 		partyService,
+		categoryService,
 	)
 
 	return router.Run(port)

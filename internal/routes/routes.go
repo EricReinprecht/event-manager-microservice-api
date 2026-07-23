@@ -12,12 +12,17 @@ func Register(
 	router *gin.Engine,
 	authService *service.AuthService,
 	partyService *service.PartyService,
+	categoryService *service.CategoryService,
 ) {
 
 	authHandler := handlers.NewAuthHandler(authService)
 
 	partyHandler := handlers.NewPartyHandler(
 		partyService,
+	)
+
+	categoryHandler := handlers.NewCategoryHandler(
+		categoryService,
 	)
 
 	// Public routes
@@ -76,4 +81,32 @@ func Register(
 		partyHandler.Delete,
 	)
 	// * Parties * //
+
+	// * Categories * //
+	router.GET(
+		"/api/categories",
+		categoryHandler.GetAll,
+	)
+
+	router.POST(
+		"/api/categories",
+		categoryHandler.Create,
+	)
+
+	router.GET(
+		"/api/categories/:id",
+		categoryHandler.GetByID,
+	)
+
+	router.PUT(
+		"/api/categories/:id",
+		categoryHandler.Update,
+	)
+
+	router.DELETE(
+		"/api/categories/:id",
+		categoryHandler.Delete,
+	)
+	// * Categories * //
+
 }

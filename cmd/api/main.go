@@ -36,6 +36,7 @@ func main() {
 
 	userRepository := repository.NewUserRepository(db)
 	partyRepository := repository.NewPartyRepository(db)
+	categoryRepository := repository.NewCategoryRepository(db)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -48,6 +49,10 @@ func main() {
 
 	partyService := service.NewPartyService(
 		partyRepository,
+	)
+
+	categoryService := service.NewCategoryService(
+		categoryRepository,
 	)
 
 	sqlDB, err := db.DB()
@@ -64,6 +69,7 @@ func main() {
 		":"+cfg.Port,
 		authService,
 		partyService,
+		categoryService,
 	); err != nil {
 		log.Fatal(err)
 	}
