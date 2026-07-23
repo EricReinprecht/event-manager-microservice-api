@@ -29,19 +29,10 @@ func main() {
 		&models.Media{},
 		&models.PartyMedia{},
 		&models.TicketCategory{},
+		&models.Ticket{},
+		&models.Purchase{},
+		&models.PurchaseItem{},
 	)
-
-	if !db.Migrator().HasIndex(
-		&models.TicketCategory{},
-		"idx_party_ticket_category_name",
-	) {
-		if err := db.Migrator().CreateIndex(
-			&models.TicketCategory{},
-			"idx_party_ticket_category_name",
-		); err != nil {
-			panic(err)
-		}
-	}
 
 	if err != nil {
 		log.Fatal(err)
@@ -59,7 +50,8 @@ func main() {
 	partyRepository := repository.NewPartyRepository(db)
 	categoryRepository := repository.NewCategoryRepository(db)
 	mediaRepository := repository.NewMediaRepository(db)
-	ticketRepository := repository.NewTicketCategoryRepository(db)
+	ticketCategoryRepository := repository.NewTicketCategoryRepository(db)
+	ticketRepository := repository.NewTicketRepository(db)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -83,6 +75,10 @@ func main() {
 	)
 
 	ticketCategoryService := service.NewTicketCategoryService(
+		ticketCategoryRepository,
+	)
+
+	ticketService := service.NewTicketService(
 		ticketRepository,
 	)
 
@@ -103,6 +99,7 @@ func main() {
 		categoryService,
 		mediaService,
 		ticketCategoryService,
+		ticketService,
 	); err != nil {
 		log.Fatal(err)
 	}
