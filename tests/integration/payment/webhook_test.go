@@ -8,7 +8,6 @@ import (
 
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/requests"
 
 	"github.com/reinp/event-platform/backend/tests/fixtures"
@@ -93,11 +92,7 @@ func TestPaymentWebhookMarksPurchasePaid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	paypalClient := paypal.NewClient(
-		"",
-		"",
-		"",
-	)
+	paypalClient := helpers.NewPayPalClient()
 
 	ticketService := helpers.NewTicketService(db)
 
