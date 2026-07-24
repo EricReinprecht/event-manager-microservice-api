@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -93,4 +94,97 @@ func (s *PurchaseService) CreatePurchase(
 	}
 
 	return &purchase, nil
+}
+
+func (s *PurchaseService) AttachPayment(
+	ctx context.Context,
+	purchaseID uuid.UUID,
+	provider string,
+	paymentID string,
+) error {
+
+	return s.repository.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			purchase, err := s.repository.FindByID(
+				tx,
+				purchaseID,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			if purchase.Status != enum.StatusPending {
+				return errors.New("purchase is not pending")
+			}
+
+			return s.repository.UpdatePayment(
+				tx,
+				purchase,
+				provider,
+				paymentID,
+			)
+		},
+	)
+}
+
+func (s *PurchaseService) ConfirmPayment(
+	ctx context.Context,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	var purchase *models.Purchase
+
+	err := s.repository.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			var err error
+
+			purchase, err = s.repository.FindByPaymentID(
+				tx,
+				paymentID,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			// webhook idempotency
+			if purchase.Status == enum.StatusPaid {
+				return nil
+			}
+
+			if purchase.Status != enum.StatusPending {
+				return errors.New(
+					"purchase cannot be paid",
+				)
+			}
+
+			return s.repository.UpdateStatus(
+				tx,
+				purchase,
+				enum.StatusPaid,
+			)
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return purchase, nil
+}
+
+func (s *PurchaseService) GetPurchase(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.Purchase, error) {
+
+	return s.repository.Find(
+		ctx,
+		id,
+	)
 }

@@ -334,3 +334,96 @@ func TestCannotPurchaseTicketCategoryFromAnotherParty(t *testing.T) {
 		)
 	}
 }
+
+func TestPurchaseCanBeMarkedPaid(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	helpers.CleanDatabase(db)
+
+	user, party := setupPurchaseTest(t)
+
+	service := helpers.NewPurchaseService(db)
+
+	category := appModels.TicketCategory{
+
+		ID: uuid.New(),
+
+		Name: "VIP",
+
+		PartyID: party.ID,
+
+		Price: 5000,
+	}
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase, err := service.CreatePurchase(
+		context.Background(),
+		user.ID,
+		party.ID,
+		[]requests.PurchaseItemRequest{
+			{
+				TicketCategoryID: category.ID,
+				Quantity:         1,
+			},
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	paymentID := "PAYPAL-ORDER-123"
+
+	err = service.AttachPayment(
+		context.Background(),
+		purchase.ID,
+		"paypal",
+		paymentID,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updatedPurchase, err := service.ConfirmPayment(
+		context.Background(),
+		paymentID,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if updatedPurchase.Status != enum.StatusPaid {
+
+		t.Fatalf(
+			"expected purchase status PAID got %s",
+			updatedPurchase.Status,
+		)
+	}
+
+	if updatedPurchase.PaymentProvider != "paypal" {
+
+		t.Fatalf(
+			"expected payment provider paypal got %s",
+			updatedPurchase.PaymentProvider,
+		)
+	}
+
+	if updatedPurchase.PaymentID != paymentID {
+
+		t.Fatalf(
+			"expected payment id %s got %s",
+			paymentID,
+			updatedPurchase.PaymentID,
+		)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type PurchaseRepository struct {
@@ -32,12 +33,13 @@ func (r *PurchaseRepository) Create(
 }
 
 func (r *PurchaseRepository) FindByID(
+	db database.DBExecutor,
 	id uuid.UUID,
 ) (*models.Purchase, error) {
 
 	var purchase models.Purchase
 
-	err := r.db.
+	err := db.
 		Preload("Items").
 		First(&purchase, id).
 		Error()
@@ -92,4 +94,62 @@ func (r *PurchaseRepository) Transaction(
 	}
 
 	return tx.Commit()
+}
+
+func (r *PurchaseRepository) UpdatePayment(
+	db database.DBExecutor,
+	purchase *models.Purchase,
+	provider string,
+	paymentID string,
+) error {
+
+	purchase.PaymentProvider = provider
+	purchase.PaymentID = paymentID
+
+	return db.Save(purchase).Error()
+}
+
+func (r *PurchaseRepository) FindByPaymentID(
+	db database.DBExecutor,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	var purchase models.Purchase
+
+	err := db.
+		Preload("Items").
+		Where(
+			"payment_id = ?",
+			paymentID,
+		).
+		First(&purchase).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &purchase, nil
+}
+
+func (r *PurchaseRepository) UpdateStatus(
+	db database.DBExecutor,
+	purchase *models.Purchase,
+	status enum.PurchaseStatus,
+) error {
+
+	purchase.Status = status
+
+	return db.Save(purchase).Error()
+}
+
+func (r *PurchaseRepository) Find(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.Purchase, error) {
+
+	return r.FindByID(
+		r.db.WithContext(ctx),
+		id,
+	)
 }

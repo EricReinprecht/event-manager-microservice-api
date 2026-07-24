@@ -16,7 +16,8 @@ func Register(
 	mediaService *service.MediaService,
 	ticketCategoryService *service.TicketCategoryService,
 	ticketService *service.TicketService,
-	PurchaseService *service.PurchaseService,
+	purchaseService *service.PurchaseService,
+	paymentService *service.PaymentService,
 	partyMemberService *service.PartyMemberService,
 ) {
 
@@ -41,6 +42,14 @@ func Register(
 
 	ticketHandler := handlers.NewTicketHandler(
 		ticketService,
+	)
+
+	purchaseHandler := handlers.NewPurchaseHandler(
+		purchaseService,
+	)
+
+	paymentHandler := handlers.NewPaymentHandler(
+		paymentService,
 	)
 
 	partyMemberHandler := handlers.NewPartyMemberHandler(
@@ -159,11 +168,6 @@ func Register(
 	// * TicketCategories * //
 
 	// * Tickets * //
-	protected.POST(
-		"/parties/:id/tickets/purchase",
-		ticketHandler.Purchase,
-	)
-
 	protected.GET(
 		"/tickets/me",
 		ticketHandler.GetMyTickets,
@@ -179,6 +183,30 @@ func Register(
 		ticketHandler.VerifyScan,
 	)
 	// * Tickets * //
+
+	// * Purchase * //
+	protected.POST(
+		"/parties/:id/purchases",
+		purchaseHandler.Create,
+	)
+
+	protected.GET(
+		"/purchases/:id",
+		purchaseHandler.GetByID,
+	)
+	// * Purchase * //
+
+	// * Payments * //
+	protected.POST(
+		"/purchases/:id/checkout",
+		paymentHandler.CreateCheckout,
+	)
+
+	router.POST(
+		"/api/payments/paypal/webhook",
+		paymentHandler.Webhook,
+	)
+	// * Payments * //
 
 	// * PartyMembers * //
 	protected.POST(

@@ -29,8 +29,6 @@ func NewTicketService(
 
 	return service.NewTicketService(
 		repository.NewTicketRepository(executor),
-		repository.NewPartyRepository(db),
-		repository.NewTicketCategoryRepository(executor),
 		repository.NewPartyMemberRepository(executor),
 		repository.NewTicketScanRepository(executor),
 		repository.NewTicketAccessWindowRepository(executor),

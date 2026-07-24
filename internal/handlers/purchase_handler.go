@@ -35,7 +35,9 @@ func (h *PurchaseHandler) Create(c *gin.Context) {
 
 		c.JSON(
 			http.StatusBadRequest,
-			gin.H{"error": "invalid party id"},
+			gin.H{
+				"error": "invalid party id",
+			},
 		)
 
 		return
@@ -49,7 +51,9 @@ func (h *PurchaseHandler) Create(c *gin.Context) {
 
 		c.JSON(
 			http.StatusUnauthorized,
-			gin.H{"error": "invalid user"},
+			gin.H{
+				"error": "invalid user",
+			},
 		)
 
 		return
@@ -61,7 +65,21 @@ func (h *PurchaseHandler) Create(c *gin.Context) {
 
 		c.JSON(
 			http.StatusBadRequest,
-			gin.H{"error": err.Error()},
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	if len(req.Items) == 0 {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "purchase requires items",
+			},
 		)
 
 		return
@@ -78,18 +96,49 @@ func (h *PurchaseHandler) Create(c *gin.Context) {
 
 		switch {
 
-		case errors.Is(err, appErrors.ErrTicketCategoryNotFound):
+		case errors.Is(
+			err,
+			appErrors.ErrPartyNotFound,
+		):
 
 			c.JSON(
 				http.StatusNotFound,
-				gin.H{"error": err.Error()},
+				gin.H{
+					"error": err.Error(),
+				},
+			)
+
+		case errors.Is(
+			err,
+			appErrors.ErrTicketCategoryNotFound,
+		):
+
+			c.JSON(
+				http.StatusNotFound,
+				gin.H{
+					"error": err.Error(),
+				},
+			)
+
+		case errors.Is(
+			err,
+			appErrors.ErrNotEnoughTickets,
+		):
+
+			c.JSON(
+				http.StatusConflict,
+				gin.H{
+					"error": err.Error(),
+				},
 			)
 
 		default:
 
 			c.JSON(
 				http.StatusBadRequest,
-				gin.H{"error": err.Error()},
+				gin.H{
+					"error": err.Error(),
+				},
 			)
 		}
 
@@ -98,6 +147,47 @@ func (h *PurchaseHandler) Create(c *gin.Context) {
 
 	c.JSON(
 		http.StatusCreated,
+		purchase,
+	)
+}
+
+func (h *PurchaseHandler) GetByID(c *gin.Context) {
+
+	id, err := uuid.Parse(
+		c.Param("id"),
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "invalid purchase id",
+			},
+		)
+
+		return
+	}
+
+	purchase, err := h.service.GetPurchase(
+		c.Request.Context(),
+		id,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusNotFound,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
 		purchase,
 	)
 }

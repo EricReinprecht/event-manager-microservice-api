@@ -8,6 +8,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/config"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/server"
 	"github.com/reinp/event-platform/backend/internal/service"
@@ -104,8 +105,6 @@ func main() {
 
 	ticketService := service.NewTicketService(
 		ticketRepository,
-		partyRepository,
-		ticketCategoryRepository,
 		partyMemberRepository,
 		ticketScanRepository,
 		ticketAccessWindowRepository,
@@ -116,6 +115,18 @@ func main() {
 
 	purchaseService := service.NewPurchaseService(
 		purchaseRepository,
+	)
+
+	paypalClient := paypal.NewClient(
+		cfg.PayPalClientID,
+		cfg.PayPalClientSecret,
+		cfg.PayPalBaseURL,
+	)
+
+	paymentService := service.NewPaymentService(
+		purchaseService,
+		ticketService,
+		paypalClient,
 	)
 
 	sqlDB, err := db.DB()
@@ -137,6 +148,7 @@ func main() {
 		ticketCategoryService,
 		ticketService,
 		purchaseService,
+		paymentService,
 		partyMemberService,
 	); err != nil {
 		log.Fatal(err)

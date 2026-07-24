@@ -21,6 +21,10 @@ type Config struct {
 	JWTSecret string
 
 	TicketVerificationTTL time.Duration
+
+	PayPalClientID     string
+	PayPalClientSecret string
+	PayPalBaseURL      string
 }
 
 func Load() *Config {
@@ -76,6 +80,21 @@ func Load() *Config {
 				15,
 			),
 		) * time.Minute,
+
+		PayPalClientID: getEnv(
+			"PAYPAL_CLIENT_ID",
+			"",
+		),
+
+		PayPalClientSecret: getEnv(
+			"PAYPAL_CLIENT_SECRET",
+			"",
+		),
+
+		PayPalBaseURL: getEnv(
+			"PAYPAL_BASE_URL",
+			"https://api-m.sandbox.paypal.com",
+		),
 	}
 }
 

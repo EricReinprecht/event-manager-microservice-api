@@ -16,6 +16,7 @@ func Start(
 	ticketCategoryService *service.TicketCategoryService,
 	ticketService *service.TicketService,
 	purchaseService *service.PurchaseService,
+	paymentService *service.PaymentService,
 	partyMemberService *service.PartyMemberService,
 ) error {
 
@@ -30,6 +31,7 @@ func Start(
 		ticketCategoryService,
 		ticketService,
 		purchaseService,
+		paymentService,
 		partyMemberService,
 	)
 
