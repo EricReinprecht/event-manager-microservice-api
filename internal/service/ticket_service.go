@@ -447,7 +447,7 @@ func (s *TicketService) CreatePurchase(
 				PurchaseID:       purchase.ID,
 				TicketCategoryID: category.ID,
 				Quantity:         item.Quantity,
-				Price:            category.Price,
+				UnitPrice:        category.Price,
 			},
 		)
 

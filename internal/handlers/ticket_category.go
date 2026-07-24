@@ -32,7 +32,7 @@ func NewTicketCategoryHandler(
 type createTicketCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
 
-	Price int64 `json:"price" binding:"required"`
+	UnitPrice int64 `json:"price" binding:"required"`
 
 	Capacity int `json:"capacity" binding:"required"`
 
@@ -44,7 +44,7 @@ type createTicketCategoryRequest struct {
 type updateTicketCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
 
-	Price int64 `json:"price" binding:"required"`
+	UnitPrice int64 `json:"price" binding:"required"`
 
 	Capacity int `json:"capacity" binding:"required"`
 
@@ -120,7 +120,7 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 
 		Name: req.Name,
 
-		Price: req.Price,
+		Price: req.UnitPrice,
 
 		Capacity: req.Capacity,
 
@@ -288,7 +288,7 @@ func (h *TicketCategoryHandler) Update(c *gin.Context) {
 	}
 
 	category.Name = req.Name
-	category.Price = req.Price
+	category.Price = req.UnitPrice
 	category.Capacity = req.Capacity
 	category.RequiresVerification = req.RequiresVerification
 	category.AccessWindows = nil

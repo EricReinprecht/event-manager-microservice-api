@@ -12,15 +12,20 @@ import (
 type Purchase struct {
 	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 
-	UserID uuid.UUID
+	UserID uuid.UUID `gorm:"type:uuid;not null"`
 	User   User
 
-	PartyID uuid.UUID
+	PartyID uuid.UUID `gorm:"type:uuid;not null"`
 	Party   Party
 
 	Status enum.PurchaseStatus `gorm:"type:varchar(20);check:status IN ('PENDING','PAID','FAILED','CANCELED','REFUNDED')"`
 
-	Items []PurchaseItem
+	PaymentProvider string
+	PaymentID       string
+
+	TotalPrice int64
+
+	Items []PurchaseItem `gorm:"foreignKey:PurchaseID"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
