@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"gorm.io/gorm"
 )
 
 type TicketCategoryRepository struct {
@@ -108,5 +109,13 @@ func (r *TicketCategoryRepository) FindByIDForUpdate(
 		Scan(&category).
 		Error()
 
-	return &category, err
+	if err != nil {
+		return nil, err
+	}
+
+	if category.ID == uuid.Nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return &category, nil
 }

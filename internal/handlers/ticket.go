@@ -153,16 +153,41 @@ func (h *TicketHandler) Scan(c *gin.Context) {
 		return
 	}
 
+	userID, err := uuid.Parse(
+		c.MustGet("user_id").(string),
+	)
+
+	if err != nil {
+
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid user",
+		})
+
+		return
+	}
+
 	ticket, err := h.service.Scan(
 		c.Request.Context(),
+		userID,
 		req.Code,
 	)
 
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		switch {
+
+		case errors.Is(err, appErrors.ErrTicketAlreadyUsed):
+
+			c.JSON(http.StatusConflict, gin.H{
+				"error": err.Error(),
+			})
+
+		default:
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+		}
 
 		return
 	}

@@ -69,6 +69,7 @@ func main() {
 
 	partyMemberService := service.NewPartyMemberService(
 		partyMemberRepository,
+		partyRepository,
 	)
 
 	partyService := service.NewPartyService(
@@ -92,6 +93,7 @@ func main() {
 		ticketRepository,
 		partyRepository,
 		ticketCategoryRepository,
+		partyMemberRepository,
 		executor,
 	)
 

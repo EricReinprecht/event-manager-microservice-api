@@ -14,15 +14,18 @@ import (
 )
 
 type PartyMemberService struct {
-	repository *repository.PartyMemberRepository
+	repository      *repository.PartyMemberRepository
+	partyRepository *repository.PartyRepository
 }
 
 func NewPartyMemberService(
 	repository *repository.PartyMemberRepository,
+	partyRepository *repository.PartyRepository,
 ) *PartyMemberService {
 
 	return &PartyMemberService{
-		repository: repository,
+		repository:      repository,
+		partyRepository: partyRepository,
 	}
 }
 
@@ -39,10 +42,17 @@ func (s *PartyMemberService) Create(
 
 		if errors.As(err, &pgErr) {
 
-			if pgErr.Code == "23505" &&
-				pgErr.ConstraintName == "idx_party_member_user_party" {
+			switch {
+
+			case pgErr.Code == "23505" &&
+				pgErr.ConstraintName == "idx_party_member_user_party":
 
 				return appErrors.ErrPartyMemberAlreadyExists
+
+			case pgErr.Code == "23514" &&
+				pgErr.ConstraintName == "chk_party_members_role":
+
+				return appErrors.ErrInvalidPartyMemberRole
 			}
 		}
 
@@ -89,8 +99,30 @@ func (s *PartyMemberService) Update(
 
 func (s *PartyMemberService) Delete(
 	ctx context.Context,
-	member *models.PartyMember,
+	memberID uuid.UUID,
 ) error {
+
+	member, err := s.repository.FindByID(
+		ctx,
+		memberID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	party, err := s.partyRepository.FindByID(
+		ctx,
+		member.PartyID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if party.OrganizerID == member.UserID {
+		return appErrors.ErrCannotRemoveOrganizer
+	}
 
 	return s.repository.Delete(
 		ctx,

@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -15,29 +15,28 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
-var ErrTicketAlreadyUsed = errors.New(
-	"ticket already used",
-)
-
 type TicketService struct {
-	tickets    *repository.TicketRepository
-	parties    *repository.PartyRepository
-	categories *repository.TicketCategoryRepository
-	db         database.DBExecutor
+	tickets      *repository.TicketRepository
+	parties      *repository.PartyRepository
+	categories   *repository.TicketCategoryRepository
+	partyMembers *repository.PartyMemberRepository
+	db           database.DBExecutor
 }
 
 func NewTicketService(
 	ticketRepository *repository.TicketRepository,
 	partyRepository *repository.PartyRepository,
 	categoryRepository *repository.TicketCategoryRepository,
+	partyMemberRepository *repository.PartyMemberRepository,
 	db database.DBExecutor,
 ) *TicketService {
 
 	return &TicketService{
-		tickets:    ticketRepository,
-		parties:    partyRepository,
-		categories: categoryRepository,
-		db:         db,
+		tickets:      ticketRepository,
+		parties:      partyRepository,
+		categories:   categoryRepository,
+		partyMembers: partyMemberRepository,
+		db:           db,
 	}
 }
 
@@ -65,6 +64,7 @@ func (s *TicketService) FindByCode(
 
 func (s *TicketService) Scan(
 	ctx context.Context,
+	scannerID uuid.UUID,
 	code string,
 ) (*models.Ticket, error) {
 
@@ -77,8 +77,39 @@ func (s *TicketService) Scan(
 		return nil, err
 	}
 
+	member, err := s.partyMembers.FindByPartyAndUser(
+		ctx,
+		ticket.TicketCategory.PartyID,
+		scannerID,
+	)
+
+	if err != nil {
+		return nil, appErrors.ErrNotAllowed
+	}
+
+	if member.Role != enum.RoleOrganizer &&
+		member.Role != enum.RoleAdmin &&
+		member.Role != enum.RoleStaff {
+
+		return nil, appErrors.ErrNotAllowed
+	}
+
 	if ticket.UsedAt != nil {
-		return nil, ErrTicketAlreadyUsed
+
+		return nil, appErrors.ErrTicketAlreadyUsed
+	}
+
+	now := time.Now()
+
+	ticket.UsedAt = &now
+
+	err = s.tickets.Update(
+		ctx,
+		ticket,
+	)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return ticket, nil

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -103,19 +104,30 @@ func (h *PartyMemberHandler) Create(
 
 	if err != nil {
 
-		if errors.Is(err, appErrors.ErrPartyMemberAlreadyExists) {
+		switch {
+
+		case errors.Is(err, appErrors.ErrPartyMemberAlreadyExists):
+
 			c.JSON(409, gin.H{
 				"error": err.Error(),
 			})
-			return
-		}
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		case errors.Is(err, appErrors.ErrInvalidPartyMemberRole):
+
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+
+		default:
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+		}
 
 		return
 	}
+	c.JSON(http.StatusCreated, member)
 }
 
 func (h *PartyMemberHandler) GetAll(
@@ -236,30 +248,33 @@ func (h *PartyMemberHandler) Delete(
 		return
 	}
 
-	member, err := h.service.FindByID(
+	err = h.service.Delete(
 		c.Request.Context(),
 		memberID,
 	)
 
 	if err != nil {
 
-		c.JSON(404, gin.H{
-			"error": "member not found",
-		})
+		switch {
 
-		return
-	}
+		case errors.Is(err, appErrors.ErrCannotRemoveOrganizer):
 
-	err = h.service.Delete(
-		c.Request.Context(),
-		member,
-	)
+			c.JSON(403, gin.H{
+				"error": err.Error(),
+			})
 
-	if err != nil {
+		case errors.Is(err, appErrors.ErrPartyMemberNotFound):
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+			c.JSON(404, gin.H{
+				"error": err.Error(),
+			})
+
+		default:
+
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+		}
 
 		return
 	}
