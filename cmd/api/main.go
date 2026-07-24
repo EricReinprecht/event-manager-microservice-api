@@ -65,6 +65,7 @@ func main() {
 	mediaRepository := repository.NewMediaRepository(db)
 	ticketCategoryRepository := repository.NewTicketCategoryRepository(executor)
 	ticketRepository := repository.NewTicketRepository(executor)
+	purchaseRepository := repository.NewPurchaseRepository(executor)
 	partyMemberRepository := repository.NewPartyMemberRepository(executor)
 	ticketScanRepository := repository.NewTicketScanRepository(executor)
 	ticketAccessWindowRepository := repository.NewTicketAccessWindowRepository(executor)
@@ -113,6 +114,10 @@ func main() {
 		cfg.TicketVerificationTTL,
 	)
 
+	purchaseService := service.NewPurchaseService(
+		purchaseRepository,
+	)
+
 	sqlDB, err := db.DB()
 
 	if err != nil {
@@ -131,6 +136,7 @@ func main() {
 		mediaService,
 		ticketCategoryService,
 		ticketService,
+		purchaseService,
 		partyMemberService,
 	); err != nil {
 		log.Fatal(err)

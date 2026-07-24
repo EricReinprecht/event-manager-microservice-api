@@ -2,11 +2,11 @@ package requests
 
 import "github.com/google/uuid"
 
-type PurchaseItemRequest struct {
-	TicketCategoryID uuid.UUID `json:"ticket_category_id"`
-	Quantity         int       `json:"quantity"`
+type PurchaseRequest struct {
+	Items []PurchaseItemRequest `json:"items" binding:"required,min=1"`
 }
 
-type CreatePurchaseRequest struct {
-	Items []PurchaseItemRequest `json:"items"`
+type PurchaseItemRequest struct {
+	TicketCategoryID uuid.UUID `json:"ticket_category_id" binding:"required"`
+	Quantity         int       `json:"quantity" binding:"required,min=1"`
 }

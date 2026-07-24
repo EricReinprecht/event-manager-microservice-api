@@ -4,24 +4,24 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/requests"
 )
 
 type PurchaseService struct {
-	db *gorm.DB
+	repository *repository.PurchaseRepository
 }
 
 func NewPurchaseService(
-	db *gorm.DB,
+	repository *repository.PurchaseRepository,
 ) *PurchaseService {
 
 	return &PurchaseService{
-		db: db,
+		repository: repository,
 	}
 }
 
@@ -32,55 +32,49 @@ func (s *PurchaseService) CreatePurchase(
 	items []requests.PurchaseItemRequest,
 ) (*models.Purchase, error) {
 
-	var purchase models.Purchase
+	purchase := models.Purchase{
+		ID:      uuid.New(),
+		UserID:  userID,
+		PartyID: partyID,
+		Status:  enum.StatusPending,
+	}
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	var total int64
 
-		purchase = models.Purchase{
-			ID:      uuid.New(),
-			UserID:  userID,
-			PartyID: partyID,
-			Status:  enum.StatusPending,
+	for _, item := range items {
+
+		category, err := s.repository.FindTicketCategory(
+			ctx,
+			item.TicketCategoryID,
+		)
+
+		if err != nil {
+			return nil, appErrors.ErrTicketCategoryNotFound
 		}
 
-		var total int64
-
-		for _, item := range items {
-
-			var category models.TicketCategory
-
-			if err := tx.First(
-				&category,
-				"id = ?",
-				item.TicketCategoryID,
-			).Error; err != nil {
-
-				return appErrors.ErrTicketCategoryNotFound
-			}
-
-			if category.PartyID != partyID {
-				return appErrors.ErrTicketCategoryNotFound
-			}
-
-			price := category.Price
-
-			purchase.Items = append(
-				purchase.Items,
-				models.PurchaseItem{
-					ID:               uuid.New(),
-					TicketCategoryID: category.ID,
-					Quantity:         item.Quantity,
-					UnitPrice:        price,
-				},
-			)
-
-			total += price * int64(item.Quantity)
+		if category.PartyID != partyID {
+			return nil, appErrors.ErrTicketCategoryNotFound
 		}
 
-		purchase.TotalPrice = total
+		purchase.Items = append(
+			purchase.Items,
+			models.PurchaseItem{
+				ID:               uuid.New(),
+				TicketCategoryID: category.ID,
+				Quantity:         item.Quantity,
+				UnitPrice:        category.Price,
+			},
+		)
 
-		return tx.Create(&purchase).Error
-	})
+		total += category.Price * int64(item.Quantity)
+	}
+
+	purchase.TotalPrice = total
+
+	err := s.repository.Create(
+		ctx,
+		&purchase,
+	)
 
 	if err != nil {
 		return nil, err

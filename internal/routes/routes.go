@@ -16,6 +16,7 @@ func Register(
 	mediaService *service.MediaService,
 	ticketCategoryService *service.TicketCategoryService,
 	ticketService *service.TicketService,
+	PurchaseService *service.PurchaseService,
 	partyMemberService *service.PartyMemberService,
 ) {
 

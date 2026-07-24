@@ -15,6 +15,7 @@ func Start(
 	mediaService *service.MediaService,
 	ticketCategoryService *service.TicketCategoryService,
 	ticketService *service.TicketService,
+	purchaseService *service.PurchaseService,
 	partyMemberService *service.PartyMemberService,
 ) error {
 
@@ -28,6 +29,7 @@ func Start(
 		mediaService,
 		ticketCategoryService,
 		ticketService,
+		purchaseService,
 		partyMemberService,
 	)
 
