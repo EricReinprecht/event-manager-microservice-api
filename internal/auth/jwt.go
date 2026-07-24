@@ -20,7 +20,9 @@ func (j *JWT) Generate(userID string) (string, error) {
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
+
 		"exp": time.Now().
+			UTC().
 			Add(24 * time.Hour).
 			Unix(),
 	}

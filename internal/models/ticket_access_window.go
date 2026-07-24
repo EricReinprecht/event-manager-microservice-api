@@ -7,22 +7,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type TicketCategory struct {
+type TicketAccessWindow struct {
 	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 
-	Name string
+	TicketCategoryID uuid.UUID
+	TicketCategory   TicketCategory
 
-	Price int64
+	StartsAt time.Time
 
-	Capacity int
-
-	PartyID uuid.UUID
-
-	Party Party
-
-	RequiresVerification bool
-
-	AccessWindows []TicketAccessWindow
+	EndsAt time.Time
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

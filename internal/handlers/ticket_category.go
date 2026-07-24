@@ -3,10 +3,12 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -33,6 +35,10 @@ type createTicketCategoryRequest struct {
 	Price int64 `json:"price" binding:"required"`
 
 	Capacity int `json:"capacity" binding:"required"`
+
+	RequiresVerification bool `json:"requires_verification"`
+
+	AccessWindows []createTicketAccessWindowRequest `json:"access_windows" binding:"required"`
 }
 
 type updateTicketCategoryRequest struct {
@@ -41,6 +47,16 @@ type updateTicketCategoryRequest struct {
 	Price int64 `json:"price" binding:"required"`
 
 	Capacity int `json:"capacity" binding:"required"`
+
+	RequiresVerification bool `json:"requires_verification"`
+
+	AccessWindows []createTicketAccessWindowRequest `json:"access_windows" binding:"required"`
+}
+
+type createTicketAccessWindowRequest struct {
+	StartsAt time.Time `json:"starts_at" binding:"required"`
+
+	EndsAt time.Time `json:"ends_at" binding:"required"`
 }
 
 func (h *TicketCategoryHandler) Create(c *gin.Context) {
@@ -83,17 +99,54 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 	var req createTicketCategoryRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
+
+		return
+	}
+
+	if len(req.AccessWindows) == 0 {
+
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "ticket category requires at least one access window",
+		})
+
 		return
 	}
 
 	category := &models.TicketCategory{
-		Name:     req.Name,
-		Price:    req.Price,
+
+		Name: req.Name,
+
+		Price: req.Price,
+
 		Capacity: req.Capacity,
-		PartyID:  partyID,
+
+		RequiresVerification: req.RequiresVerification,
+
+		PartyID: partyID,
+	}
+
+	for _, window := range req.AccessWindows {
+
+		if window.EndsAt.Before(window.StartsAt) {
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid access window: end time must be later than start time",
+			})
+
+			return
+		}
+
+		category.AccessWindows = append(
+			category.AccessWindows,
+			models.TicketAccessWindow{
+				StartsAt: window.StartsAt,
+				EndsAt:   window.EndsAt,
+			},
+		)
 	}
 
 	err = h.service.Create(
@@ -106,6 +159,15 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 		if errors.Is(err, service.ErrTicketCategoryExists) {
 
 			c.JSON(http.StatusConflict, gin.H{
+				"error": err.Error(),
+			})
+
+			return
+		}
+
+		if errors.Is(err, appErrors.ErrTicketAccessWindowRequired) {
+
+			c.JSON(http.StatusBadRequest, gin.H{
 				"error": err.Error(),
 			})
 
@@ -228,6 +290,29 @@ func (h *TicketCategoryHandler) Update(c *gin.Context) {
 	category.Name = req.Name
 	category.Price = req.Price
 	category.Capacity = req.Capacity
+	category.RequiresVerification = req.RequiresVerification
+	category.AccessWindows = nil
+
+	for _, window := range req.AccessWindows {
+
+		if window.EndsAt.Before(window.StartsAt) {
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "access window end must be after start",
+			})
+
+			return
+		}
+
+		category.AccessWindows = append(
+			category.AccessWindows,
+			models.TicketAccessWindow{
+				StartsAt:         window.StartsAt,
+				EndsAt:           window.EndsAt,
+				TicketCategoryID: category.ID,
+			},
+		)
+	}
 
 	err = h.service.Update(
 		c.Request.Context(),

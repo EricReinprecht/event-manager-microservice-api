@@ -70,10 +70,31 @@ func (r *TicketCategoryRepository) Update(
 	category *models.TicketCategory,
 ) error {
 
-	return r.db.
-		WithContext(ctx).
+	tx := r.db.WithContext(ctx).Begin()
+
+	err := tx.
+		Where(
+			"ticket_category_id = ?",
+			category.ID,
+		).
+		Delete(&models.TicketAccessWindow{}).
+		Error()
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.
 		Save(category).
 		Error()
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (r *TicketCategoryRepository) Delete(

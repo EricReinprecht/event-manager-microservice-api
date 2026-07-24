@@ -29,16 +29,14 @@ func main() {
 		&models.Party{},
 		&models.Media{},
 		&models.PartyMedia{},
-		&models.TicketCategory{},
 		&models.Ticket{},
+		&models.TicketCategory{},
+		&models.TicketAccessWindow{},
+		&models.TicketScan{},
 		&models.Purchase{},
 		&models.PurchaseItem{},
 		&models.PartyMember{},
 	); err != nil {
-		log.Fatal(err)
-	}
-
-	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -57,6 +55,8 @@ func main() {
 	ticketCategoryRepository := repository.NewTicketCategoryRepository(executor)
 	ticketRepository := repository.NewTicketRepository(executor)
 	partyMemberRepository := repository.NewPartyMemberRepository(db)
+	ticketScanRepository := repository.NewTicketScanRepository(executor)
+	ticketAccessWindowRepository := repository.NewTicketAccessWindowRepository(executor)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -94,6 +94,8 @@ func main() {
 		partyRepository,
 		ticketCategoryRepository,
 		partyMemberRepository,
+		ticketScanRepository,
+		ticketAccessWindowRepository,
 		executor,
 	)
 

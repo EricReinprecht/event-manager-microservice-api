@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
 )
@@ -32,6 +33,11 @@ func (s *TicketCategoryService) Create(
 	category *models.TicketCategory,
 ) error {
 
+	if len(category.AccessWindows) == 0 {
+
+		return appErrors.ErrTicketAccessWindowRequired
+	}
+
 	err := s.ticketCategories.Create(
 		ctx,
 		category,
@@ -44,6 +50,7 @@ func (s *TicketCategoryService) Create(
 		if errors.As(err, &pgErr) {
 
 			if pgErr.Code == "23505" {
+
 				return ErrTicketCategoryExists
 			}
 		}

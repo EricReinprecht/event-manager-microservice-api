@@ -18,9 +18,10 @@ type Ticket struct {
 	UserID uuid.UUID
 	User   User
 
-	UsedAt *time.Time
+	Scans []TicketScan
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
+
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }

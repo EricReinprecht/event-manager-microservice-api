@@ -16,11 +16,13 @@ import (
 )
 
 type TicketService struct {
-	tickets      *repository.TicketRepository
-	parties      *repository.PartyRepository
-	categories   *repository.TicketCategoryRepository
-	partyMembers *repository.PartyMemberRepository
-	db           database.DBExecutor
+	tickets       *repository.TicketRepository
+	parties       *repository.PartyRepository
+	categories    *repository.TicketCategoryRepository
+	partyMembers  *repository.PartyMemberRepository
+	ticketScans   *repository.TicketScanRepository
+	accessWindows *repository.TicketAccessWindowRepository
+	db            database.DBExecutor
 }
 
 func NewTicketService(
@@ -28,15 +30,19 @@ func NewTicketService(
 	partyRepository *repository.PartyRepository,
 	categoryRepository *repository.TicketCategoryRepository,
 	partyMemberRepository *repository.PartyMemberRepository,
+	ticketScansRepository *repository.TicketScanRepository,
+	accessWindowRepository *repository.TicketAccessWindowRepository,
 	db database.DBExecutor,
 ) *TicketService {
 
 	return &TicketService{
-		tickets:      ticketRepository,
-		parties:      partyRepository,
-		categories:   categoryRepository,
-		partyMembers: partyMemberRepository,
-		db:           db,
+		tickets:       ticketRepository,
+		parties:       partyRepository,
+		categories:    categoryRepository,
+		partyMembers:  partyMemberRepository,
+		ticketScans:   ticketScansRepository,
+		accessWindows: accessWindowRepository,
+		db:            db,
 	}
 }
 
@@ -94,18 +100,37 @@ func (s *TicketService) Scan(
 		return nil, appErrors.ErrNotAllowed
 	}
 
-	if ticket.UsedAt != nil {
+	now := time.Now().UTC()
+	window, err := s.accessWindows.FindCurrent(
+		ctx,
+		ticket.TicketCategoryID,
+		now,
+	)
 
-		return nil, appErrors.ErrTicketAlreadyUsed
+	if err != nil {
+		return nil, appErrors.ErrTicketNotValidNow
 	}
 
-	now := time.Now()
-
-	ticket.UsedAt = &now
-
-	err = s.tickets.Update(
+	alreadyScanned := s.ticketScans.ExistsInWindow(
 		ctx,
-		ticket,
+		ticket.ID,
+		window.StartsAt,
+		window.EndsAt,
+	)
+
+	if alreadyScanned {
+		return nil, appErrors.ErrTicketAlreadyScanned
+	}
+
+	scan := &models.TicketScan{
+		TicketID:    ticket.ID,
+		ScannedByID: scannerID,
+		ScannedAt:   now,
+	}
+
+	err = s.ticketScans.Create(
+		ctx,
+		scan,
 	)
 
 	if err != nil {
