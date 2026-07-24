@@ -30,7 +30,7 @@ func NewTicketCategoryHandler(
 type createTicketCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
 
-	Price float64 `json:"price" binding:"required"`
+	Price int64 `json:"price" binding:"required"`
 
 	Capacity int `json:"capacity" binding:"required"`
 }
@@ -38,7 +38,7 @@ type createTicketCategoryRequest struct {
 type updateTicketCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
 
-	Price float64 `json:"price" binding:"required"`
+	Price int64 `json:"price" binding:"required"`
 
 	Capacity int `json:"capacity" binding:"required"`
 }
