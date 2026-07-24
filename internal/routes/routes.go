@@ -77,7 +77,7 @@ func Register(
 
 	protected.Use(
 		middleware.Auth(
-			authService.Secret(),
+			authService,
 		),
 	)
 
@@ -186,7 +186,7 @@ func Register(
 
 	// * Purchase * //
 	protected.POST(
-		"/parties/:id/purchases",
+		"/parties/:id/purchase",
 		purchaseHandler.Create,
 	)
 
@@ -203,7 +203,7 @@ func Register(
 	)
 
 	router.POST(
-		"/api/payments/webhook",
+		"/api/payments/paypal/webhook",
 		paymentHandler.Webhook,
 	)
 	// * Payments * //

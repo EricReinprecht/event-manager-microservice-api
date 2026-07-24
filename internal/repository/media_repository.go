@@ -48,3 +48,24 @@ func (r *MediaRepository) FindByIDs(
 
 	return media, err
 }
+
+func (r *MediaRepository) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.Media, error) {
+
+	var media models.Media
+
+	err := r.db.WithContext(ctx).
+		First(
+			&media,
+			"id = ?",
+			id,
+		).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &media, nil
+}

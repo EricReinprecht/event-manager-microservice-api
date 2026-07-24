@@ -110,13 +110,14 @@ func (r *PurchaseRepository) UpdatePayment(
 }
 
 func (r *PurchaseRepository) FindByPaymentID(
-	db database.DBExecutor,
+	ctx context.Context,
 	paymentID string,
 ) (*models.Purchase, error) {
 
 	var purchase models.Purchase
 
-	err := db.
+	err := r.db.
+		WithContext(ctx).
 		Preload("Items").
 		Where(
 			"payment_id = ?",
@@ -152,4 +153,27 @@ func (r *PurchaseRepository) Find(
 		r.db.WithContext(ctx),
 		id,
 	)
+}
+
+func (r *PurchaseRepository) FindByPaymentIDWithDB(
+	db database.DBExecutor,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	var purchase models.Purchase
+
+	err := db.
+		Preload("Items").
+		Where(
+			"payment_id = ?",
+			paymentID,
+		).
+		First(&purchase).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &purchase, nil
 }

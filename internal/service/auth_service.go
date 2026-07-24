@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/auth"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -110,4 +111,15 @@ func (s *AuthService) Login(
 
 func (s *AuthService) Secret() string {
 	return s.jwt.Secret
+}
+
+func (s *AuthService) ValidateUser(
+	ctx context.Context,
+	userID uuid.UUID,
+) (*models.User, error) {
+
+	return s.users.FindByID(
+		ctx,
+		userID,
+	)
 }

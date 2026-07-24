@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -66,18 +68,24 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
 
 		return
 	}
 
 	if req.EndAt.Before(req.StartAt) {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "end date must be after start date",
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "end date must be after start date",
+			},
+		)
 
 		return
 	}
@@ -86,20 +94,28 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 	if !exists {
 
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "not authenticated",
-		})
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"error": "not authenticated",
+			},
+		)
 
 		return
 	}
 
-	organizerID, err := uuid.Parse(userID.(string))
+	organizerID, err := uuid.Parse(
+		userID.(string),
+	)
 
 	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid user id",
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "invalid user id",
+			},
+		)
 
 		return
 	}
@@ -131,11 +147,47 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		switch {
 
-		return
+		case errors.Is(
+			err,
+			appErrors.ErrCategoryNotFound,
+		):
+
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{
+					"error": err.Error(),
+				},
+			)
+
+			return
+
+		case errors.Is(
+			err,
+			appErrors.ErrMediaNotFound,
+		):
+
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{
+					"error": err.Error(),
+				},
+			)
+
+			return
+
+		default:
+
+			c.JSON(
+				http.StatusInternalServerError,
+				gin.H{
+					"error": err.Error(),
+				},
+			)
+
+			return
+		}
 	}
 
 	party, err = h.service.FindByID(
@@ -145,14 +197,20 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
 
 		return
 	}
 
-	c.JSON(http.StatusCreated, party)
+	c.JSON(
+		http.StatusCreated,
+		party,
+	)
 }
 
 func (h *PartyHandler) GetAll(c *gin.Context) {

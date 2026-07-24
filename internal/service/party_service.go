@@ -6,24 +6,31 @@ import (
 
 	"github.com/google/uuid"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
 )
 
 type PartyService struct {
-	parties          *repository.PartyRepository
-	memberRepository *repository.PartyMemberRepository
+	parties            *repository.PartyRepository
+	memberRepository   *repository.PartyMemberRepository
+	categoryRepository *repository.CategoryRepository
+	mediaRepository    *repository.MediaRepository
 }
 
 func NewPartyService(
-	repository *repository.PartyRepository,
+	parties *repository.PartyRepository,
 	memberRepository *repository.PartyMemberRepository,
+	categoryRepository *repository.CategoryRepository,
+	mediaRepository *repository.MediaRepository,
 ) *PartyService {
 
 	return &PartyService{
-		parties:          repository,
-		memberRepository: memberRepository,
+		parties:            parties,
+		memberRepository:   memberRepository,
+		categoryRepository: categoryRepository,
+		mediaRepository:    mediaRepository,
 	}
 }
 
@@ -33,7 +40,44 @@ func (s *PartyService) Create(
 	imageIDs []uuid.UUID,
 ) error {
 
-	err := s.parties.Create(
+	// Check category
+	_, err := s.categoryRepository.FindByID(
+		ctx,
+		party.CategoryID,
+	)
+
+	if err != nil {
+		return appErrors.ErrCategoryNotFound
+	}
+
+	// Check thumbnail
+	if party.ThumbnailID != nil {
+
+		_, err = s.mediaRepository.FindByID(
+			ctx,
+			*party.ThumbnailID,
+		)
+
+		if err != nil {
+			return appErrors.ErrMediaNotFound
+		}
+	}
+
+	// Check images
+	for _, imageID := range imageIDs {
+
+		_, err = s.mediaRepository.FindByID(
+			ctx,
+			imageID,
+		)
+
+		if err != nil {
+			return appErrors.ErrMediaNotFound
+		}
+	}
+
+	// Create party
+	err = s.parties.Create(
 		ctx,
 		party,
 		imageIDs,
@@ -43,6 +87,7 @@ func (s *PartyService) Create(
 		return err
 	}
 
+	// Create organizer membership
 	member := &models.PartyMember{
 		UserID:  party.OrganizerID,
 		PartyID: party.ID,

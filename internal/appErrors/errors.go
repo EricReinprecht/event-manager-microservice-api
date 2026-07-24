@@ -18,4 +18,6 @@ var (
 	ErrTicketScanAlreadyDecided   = errors.New("ticket scan already decided")
 	ErrTicketNotFound             = errors.New("ticket not found")
 	ErrTicketVerificationExpired  = errors.New("ticket verification expired")
+	ErrCategoryNotFound           = errors.New("category does not exist")
+	ErrMediaNotFound              = errors.New("media does not exist")
 )

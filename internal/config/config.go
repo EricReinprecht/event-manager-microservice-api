@@ -26,6 +26,9 @@ type Config struct {
 	PayPalClientSecret string
 	PayPalBaseURL      string
 	PayPalWebhookID    string
+
+	PayPalReturnURL string
+	PayPalCancelURL string
 }
 
 func Load() *Config {
@@ -99,6 +102,16 @@ func Load() *Config {
 
 		PayPalWebhookID: getEnv(
 			"PAYPAL_WEBHOOK_ID",
+			"",
+		),
+
+		PayPalReturnURL: getEnv(
+			"PAYPAL_RETURN_URL",
+			"",
+		),
+
+		PayPalCancelURL: getEnv(
+			"PAYPAL_CANCEL_URL",
 			"",
 		),
 	}

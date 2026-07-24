@@ -38,6 +38,7 @@ func main() {
 		&models.Purchase{},
 		&models.PurchaseItem{},
 		&models.PartyMember{},
+		&models.PaymentEvent{},
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -70,6 +71,7 @@ func main() {
 	partyMemberRepository := repository.NewPartyMemberRepository(executor)
 	ticketScanRepository := repository.NewTicketScanRepository(executor)
 	ticketAccessWindowRepository := repository.NewTicketAccessWindowRepository(executor)
+	paymentEventRepository := repository.NewPaymentEventRepository(executor)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -89,6 +91,8 @@ func main() {
 	partyService := service.NewPartyService(
 		partyRepository,
 		partyMemberRepository,
+		categoryRepository,
+		mediaRepository,
 	)
 
 	categoryService := service.NewCategoryService(
@@ -121,12 +125,16 @@ func main() {
 		cfg.PayPalClientID,
 		cfg.PayPalClientSecret,
 		cfg.PayPalBaseURL,
+		cfg.PayPalReturnURL,
+		cfg.PayPalCancelURL,
+		cfg.PayPalWebhookID,
 	)
 
 	paymentService := service.NewPaymentService(
 		purchaseService,
 		ticketService,
 		paypalClient,
+		paymentEventRepository,
 	)
 
 	sqlDB, err := db.DB()

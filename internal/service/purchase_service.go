@@ -143,7 +143,7 @@ func (s *PurchaseService) ConfirmPayment(
 
 			var err error
 
-			purchase, err = s.repository.FindByPaymentID(
+			purchase, err = s.repository.FindByPaymentIDWithDB(
 				tx,
 				paymentID,
 			)
@@ -186,5 +186,16 @@ func (s *PurchaseService) GetPurchase(
 	return s.repository.Find(
 		ctx,
 		id,
+	)
+}
+
+func (s *PurchaseService) FindByPaymentID(
+	ctx context.Context,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	return s.repository.FindByPaymentID(
+		ctx,
+		paymentID,
 	)
 }

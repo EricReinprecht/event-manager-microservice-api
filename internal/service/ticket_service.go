@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -402,6 +403,10 @@ func (s *TicketService) GenerateFromPurchase(
 			ticket := models.Ticket{
 				ID: uuid.New(),
 
+				Code: strings.ToUpper(
+					uuid.NewString()[:8],
+				),
+
 				UserID: purchase.UserID,
 
 				TicketCategoryID: item.TicketCategoryID,
@@ -419,5 +424,9 @@ func (s *TicketService) GenerateFromPurchase(
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
