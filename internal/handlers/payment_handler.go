@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
@@ -67,31 +70,114 @@ func (h *PaymentHandler) CreateCheckout(c *gin.Context) {
 
 func (h *PaymentHandler) Webhook(c *gin.Context) {
 
-	var payload struct {
-		PaymentID string `json:"payment_id"`
+	headers := paypal.WebhookHeaders{
+
+		TransmissionID: c.GetHeader(
+			"PAYPAL-TRANSMISSION-ID",
+		),
+
+		TransmissionTime: c.GetHeader(
+			"PAYPAL-TRANSMISSION-TIME",
+		),
+
+		TransmissionSig: c.GetHeader(
+			"PAYPAL-TRANSMISSION-SIG",
+		),
+
+		CertURL: c.GetHeader(
+			"PAYPAL-CERT-URL",
+		),
+
+		AuthAlgo: c.GetHeader(
+			"PAYPAL-AUTH-ALGO",
+		),
 	}
 
-	if err := c.ShouldBindJSON(&payload); err != nil {
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
-
-		return
-	}
-
-	purchase, err := h.service.ConfirmPayment(
-		c.Request.Context(),
-		payload.PaymentID,
+	body, err := io.ReadAll(
+		c.Request.Body,
 	)
 
 	if err != nil {
 
 		c.JSON(
 			http.StatusBadRequest,
+			gin.H{
+				"error": "cannot read body",
+			},
+		)
+
+		return
+	}
+
+	err = h.service.VerifyWebhook(
+		c.Request.Context(),
+		headers,
+		body,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"error": "invalid paypal signature",
+			},
+		)
+
+		return
+	}
+
+	var payload map[string]interface{}
+
+	if err := json.Unmarshal(body, &payload); err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "invalid json",
+			},
+		)
+
+		return
+	}
+
+	resource, okResource := payload["resource"].(map[string]interface{})
+
+	if !okResource {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "invalid webhook payload",
+			},
+		)
+
+		return
+	}
+
+	paymentID, okPaymentID := resource["id"].(string)
+
+	if !okPaymentID {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "missing payment id",
+			},
+		)
+
+		return
+	}
+
+	_, err = h.service.ConfirmPayment(
+		c.Request.Context(),
+		paymentID,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusInternalServerError,
 			gin.H{
 				"error": err.Error(),
 			},
@@ -102,6 +188,8 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 
 	c.JSON(
 		http.StatusOK,
-		purchase,
+		gin.H{
+			"message": "payment confirmed",
+		},
 	)
 }

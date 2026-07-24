@@ -25,6 +25,7 @@ type Config struct {
 	PayPalClientID     string
 	PayPalClientSecret string
 	PayPalBaseURL      string
+	PayPalWebhookID    string
 }
 
 func Load() *Config {
@@ -94,6 +95,11 @@ func Load() *Config {
 		PayPalBaseURL: getEnv(
 			"PAYPAL_BASE_URL",
 			"https://api-m.sandbox.paypal.com",
+		),
+
+		PayPalWebhookID: getEnv(
+			"PAYPAL_WEBHOOK_ID",
+			"",
 		),
 	}
 }

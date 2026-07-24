@@ -203,7 +203,7 @@ func Register(
 	)
 
 	router.POST(
-		"/api/payments/paypal/webhook",
+		"/api/payments/webhook",
 		paymentHandler.Webhook,
 	)
 	// * Payments * //

@@ -41,3 +41,14 @@ func (c *Client) CreateOrder(
 		ApprovalURL: "https://paypal.test/checkout",
 	}, nil
 }
+
+func (c *Client) VerifyWebhookSignature(
+	ctx context.Context,
+	headers WebhookHeaders,
+	body []byte,
+) error {
+
+	// call PayPal verification endpoint here
+
+	return nil
+}

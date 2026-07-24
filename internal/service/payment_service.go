@@ -96,3 +96,16 @@ func (s *PaymentService) ConfirmPayment(
 
 	return purchase, nil
 }
+
+func (s *PaymentService) VerifyWebhook(
+	ctx context.Context,
+	headers paypal.WebhookHeaders,
+	body []byte,
+) error {
+
+	return s.paypalClient.VerifyWebhookSignature(
+		ctx,
+		headers,
+		body,
+	)
+}
