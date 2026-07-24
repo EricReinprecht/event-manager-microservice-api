@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -32,48 +33,59 @@ func (s *PurchaseService) CreatePurchase(
 	items []requests.PurchaseItemRequest,
 ) (*models.Purchase, error) {
 
-	purchase := models.Purchase{
-		ID:      uuid.New(),
-		UserID:  userID,
-		PartyID: partyID,
-		Status:  enum.StatusPending,
-	}
+	var purchase models.Purchase
 
-	var total int64
-
-	for _, item := range items {
-
-		category, err := s.repository.FindTicketCategory(
-			ctx,
-			item.TicketCategoryID,
-		)
-
-		if err != nil {
-			return nil, appErrors.ErrTicketCategoryNotFound
-		}
-
-		if category.PartyID != partyID {
-			return nil, appErrors.ErrTicketCategoryNotFound
-		}
-
-		purchase.Items = append(
-			purchase.Items,
-			models.PurchaseItem{
-				ID:               uuid.New(),
-				TicketCategoryID: category.ID,
-				Quantity:         item.Quantity,
-				UnitPrice:        category.Price,
-			},
-		)
-
-		total += category.Price * int64(item.Quantity)
-	}
-
-	purchase.TotalPrice = total
-
-	err := s.repository.Create(
+	err := s.repository.Transaction(
 		ctx,
-		&purchase,
+		func(tx database.DBExecutor) error {
+
+			purchase = models.Purchase{
+				ID:      uuid.New(),
+				UserID:  userID,
+				PartyID: partyID,
+				Status:  enum.StatusPending,
+			}
+
+			var total int64
+
+			for _, item := range items {
+
+				category, err := s.repository.FindTicketCategory(
+					tx,
+					item.TicketCategoryID,
+				)
+
+				if err != nil {
+					return appErrors.ErrTicketCategoryNotFound
+				}
+
+				if category.PartyID != partyID {
+					return appErrors.ErrTicketCategoryNotFound
+				}
+
+				purchase.Items = append(
+					purchase.Items,
+					models.PurchaseItem{
+						ID: uuid.New(),
+
+						TicketCategoryID: category.ID,
+
+						Quantity: item.Quantity,
+
+						UnitPrice: category.Price,
+					},
+				)
+
+				total += category.Price * int64(item.Quantity)
+			}
+
+			purchase.TotalPrice = total
+
+			return s.repository.Create(
+				tx,
+				&purchase,
+			)
+		},
 	)
 
 	if err != nil {

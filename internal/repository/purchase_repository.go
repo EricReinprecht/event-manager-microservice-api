@@ -22,11 +22,11 @@ func NewPurchaseRepository(
 }
 
 func (r *PurchaseRepository) Create(
-	ctx context.Context,
+	db database.DBExecutor,
 	purchase *models.Purchase,
 ) error {
 
-	return r.db.WithContext(ctx).
+	return db.
 		Create(purchase).
 		Error()
 }
@@ -50,14 +50,18 @@ func (r *PurchaseRepository) FindByID(
 }
 
 func (r *PurchaseRepository) FindTicketCategory(
-	ctx context.Context,
+	db database.DBExecutor,
 	id uuid.UUID,
 ) (*models.TicketCategory, error) {
 
 	var category models.TicketCategory
 
-	err := r.db.WithContext(ctx).
-		First(&category, "id = ?", id).
+	err := db.
+		First(
+			&category,
+			"id = ?",
+			id,
+		).
 		Error()
 
 	if err != nil {
@@ -65,4 +69,27 @@ func (r *PurchaseRepository) FindTicketCategory(
 	}
 
 	return &category, nil
+}
+
+func (r *PurchaseRepository) Transaction(
+	ctx context.Context,
+	fn func(tx database.DBExecutor) error,
+) error {
+
+	tx := r.db.
+		WithContext(ctx).
+		Begin()
+
+	if err := tx.Error(); err != nil {
+		return err
+	}
+
+	if err := fn(tx); err != nil {
+
+		tx.Rollback()
+
+		return err
+	}
+
+	return tx.Commit()
 }
