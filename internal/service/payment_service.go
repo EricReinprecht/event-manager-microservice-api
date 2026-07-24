@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log"
 
 	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/models"
@@ -93,38 +92,17 @@ func (s *PaymentService) ConfirmPayment(
 	paymentID string,
 ) (*models.Purchase, error) {
 
-	log.Println(
-		"ConfirmPayment called with:",
-		paymentID,
-	)
-
 	purchase, err := s.purchaseService.FindByPaymentID(
 		ctx,
 		paymentID,
 	)
 
 	if err != nil {
-		log.Println(
-			"PAYMENT NOT FOUND:",
-			paymentID,
-		)
-
 		return nil, err
 	}
 
-	log.Println(
-		"purchase found:",
-		purchase.ID,
-		purchase.Status,
-	)
-
 	// Idempotency protection
 	if purchase.Status == enum.StatusPaid {
-
-		log.Println(
-			"purchase already paid",
-		)
-
 		return purchase, nil
 	}
 
@@ -140,10 +118,6 @@ func (s *PaymentService) ConfirmPayment(
 		return nil, err
 	}
 
-	log.Println(
-		"purchase marked paid",
-	)
-
 	err = s.ticketService.GenerateFromPurchase(
 		ctx,
 		purchase,
@@ -152,10 +126,6 @@ func (s *PaymentService) ConfirmPayment(
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println(
-		"tickets generated",
-	)
 
 	return purchase, nil
 }
