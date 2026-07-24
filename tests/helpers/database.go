@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -24,9 +23,7 @@ func TestDatabaseSilent() (*gorm.DB, error) {
 
 func testDatabase(silent bool) (*gorm.DB, error) {
 
-	err := godotenv.Load(
-		"../../.env.test",
-	)
+	err := loadTestEnv()
 
 	if err != nil {
 		return nil, err

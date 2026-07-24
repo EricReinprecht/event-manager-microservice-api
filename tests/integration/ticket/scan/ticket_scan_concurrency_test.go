@@ -1,4 +1,4 @@
-package integration
+package scan
 
 import (
 	"context"
@@ -7,11 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )

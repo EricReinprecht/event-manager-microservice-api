@@ -1,4 +1,4 @@
-package integration
+package scan
 
 import (
 	"context"
@@ -6,15 +6,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )
 
-func TestRejectedTicketCanBeScannedAgain(t *testing.T) {
+func TestStaffCanScanTicketWithoutVerification(t *testing.T) {
 
 	db, err := helpers.TestDatabase()
 
@@ -81,9 +79,13 @@ func TestRejectedTicketCanBeScannedAgain(t *testing.T) {
 
 		Name: "VIP",
 
+		Price: 100,
+
+		Capacity: 100,
+
 		PartyID: party.ID,
 
-		RequiresVerification: true,
+		RequiresVerification: false,
 	}
 
 	if err := db.Create(&ticketCategory).Error; err != nil {
@@ -128,9 +130,9 @@ func TestRejectedTicketCanBeScannedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// FIRST SCAN
+	// SCAN
 
-	firstScan, err := ticketService.Scan(
+	result, err := ticketService.Scan(
 		context.Background(),
 		staff.ID,
 		ticket.Code,
@@ -140,57 +142,63 @@ func TestRejectedTicketCanBeScannedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if firstScan.Status != enum.TicketScanPending {
-
+	if result.TicketID != ticket.ID {
 		t.Fatalf(
-			"expected first scan pending, got %s",
-			firstScan.Status,
+			"wrong ticket scanned. expected %s got %s",
+			ticket.ID,
+			result.TicketID,
 		)
 	}
 
-	// REJECT FIRST SCAN
+	// VERIFY DATABASE ENTRY
 
-	err = ticketService.VerifyScan(
-		context.Background(),
-		firstScan.ID,
-		staff.ID,
-		false,
-	)
+	var scan appModels.TicketScan
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// SECOND SCAN
-
-	secondScan, err := ticketService.Scan(
-		context.Background(),
-		staff.ID,
-		ticket.Code,
-	)
+	err = db.
+		Where(
+			"ticket_id = ?",
+			ticket.ID,
+		).
+		First(&scan).
+		Error
 
 	if err != nil {
-		t.Fatal(err)
+
+		t.Fatal("ticket scan was not created")
 	}
 
-	if secondScan.ID == firstScan.ID {
+	if scan.Status != enum.TicketScanVerified {
+		t.Fatalf(
+			"expected verified status, got %s",
+			scan.Status,
+		)
+	}
+
+	if scan.VerifiedAt == nil {
 
 		t.Fatal(
-			"expected a new scan",
+			"expected verified_at to be set",
 		)
 	}
 
-	if secondScan.Status != enum.TicketScanPending {
+	if scan.VerifiedByID == nil {
+
+		t.Fatal(
+			"expected verified_by_id to be set",
+		)
+	}
+
+	if *scan.VerifiedByID != staff.ID {
 
 		t.Fatalf(
-			"expected pending scan, got %s",
-			secondScan.Status,
+			"wrong verifier. expected %s got %s",
+			staff.ID,
+			*scan.VerifiedByID,
 		)
 	}
-
 }
 
-func TestRejectedScanCreatesHistory(t *testing.T) {
+func TestTwoDifferentTicketsCanBeScannedBySameStaff(t *testing.T) {
 
 	db, err := helpers.TestDatabase()
 
@@ -219,11 +227,17 @@ func TestRejectedScanCreatesHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// CUSTOMER
+	// CUSTOMERS
 
-	customer := fixtures.User()
+	customerOne := fixtures.User()
 
-	if err := db.Create(&customer).Error; err != nil {
+	if err := db.Create(&customerOne).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	customerTwo := fixtures.User()
+
+	if err := db.Create(&customerTwo).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -274,7 +288,7 @@ func TestRejectedScanCreatesHistory(t *testing.T) {
 
 		PartyID: party.ID,
 
-		RequiresVerification: true,
+		RequiresVerification: false,
 	}
 
 	if err := db.Create(&ticketCategory).Error; err != nil {
@@ -298,109 +312,99 @@ func TestRejectedScanCreatesHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TICKET
+	// TICKET ONE
 
-	ticket := fixtures.Ticket()
+	ticketOne := fixtures.Ticket()
 
-	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = customer.ID
+	ticketOne.TicketCategoryID = ticketCategory.ID
+	ticketOne.UserID = customerOne.ID
 
-	if err := db.Create(&ticket).Error; err != nil {
+	if err := db.Create(&ticketOne).Error; err != nil {
 		t.Fatal(err)
 	}
 
-	// FIRST SCAN
+	// TICKET TWO
+
+	ticketTwo := fixtures.Ticket()
+
+	ticketTwo.TicketCategoryID = ticketCategory.ID
+	ticketTwo.UserID = customerTwo.ID
+
+	if err := db.Create(&ticketTwo).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// SCAN FIRST TICKET
 
 	firstScan, err := ticketService.Scan(
 		context.Background(),
 		staff.ID,
-		ticket.Code,
+		ticketOne.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if firstScan.Status != enum.TicketScanPending {
+	if firstScan.TicketID != ticketOne.ID {
 
 		t.Fatalf(
-			"expected pending scan, got %s",
-			firstScan.Status,
+			"expected first scan ticket %s, got %s",
+			ticketOne.ID,
+			firstScan.TicketID,
 		)
 	}
 
-	// REJECT
-
-	err = ticketService.VerifyScan(
-		context.Background(),
-		firstScan.ID,
-		staff.ID,
-		false,
-	)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// SECOND SCAN AFTER REJECTION
+	// SCAN SECOND TICKET
 
 	secondScan, err := ticketService.Scan(
 		context.Background(),
 		staff.ID,
-		ticket.Code,
+		ticketTwo.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if secondScan.ID == firstScan.ID {
+	if secondScan.TicketID != ticketTwo.ID {
 
-		t.Fatal(
-			"expected new scan record",
+		t.Fatalf(
+			"expected second scan ticket %s, got %s",
+			ticketTwo.ID,
+			secondScan.TicketID,
 		)
 	}
 
-	// CHECK HISTORY
+	// BOTH MUST BE SAME STAFF
 
-	var scans []appModels.TicketScan
-
-	err = db.
-		Where(
-			"ticket_id = ?",
-			ticket.ID,
-		).
-		Order(
-			"created_at ASC",
-		).
-		Find(&scans).
-		Error
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(scans) != 2 {
+	if firstScan.ScannedByID != staff.ID {
 
 		t.Fatalf(
-			"expected 2 scan records, got %d",
-			len(scans),
+			"expected first scan by staff",
 		)
 	}
 
-	if scans[0].Status != enum.TicketScanRejected {
+	if secondScan.ScannedByID != staff.ID {
 
 		t.Fatalf(
-			"expected first scan rejected, got %s",
-			scans[0].Status,
+			"expected second scan by staff",
 		)
 	}
 
-	if scans[1].Status != enum.TicketScanPending {
+	// BOTH MUST BE SAME WINDOW
+
+	if firstScan.TicketAccessWindowID != window.ID {
 
 		t.Fatalf(
-			"expected second scan pending, got %s",
-			scans[1].Status,
+			"expected first scan in window",
+		)
+	}
+
+	if secondScan.TicketAccessWindowID != window.ID {
+
+		t.Fatalf(
+			"expected second scan in window",
 		)
 	}
 }
