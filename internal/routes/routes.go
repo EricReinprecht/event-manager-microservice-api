@@ -172,6 +172,11 @@ func Register(
 		"/tickets/scan",
 		ticketHandler.Scan,
 	)
+
+	protected.POST(
+		"/tickets/scan/:id/verify",
+		ticketHandler.VerifyScan,
+	)
 	// * Tickets * //
 
 	// * PartyMembers * //

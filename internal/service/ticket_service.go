@@ -72,7 +72,7 @@ func (s *TicketService) Scan(
 	ctx context.Context,
 	scannerID uuid.UUID,
 	code string,
-) (*models.Ticket, error) {
+) (*models.TicketScan, error) {
 
 	ticket, err := s.tickets.FindByCode(
 		ctx,
@@ -101,6 +101,7 @@ func (s *TicketService) Scan(
 	}
 
 	now := time.Now().UTC()
+
 	window, err := s.accessWindows.FindCurrent(
 		ctx,
 		ticket.TicketCategoryID,
@@ -111,7 +112,7 @@ func (s *TicketService) Scan(
 		return nil, appErrors.ErrTicketNotValidNow
 	}
 
-	alreadyScanned := s.ticketScans.ExistsInWindow(
+	alreadyScanned := s.ticketScans.ExistsVerifiedInWindow(
 		ctx,
 		ticket.ID,
 		window.StartsAt,
@@ -119,13 +120,28 @@ func (s *TicketService) Scan(
 	)
 
 	if alreadyScanned {
+
 		return nil, appErrors.ErrTicketAlreadyScanned
+
+	}
+
+	status := enum.TicketScanVerified
+
+	if ticket.TicketCategory.RequiresVerification {
+
+		status = enum.TicketScanPending
+
 	}
 
 	scan := &models.TicketScan{
-		TicketID:    ticket.ID,
+
+		TicketID: ticket.ID,
+
 		ScannedByID: scannerID,
-		ScannedAt:   now,
+
+		ScannedAt: now,
+
+		Status: status,
 	}
 
 	err = s.ticketScans.Create(
@@ -137,7 +153,51 @@ func (s *TicketService) Scan(
 		return nil, err
 	}
 
-	return ticket, nil
+	return scan, nil
+}
+
+func (s *TicketService) VerifyScan(
+	ctx context.Context,
+	scanID uuid.UUID,
+	staffID uuid.UUID,
+	approved bool,
+) error {
+
+	scan, err := s.ticketScans.FindByID(
+		ctx,
+		scanID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if scan.Status != enum.TicketScanPending {
+
+		return appErrors.ErrTicketScanAlreadyDecided
+
+	}
+
+	now := time.Now().UTC()
+
+	if approved {
+
+		scan.Status = enum.TicketScanVerified
+
+	} else {
+
+		scan.Status = enum.TicketScanRejected
+
+	}
+
+	scan.VerifiedAt = &now
+
+	scan.VerifiedByID = &staffID
+
+	return s.ticketScans.Update(
+		ctx,
+		scan,
+	)
 }
 
 func (s *TicketService) CreatePurchase(

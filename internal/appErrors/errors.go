@@ -15,4 +15,5 @@ var (
 	ErrTicketNotValidNow          = errors.New("ticket is not valid at this time")
 	ErrTicketAlreadyScanned       = errors.New("ticket was already scanned")
 	ErrTicketAccessWindowRequired = errors.New("ticket category requires at least one access window")
+	ErrTicketScanAlreadyDecided   = errors.New("ticket scan already decided")
 )

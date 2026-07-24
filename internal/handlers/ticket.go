@@ -33,6 +33,10 @@ type scanTicketRequest struct {
 	Code string `json:"code" binding:"required"`
 }
 
+type verifyTicketScanRequest struct {
+	Approved bool `json:"approved"`
+}
+
 func (h *TicketHandler) Purchase(c *gin.Context) {
 
 	partyID, err := uuid.Parse(
@@ -193,6 +197,80 @@ func (h *TicketHandler) Scan(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, ticket)
+}
+
+func (h *TicketHandler) VerifyScan(c *gin.Context) {
+
+	scanID, err := uuid.Parse(
+		c.Param("id"),
+	)
+
+	if err != nil {
+
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid scan id",
+		})
+
+		return
+	}
+
+	staffID, err := uuid.Parse(
+		c.MustGet("user_id").(string),
+	)
+
+	if err != nil {
+
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "invalid user",
+		})
+
+		return
+	}
+
+	var req verifyTicketScanRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	err = h.service.VerifyScan(
+		c.Request.Context(),
+		scanID,
+		staffID,
+		req.Approved,
+	)
+
+	if err != nil {
+
+		switch {
+
+		case errors.Is(
+			err,
+			appErrors.ErrTicketScanAlreadyDecided,
+		):
+
+			c.JSON(http.StatusConflict, gin.H{
+				"error": err.Error(),
+			})
+
+		default:
+
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
+
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "ticket verification completed",
+	})
 }
 
 func (h *TicketHandler) GetMyTickets(c *gin.Context) {
