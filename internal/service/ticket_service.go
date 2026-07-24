@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/clock"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/models"
@@ -16,13 +19,15 @@ import (
 )
 
 type TicketService struct {
-	tickets       *repository.TicketRepository
-	parties       *repository.PartyRepository
-	categories    *repository.TicketCategoryRepository
-	partyMembers  *repository.PartyMemberRepository
-	ticketScans   *repository.TicketScanRepository
-	accessWindows *repository.TicketAccessWindowRepository
-	db            database.DBExecutor
+	tickets         *repository.TicketRepository
+	parties         *repository.PartyRepository
+	categories      *repository.TicketCategoryRepository
+	partyMembers    *repository.PartyMemberRepository
+	ticketScans     *repository.TicketScanRepository
+	accessWindows   *repository.TicketAccessWindowRepository
+	db              database.DBExecutor
+	clock           clock.Clock
+	verificationTTL time.Duration
 }
 
 func NewTicketService(
@@ -33,16 +38,20 @@ func NewTicketService(
 	ticketScansRepository *repository.TicketScanRepository,
 	accessWindowRepository *repository.TicketAccessWindowRepository,
 	db database.DBExecutor,
+	clock clock.Clock,
+	verificationTTL time.Duration,
 ) *TicketService {
 
 	return &TicketService{
-		tickets:       ticketRepository,
-		parties:       partyRepository,
-		categories:    categoryRepository,
-		partyMembers:  partyMemberRepository,
-		ticketScans:   ticketScansRepository,
-		accessWindows: accessWindowRepository,
-		db:            db,
+		tickets:         ticketRepository,
+		parties:         partyRepository,
+		categories:      categoryRepository,
+		partyMembers:    partyMemberRepository,
+		ticketScans:     ticketScansRepository,
+		accessWindows:   accessWindowRepository,
+		db:              db,
+		clock:           clock,
+		verificationTTL: verificationTTL,
 	}
 }
 
@@ -74,22 +83,57 @@ func (s *TicketService) Scan(
 	code string,
 ) (*models.TicketScan, error) {
 
-	ticket, err := s.tickets.FindByCode(
+	tx := s.db.Begin()
+
+	if tx.Error() != nil {
+		return nil, tx.Error()
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	ticketRepo := repository.NewTicketRepository(tx)
+	scanRepo := repository.NewTicketScanRepository(tx)
+	memberRepo := repository.NewPartyMemberRepository(tx)
+	windowRepo := repository.NewTicketAccessWindowRepository(tx)
+
+	ticket, err := ticketRepo.FindByCode(
 		ctx,
 		code,
 	)
 
 	if err != nil {
+
+		tx.Rollback()
+
 		return nil, err
 	}
 
-	member, err := s.partyMembers.FindByPartyAndUser(
+	if ticket.TicketCategory.DeletedAt.Valid {
+
+		tx.Rollback()
+
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	if ticket.Status == enum.TicketStatusCancelled {
+
+		tx.Rollback()
+
+		return nil, appErrors.ErrTicketNotValidNow
+	}
+
+	member, err := memberRepo.FindByPartyAndUser(
 		ctx,
 		ticket.TicketCategory.PartyID,
 		scannerID,
 	)
 
 	if err != nil {
+		tx.Rollback()
 		return nil, appErrors.ErrNotAllowed
 	}
 
@@ -97,59 +141,131 @@ func (s *TicketService) Scan(
 		member.Role != enum.RoleAdmin &&
 		member.Role != enum.RoleStaff {
 
+		tx.Rollback()
 		return nil, appErrors.ErrNotAllowed
 	}
 
-	now := time.Now().UTC()
+	now := s.clock.Now()
 
-	window, err := s.accessWindows.FindCurrent(
+	window, err := windowRepo.FindCurrent(
 		ctx,
 		ticket.TicketCategoryID,
 		now,
 	)
 
 	if err != nil {
+		tx.Rollback()
 		return nil, appErrors.ErrTicketNotValidNow
 	}
 
-	alreadyScanned := s.ticketScans.ExistsVerifiedInWindow(
+	// Check already verified scan in this access window
+	existingVerified, err := scanRepo.FindLatestVerifiedInWindow(
 		ctx,
 		ticket.ID,
-		window.StartsAt,
-		window.EndsAt,
+		window.ID,
+		now,
 	)
 
-	if alreadyScanned {
+	if err == nil && existingVerified != nil {
+
+		tx.Rollback()
 
 		return nil, appErrors.ErrTicketAlreadyScanned
-
 	}
 
-	status := enum.TicketScanVerified
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+
+		tx.Rollback()
+
+		return nil, err
+	}
+
+	// Check existing pending scan in this access window
+	exists, err := scanRepo.ExistsPendingInWindow(
+		ctx,
+		ticket.ID,
+		window.ID,
+	)
+
+	if err != nil {
+
+		tx.Rollback()
+
+		return nil, err
+	}
+
+	if exists {
+
+		tx.Rollback()
+
+		return nil, appErrors.ErrTicketAlreadyScanned
+	}
+
+	status := enum.TicketScanPending
+
+	var verifiedAt *time.Time
+	var verifiedByID *uuid.UUID
+	var verificationExpiresAt *time.Time
+	var verifiedUntil *time.Time
+
+	if !ticket.TicketCategory.RequiresVerification {
+
+		status = enum.TicketScanVerified
+
+		verifiedAt = &now
+		verifiedByID = &scannerID
+
+		expiry := now.Add(
+			s.verificationTTL,
+		)
+
+		verifiedUntil = &expiry
+	}
 
 	if ticket.TicketCategory.RequiresVerification {
 
-		status = enum.TicketScanPending
+		expiry := now.Add(
+			s.verificationTTL,
+		)
 
+		verificationExpiresAt = &expiry
 	}
 
 	scan := &models.TicketScan{
 
 		TicketID: ticket.ID,
 
+		TicketAccessWindowID: window.ID,
+
 		ScannedByID: scannerID,
 
 		ScannedAt: now,
 
 		Status: status,
+
+		VerifiedAt: verifiedAt,
+
+		VerifiedByID: verifiedByID,
+
+		VerificationExpiresAt: verificationExpiresAt,
+
+		VerifiedUntil: verifiedUntil,
 	}
 
-	err = s.ticketScans.Create(
+	err = scanRepo.Create(
 		ctx,
 		scan,
 	)
 
 	if err != nil {
+
+		tx.Rollback()
+
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+
 		return nil, err
 	}
 
@@ -172,32 +288,88 @@ func (s *TicketService) VerifyScan(
 		return err
 	}
 
+	// Permission check
+	member, err := s.partyMembers.FindByPartyAndUser(
+		ctx,
+		scan.Ticket.TicketCategory.PartyID,
+		staffID,
+	)
+
+	if err != nil {
+		return appErrors.ErrNotAllowed
+	}
+
+	if member.Role != enum.RoleOrganizer &&
+		member.Role != enum.RoleAdmin &&
+		member.Role != enum.RoleStaff {
+
+		return appErrors.ErrNotAllowed
+	}
+
+	// Only pending scans can be decided
 	if scan.Status != enum.TicketScanPending {
 
 		return appErrors.ErrTicketScanAlreadyDecided
-
 	}
 
-	now := time.Now().UTC()
+	now := s.clock.Now()
+
+	// Pending verification expired
+	if scan.VerificationExpiresAt != nil &&
+		now.After(*scan.VerificationExpiresAt) {
+
+		return appErrors.ErrTicketVerificationExpired
+	}
+
+	updates := map[string]interface{}{}
 
 	if approved {
 
-		scan.Status = enum.TicketScanVerified
+		verifiedUntil := now.Add(
+			s.verificationTTL,
+		)
+
+		updates = map[string]interface{}{
+
+			"status": enum.TicketScanVerified,
+
+			"verified_at": now,
+
+			"verified_by_id": staffID,
+
+			"verified_until": verifiedUntil,
+		}
 
 	} else {
 
-		scan.Status = enum.TicketScanRejected
+		updates = map[string]interface{}{
 
+			"status": enum.TicketScanRejected,
+
+			// decision metadata
+			"verified_at": now,
+
+			"verified_by_id": staffID,
+
+			// clear verification validity
+			"verification_expires_at": nil,
+
+			"verified_until": nil,
+		}
 	}
 
-	scan.VerifiedAt = &now
-
-	scan.VerifiedByID = &staffID
-
-	return s.ticketScans.Update(
+	err = s.ticketScans.UpdateIfPending(
 		ctx,
-		scan,
+		scan.ID,
+		updates,
 	)
+
+	if err != nil {
+
+		return err
+	}
+
+	return nil
 }
 
 func (s *TicketService) CreatePurchase(

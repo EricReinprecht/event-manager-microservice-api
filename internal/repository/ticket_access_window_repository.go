@@ -47,11 +47,9 @@ func (r *TicketAccessWindowRepository) IsAllowedNow(
 
 func (r *TicketAccessWindowRepository) FindCurrent(
 	ctx context.Context,
-	categoryID uuid.UUID,
+	ticketCategoryID uuid.UUID,
 	now time.Time,
 ) (*models.TicketAccessWindow, error) {
-
-	now = now.UTC()
 
 	var window models.TicketAccessWindow
 
@@ -59,16 +57,13 @@ func (r *TicketAccessWindowRepository) FindCurrent(
 		WithContext(ctx).
 		Where(
 			"ticket_category_id = ? AND starts_at <= ? AND ends_at >= ?",
-			categoryID,
+			ticketCategoryID,
 			now,
 			now,
 		).
+		Order("starts_at ASC").
 		First(&window).
 		Error()
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &window, nil
+	return &window, err
 }

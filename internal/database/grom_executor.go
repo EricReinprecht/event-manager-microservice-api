@@ -34,6 +34,12 @@ func (g *GormExecutor) Where(query interface{}, args ...interface{}) DBExecutor 
 	}
 }
 
+func (g *GormExecutor) Order(value interface{}) DBExecutor {
+	return &GormExecutor{
+		db: g.db.Order(value),
+	}
+}
+
 func (g *GormExecutor) First(dest interface{}, conds ...interface{}) DBExecutor {
 	return &GormExecutor{
 		db: g.db.First(dest, conds...),
@@ -73,6 +79,12 @@ func (g *GormExecutor) Scan(dest interface{}) DBExecutor {
 func (g *GormExecutor) Create(value interface{}) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Create(value),
+	}
+}
+
+func (e *GormExecutor) Updates(values interface{}) DBExecutor {
+	return &GormExecutor{
+		db: e.db.Updates(values),
 	}
 }
 
@@ -120,4 +132,8 @@ func (g *GormExecutor) Rollback() error {
 
 func (g *GormExecutor) Error() error {
 	return g.db.Error
+}
+
+func (e *GormExecutor) RowsAffected() int64 {
+	return e.db.RowsAffected
 }

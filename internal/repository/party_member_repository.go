@@ -5,17 +5,17 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
 type PartyMemberRepository struct {
-	db *gorm.DB
+	db database.DBExecutor
 }
 
 func NewPartyMemberRepository(
-	db *gorm.DB,
+	db database.DBExecutor,
 ) *PartyMemberRepository {
 
 	return &PartyMemberRepository{
@@ -30,7 +30,7 @@ func (r *PartyMemberRepository) Create(
 
 	return r.db.WithContext(ctx).
 		Create(member).
-		Error
+		Error()
 }
 
 func (r *PartyMemberRepository) FindByPartyAndUser(
@@ -48,7 +48,7 @@ func (r *PartyMemberRepository) FindByPartyAndUser(
 			userID,
 		).
 		First(&member).
-		Error
+		Error()
 
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (r *PartyMemberRepository) FindByParty(
 			partyID,
 		).
 		Find(&members).
-		Error
+		Error()
 
 	fmt.Println("PARTY ID:", partyID)
 	fmt.Println("FOUND:", len(members))
@@ -92,7 +92,7 @@ func (r *PartyMemberRepository) FindByID(
 			"id = ?",
 			id,
 		).
-		Error
+		Error()
 
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (r *PartyMemberRepository) Delete(
 
 	return r.db.WithContext(ctx).
 		Delete(member).
-		Error
+		Error()
 }
 
 func (r *PartyMemberRepository) Update(
@@ -118,5 +118,5 @@ func (r *PartyMemberRepository) Update(
 
 	return r.db.WithContext(ctx).
 		Save(member).
-		Error
+		Error()
 }

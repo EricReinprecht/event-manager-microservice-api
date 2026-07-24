@@ -16,4 +16,6 @@ var (
 	ErrTicketAlreadyScanned       = errors.New("ticket was already scanned")
 	ErrTicketAccessWindowRequired = errors.New("ticket category requires at least one access window")
 	ErrTicketScanAlreadyDecided   = errors.New("ticket scan already decided")
+	ErrTicketNotFound             = errors.New("ticket not found")
+	ErrTicketVerificationExpired  = errors.New("ticket verification expired")
 )

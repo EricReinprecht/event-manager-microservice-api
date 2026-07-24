@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
@@ -42,13 +43,30 @@ func (r *TicketRepository) FindByCode(
 
 	err := r.db.
 		WithContext(ctx).
-		Preload("TicketCategory").
-		Preload("TicketCategory.Party").
-		Where("code = ?", code).
+		Preload(
+			"TicketCategory",
+			func(db *gorm.DB) *gorm.DB {
+				return db.Unscoped()
+			},
+		).
+		Preload(
+			"TicketCategory.Party",
+			func(db *gorm.DB) *gorm.DB {
+				return db.Unscoped()
+			},
+		).
+		Where(
+			"code = ?",
+			code,
+		).
 		First(&ticket).
 		Error()
 
-	return &ticket, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &ticket, nil
 }
 
 func (r *TicketRepository) FindByID(

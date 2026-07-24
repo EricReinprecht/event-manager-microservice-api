@@ -2,6 +2,8 @@ package config
 
 import (
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -17,6 +19,8 @@ type Config struct {
 	DBName     string
 
 	JWTSecret string
+
+	TicketVerificationTTL time.Duration
 }
 
 func Load() *Config {
@@ -65,6 +69,13 @@ func Load() *Config {
 			"JWT_SECRET",
 			"development-secret-change-me",
 		),
+
+		TicketVerificationTTL: time.Duration(
+			getEnvInt(
+				"TICKET_VERIFICATION_TTL_MINUTES",
+				15,
+			),
+		) * time.Minute,
 	}
 }
 
@@ -77,4 +88,24 @@ func getEnv(key string, fallback string) string {
 	}
 
 	return value
+}
+
+func getEnvInt(
+	key string,
+	fallback int,
+) int {
+
+	value := os.Getenv(key)
+
+	if value == "" {
+		return fallback
+	}
+
+	result, err := strconv.Atoi(value)
+
+	if err != nil {
+		return fallback
+	}
+
+	return result
 }

@@ -19,12 +19,19 @@ type TicketScan struct {
 
 	ScannedAt time.Time
 
-	Status enum.TicketScanStatus `gorm:"type:varchar(20);check:role IN ('PENDING','VERIFIED','REJECTED')"`
+	TicketAccessWindowID uuid.UUID
+	TicketAccessWindow   TicketAccessWindow
+
+	Status enum.TicketScanStatus `gorm:"type:varchar(20);check:status IN ('PENDING','VERIFIED','REJECTED')"`
 
 	VerifiedAt *time.Time
 
 	VerifiedByID *uuid.UUID
 	VerifiedBy   *User
+
+	VerificationExpiresAt *time.Time
+
+	VerifiedUntil *time.Time
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

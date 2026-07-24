@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/reinp/event-platform/backend/internal/auth"
+	"github.com/reinp/event-platform/backend/internal/clock"
 	"github.com/reinp/event-platform/backend/internal/config"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
@@ -48,18 +49,29 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_scan_window_active
+		ON ticket_scans(ticket_id, ticket_access_window_id)
+		WHERE status IN ('PENDING','VERIFIED')
+	`).Error; err != nil {
+		log.Fatal(err)
+	}
+
+	appClock := clock.RealClock{}
+
 	userRepository := repository.NewUserRepository(db)
 	partyRepository := repository.NewPartyRepository(db)
 	categoryRepository := repository.NewCategoryRepository(db)
 	mediaRepository := repository.NewMediaRepository(db)
 	ticketCategoryRepository := repository.NewTicketCategoryRepository(executor)
 	ticketRepository := repository.NewTicketRepository(executor)
-	partyMemberRepository := repository.NewPartyMemberRepository(db)
+	partyMemberRepository := repository.NewPartyMemberRepository(executor)
 	ticketScanRepository := repository.NewTicketScanRepository(executor)
 	ticketAccessWindowRepository := repository.NewTicketAccessWindowRepository(executor)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
+		clock.RealClock{},
 	)
 
 	authService := service.NewAuthService(
@@ -97,6 +109,8 @@ func main() {
 		ticketScanRepository,
 		ticketAccessWindowRepository,
 		executor,
+		appClock,
+		cfg.TicketVerificationTTL,
 	)
 
 	sqlDB, err := db.DB()

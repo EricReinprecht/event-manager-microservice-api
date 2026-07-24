@@ -9,6 +9,8 @@ type DBExecutor interface {
 
 	Where(query interface{}, args ...interface{}) DBExecutor
 
+	Order(value interface{}) DBExecutor
+
 	First(dest interface{}, conds ...interface{}) DBExecutor
 
 	Find(dest interface{}, conds ...interface{}) DBExecutor
@@ -22,6 +24,8 @@ type DBExecutor interface {
 	Scan(dest interface{}) DBExecutor
 
 	Create(value interface{}) DBExecutor
+
+	Updates(values interface{}) DBExecutor
 
 	Save(value interface{}) DBExecutor
 
@@ -38,4 +42,6 @@ type DBExecutor interface {
 	Rollback() error
 
 	Error() error
+
+	RowsAffected() int64
 }
