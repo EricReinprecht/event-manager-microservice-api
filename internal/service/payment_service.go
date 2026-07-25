@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
@@ -53,7 +54,7 @@ func (s *PaymentService) CreateCheckout(
 	}
 
 	// Already paid
-	if purchase.Status == enum.StatusPaid {
+	if purchase.Status == enum.PurchaseStatusPaid {
 		return "", errors.New(
 			"purchase already paid",
 		)
@@ -114,7 +115,7 @@ func (s *PaymentService) ConfirmPayment(
 	}
 
 	// idempotency
-	if purchase.Status == enum.StatusPaid {
+	if purchase.Status == enum.PurchaseStatusPaid {
 
 		return purchase, nil
 	}
@@ -203,5 +204,50 @@ func (s *PaymentService) CapturePayment(
 	return s.paymentGateway.CaptureOrder(
 		ctx,
 		orderID,
+	)
+}
+
+func (s *PaymentService) RefundPayment(
+	ctx context.Context,
+	purchaseID uuid.UUID,
+) error {
+
+	purchase, err := s.purchaseService.GetPurchase(
+		ctx,
+		purchaseID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if purchase.Status != enum.PurchaseStatusPaid {
+		return errors.New(
+			"only paid purchases can be refunded",
+		)
+	}
+
+	refundID, err := s.paymentGateway.RefundPayment(
+		ctx,
+		purchase.PaymentID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+
+	purchase.Status = enum.PurchaseStatusRefunded
+
+	purchase.RefundID = refundID
+
+	purchase.RefundProvider = purchase.PaymentProvider
+
+	purchase.RefundedAt = &now
+
+	return s.purchaseRepository.UpdateContext(
+		ctx,
+		purchase,
 	)
 }

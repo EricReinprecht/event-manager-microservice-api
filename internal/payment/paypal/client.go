@@ -283,3 +283,13 @@ func (c *Client) VerifyWebhookSignature(
 
 	return nil
 }
+
+func (c *Client) RefundPayment(
+	ctx context.Context,
+	paymentID string,
+) (string, error) {
+
+	// TODO implement PayPal refund API call
+
+	return "", nil
+}

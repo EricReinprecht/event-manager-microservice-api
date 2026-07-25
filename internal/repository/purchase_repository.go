@@ -248,11 +248,11 @@ func (r *PurchaseRepository) ConfirmPaymentAtomic(
 		return nil, err
 	}
 
-	if purchase.Status == enum.StatusPaid {
+	if purchase.Status == enum.PurchaseStatusPaid {
 		return &purchase, nil
 	}
 
-	purchase.Status = enum.StatusPaid
+	purchase.Status = enum.PurchaseStatusPaid
 
 	if err := r.db.
 		WithContext(ctx).
@@ -279,6 +279,17 @@ func (r *PurchaseRepository) Update(
 		Error()
 }
 
+func (r *PurchaseRepository) UpdateContext(
+	ctx context.Context,
+	purchase *models.Purchase,
+) error {
+
+	return r.db.
+		WithContext(ctx).
+		Save(purchase).
+		Error()
+}
+
 func (r *PurchaseRepository) ConfirmPayment(
 	ctx context.Context,
 	paymentID string,
@@ -300,12 +311,12 @@ func (r *PurchaseRepository) ConfirmPayment(
 			}
 
 			// already processed
-			if p.Status == enum.StatusPaid {
+			if p.Status == enum.PurchaseStatusPaid {
 				purchase = *p
 				return nil
 			}
 
-			p.Status = enum.StatusPaid
+			p.Status = enum.PurchaseStatusPaid
 
 			if err := r.Update(
 				tx,

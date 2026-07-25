@@ -48,7 +48,7 @@ func (s *PurchaseService) CreatePurchase(
 				ID:      uuid.New(),
 				UserID:  userID,
 				PartyID: partyID,
-				Status:  enum.StatusPending,
+				Status:  enum.PruchaseStatusPending,
 
 				ExpiresAt: time.Now().Add(
 					30 * time.Minute,
@@ -147,7 +147,7 @@ func (s *PurchaseService) AttachPayment(
 				return err
 			}
 
-			if purchase.Status != enum.StatusPending {
+			if purchase.Status != enum.PruchaseStatusPending {
 				return errors.New("purchase is not pending")
 			}
 
@@ -212,13 +212,13 @@ func (s *PurchaseService) ConfirmPayment(
 				return err
 			}
 
-			if purchase.Status == enum.StatusPaid {
+			if purchase.Status == enum.PurchaseStatusPaid {
 
 				result = purchase
 				return nil
 			}
 
-			purchase.Status = enum.StatusPaid
+			purchase.Status = enum.PurchaseStatusPaid
 
 			if err := s.repository.Update(
 				tx,

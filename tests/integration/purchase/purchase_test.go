@@ -98,7 +98,7 @@ func TestUserCanCreatePendingPurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if purchase.Status != enum.StatusPending {
+	if purchase.Status != enum.PruchaseStatusPending {
 
 		t.Fatalf(
 			"expected pending purchase got %s",
@@ -395,7 +395,7 @@ func TestPurchaseCanBeMarkedPaid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if updatedPurchase.Status != enum.StatusPaid {
+	if updatedPurchase.Status != enum.PurchaseStatusPaid {
 
 		t.Fatalf(
 			"expected purchase status PAID got %s",

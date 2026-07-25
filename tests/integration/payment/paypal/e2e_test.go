@@ -69,7 +69,7 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.StatusPending,
+		enum.PruchaseStatusPending,
 	)
 
 	// --------------------------------
@@ -212,7 +212,7 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if updatedPurchase.Status != enum.StatusPaid {
+	if updatedPurchase.Status != enum.PurchaseStatusPaid {
 
 		t.Fatalf(
 			"expected PAID got %s",

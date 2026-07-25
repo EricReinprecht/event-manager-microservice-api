@@ -3,9 +3,13 @@ package enum
 type PurchaseStatus string
 
 const (
-	StatusPending  PurchaseStatus = "PENDING"
-	StatusPaid     PurchaseStatus = "PAID"
-	StatusFailed   PurchaseStatus = "FAILED"
-	StatusCanceled PurchaseStatus = "CANCELED"
-	StatusRefunded PurchaseStatus = "REFUNDED"
+	PruchaseStatusPending PurchaseStatus = "PENDING"
+
+	PurchaseStatusPaid PurchaseStatus = "PAID"
+
+	PurchaseStatusFailed PurchaseStatus = "FAILED"
+
+	PurchaseStatusCanceled PurchaseStatus = "CANCELED"
+
+	PurchaseStatusRefunded PurchaseStatus = "REFUNDED"
 )
