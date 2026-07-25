@@ -6,17 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )
 
 func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 
 	db, err := helpers.TestDatabase()
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +25,9 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 	}
 
 	clock := &helpers.FakeClock{
-		Current: time.Now().UTC(),
+		Current: time.Now().
+			UTC().
+			Truncate(time.Microsecond),
 	}
 
 	ticketService := helpers.NewTicketService(
@@ -34,156 +35,30 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 		clock,
 	)
 
-	// STAFF
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CUSTOMER
-
-	customer := fixtures.User()
-
-	if err := db.Create(&customer).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
+	scenario := createVerificationScenario(
+		t,
+		db,
+		clock,
+		true,
 	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// MEMBER
-
-	member := appModels.PartyMember{
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	role := appModels.PartyMemberRole{
-		ID: uuid.New(),
-
-		PartyMemberID: member.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&role).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY WITH VERIFICATION
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: true,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-time.Hour),
-
-		EndsAt: clock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PURCHASE
-
-	purchase := appModels.Purchase{
-
-		ID: uuid.New(),
-
-		UserID: customer.ID,
-
-		PartyID: party.ID,
-
-		Status: enum.PurchaseStatusPaid,
-
-		ExpiresAt: clock.Current.Add(time.Hour),
-
-		TotalPrice: 0,
-	}
-
-	if err := db.Create(&purchase).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := fixtures.Ticket()
-
-	ticket.TicketCategoryID = ticketCategory.ID
-
-	ticket.UserID = customer.ID
-
-	ticket.PurchaseID = purchase.ID
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
 
 	// CREATE PENDING SCAN
 
 	scan, err := ticketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if scan.Status != enum.TicketScanPending {
-
-		t.Fatalf(
-			"expected pending scan, got %s",
-			scan.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		scan,
+		enum.TicketScanPending,
+	)
 
 	if scan.VerificationExpiresAt == nil {
 		t.Fatal(
@@ -193,66 +68,54 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 
 	// MOVE EXACTLY TO EXPIRY TIME
 
-	var storedScan appModels.TicketScan
+	clock.Current = *scan.VerificationExpiresAt
 
-	if err := db.First(
-		&storedScan,
-		"id = ?",
-		scan.ID,
-	).Error; err != nil {
-
-		t.Fatal(err)
-	}
-
-	clock.Current = *storedScan.VerificationExpiresAt
-
-	// VERIFY AT EXACT BOUNDARY
+	// VERIFY AT BOUNDARY
 
 	err = ticketService.VerifyScan(
 		context.Background(),
 		scan.ID,
-		staff.ID,
+		scenario.Staff.ID,
 		true,
 	)
 
 	if err != nil {
-
 		t.Fatalf(
 			"expected verification to succeed at expiry boundary, got %v",
 			err,
 		)
 	}
 
-	// LOAD UPDATED
+	// RELOAD
 
 	var updated appModels.TicketScan
 
-	if err := db.First(
-		&updated,
-		"id = ?",
-		scan.ID,
-	).Error; err != nil {
+	if err := db.
+		First(
+			&updated,
+			"id = ?",
+			scan.ID,
+		).
+		Error; err != nil {
 
 		t.Fatal(err)
 	}
 
-	if updated.Status != enum.TicketScanVerified {
+	// ASSERT
 
-		t.Fatalf(
-			"expected verified status, got %s",
-			updated.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		&updated,
+		enum.TicketScanVerified,
+	)
 
 	if updated.VerifiedAt == nil {
-
 		t.Fatal(
 			"expected VerifiedAt to be set",
 		)
 	}
 
 	if updated.VerifiedByID == nil {
-
 		t.Fatal(
 			"expected VerifiedByID to be set",
 		)
@@ -271,7 +134,9 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 	}
 
 	clock := &helpers.FakeClock{
-		Current: time.Now().UTC(),
+		Current: time.Now().
+			UTC().
+			Truncate(time.Microsecond),
 	}
 
 	ticketService := helpers.NewTicketService(
@@ -279,145 +144,32 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 		clock,
 	)
 
-	// STAFF
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CUSTOMER
-
-	customer := fixtures.User()
-
-	if err := db.Create(&customer).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY MEMBER
-
-	member := appModels.PartyMember{
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	role := appModels.PartyMemberRole{
-		ID: uuid.New(),
-
-		PartyMemberID: member.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&role).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: true,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-time.Hour),
-
-		EndsAt: clock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := fixtures.Ticket()
-
-	ticket.TicketCategoryID = ticketCategory.ID
-
-	ticket.UserID = customer.ID
-
-	// create required purchase FK
-	purchase := helpers.CreateTestPurchase(
+	scenario := createVerificationScenario(
+		t,
 		db,
-		customer.ID,
-		party.ID,
+		clock,
+		true,
 	)
-
-	ticket.PurchaseID = purchase.ID
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
 
 	// CREATE PENDING SCAN
 
 	scan, err := ticketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if scan.Status != enum.TicketScanPending {
-
-		t.Fatalf(
-			"expected pending scan, got %s",
-			scan.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		scan,
+		enum.TicketScanPending,
+	)
 
 	if scan.VerificationExpiresAt == nil {
-
 		t.Fatal(
 			"expected verification expiry to be set",
 		)
@@ -434,7 +186,7 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 	err = ticketService.VerifyScan(
 		context.Background(),
 		scan.ID,
-		staff.ID,
+		scenario.Staff.ID,
 		true,
 	)
 
@@ -449,28 +201,28 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 		)
 	}
 
-	// LOAD UPDATED SCAN
+	// RELOAD
 
 	var updated appModels.TicketScan
 
-	if err := db.First(
-		&updated,
-		"id = ?",
-		scan.ID,
-	).Error; err != nil {
+	if err := db.
+		First(
+			&updated,
+			"id = ?",
+			scan.ID,
+		).
+		Error; err != nil {
 
 		t.Fatal(err)
 	}
 
-	// SHOULD STILL BE PENDING
+	// ASSERT
 
-	if updated.Status != enum.TicketScanPending {
-
-		t.Fatalf(
-			"expected pending status after expiry, got %s",
-			updated.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		&updated,
+		enum.TicketScanPending,
+	)
 
 	if updated.VerifiedAt != nil {
 
@@ -500,7 +252,9 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 	}
 
 	clock := &helpers.FakeClock{
-		Current: time.Now().UTC(),
+		Current: time.Now().
+			UTC().
+			Truncate(time.Microsecond),
 	}
 
 	ticketService := helpers.NewTicketService(
@@ -508,154 +262,38 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 		clock,
 	)
 
-	// STAFF
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CUSTOMER
-
-	customer := fixtures.User()
-
-	if err := db.Create(&customer).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
+	scenario := createVerificationScenario(
+		t,
+		db,
+		clock,
+		true,
 	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// STAFF MEMBER
-
-	member := appModels.PartyMember{
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	role := appModels.PartyMemberRole{
-		ID: uuid.New(),
-
-		PartyMemberID: member.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&role).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: true,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-time.Hour),
-
-		EndsAt: clock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PURCHASE
-
-	purchase := appModels.Purchase{
-
-		ID: uuid.New(),
-
-		UserID: customer.ID,
-
-		PartyID: party.ID,
-
-		Status: enum.PurchaseStatusPaid,
-	}
-
-	if err := db.Create(&purchase).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := fixtures.Ticket()
-
-	ticket.TicketCategoryID = ticketCategory.ID
-
-	ticket.UserID = customer.ID
-
-	ticket.PurchaseID = purchase.ID
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
 
 	// CREATE PENDING SCAN
 
 	scan, err := ticketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if scan.Status != enum.TicketScanPending {
+	assertScanStatus(
+		t,
+		scan,
+		enum.TicketScanPending,
+	)
 
-		t.Fatalf(
-			"expected pending scan, got %s",
-			scan.Status,
+	if scan.VerificationExpiresAt == nil {
+		t.Fatal(
+			"expected verification expiry to be set",
 		)
 	}
 
-	// MOVE TIME FORWARD BEYOND VERIFICATION TTL
+	// MOVE BEYOND VERIFICATION TTL
 
 	clock.Current = clock.Current.Add(
 		30 * time.Minute,
@@ -666,12 +304,11 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 	err = ticketService.VerifyScan(
 		context.Background(),
 		scan.ID,
-		staff.ID,
+		scenario.Staff.ID,
 		true,
 	)
 
 	if err == nil {
-
 		t.Fatal(
 			"expected expired verification error",
 		)
@@ -688,24 +325,26 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 		)
 	}
 
-	// ENSURE STATUS DID NOT CHANGE
+	// RELOAD
 
 	var updated appModels.TicketScan
 
-	if err := db.First(
-		&updated,
-		"id = ?",
-		scan.ID,
-	).Error; err != nil {
+	if err := db.
+		First(
+			&updated,
+			"id = ?",
+			scan.ID,
+		).
+		Error; err != nil {
 
 		t.Fatal(err)
 	}
 
-	if updated.Status != enum.TicketScanPending {
+	// ASSERT
 
-		t.Fatalf(
-			"expected scan to remain pending, got %s",
-			updated.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		&updated,
+		enum.TicketScanPending,
+	)
 }

@@ -2,23 +2,22 @@ package verification
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 
-	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )
 
 func TestConcurrentVerifyAndReject(t *testing.T) {
 
 	db, err := helpers.TestDatabase()
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +27,9 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 	}
 
 	clock := &helpers.FakeClock{
-		Current: time.Now().UTC(),
+		Current: time.Now().
+			UTC().
+			Truncate(time.Microsecond),
 	}
 
 	ticketService := helpers.NewTicketService(
@@ -36,117 +37,15 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		clock,
 	)
 
-	// STAFF
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CUSTOMER
-
-	customer := fixtures.User()
-
-	if err := db.Create(&customer).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// MEMBER
-
-	member := appModels.PartyMember{
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	role := appModels.PartyMemberRole{
-
-		ID: uuid.New(),
-
-		PartyMemberID: member.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&role).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: true,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := appModels.TicketAccessWindow{
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-time.Hour),
-
-		EndsAt: clock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	//  Ticket
-	purchase := helpers.CreateTestPurchase(
+	scenario := createVerificationScenario(
+		t,
 		db,
-		customer.ID,
-		party.ID,
+		clock,
+		true,
 	)
 
-	ticket := fixtures.Ticket()
-
-	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = customer.ID
-	ticket.PurchaseID = purchase.ID
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
+	staff := scenario.Staff
+	ticket := scenario.Ticket
 
 	// CREATE PENDING SCAN
 
@@ -160,20 +59,19 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if scan.Status != enum.TicketScanPending {
-		t.Fatalf(
-			"expected pending scan, got %s",
-			scan.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		scan,
+		enum.TicketScanPending,
+	)
+
+	// CONCURRENT DECISIONS
 
 	var wg sync.WaitGroup
 
 	results := make(chan error, 2)
 
 	wg.Add(2)
-
-	// VERIFY
 
 	go func() {
 
@@ -187,8 +85,6 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		)
 
 	}()
-
-	// REJECT
 
 	go func() {
 
@@ -235,15 +131,17 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		)
 	}
 
-	// VERIFY FINAL DATABASE STATE
+	// FINAL STATE
 
 	var updated appModels.TicketScan
 
-	if err := db.First(
-		&updated,
-		"id = ?",
-		scan.ID,
-	).Error; err != nil {
+	if err := db.
+		First(
+			&updated,
+			"id = ?",
+			scan.ID,
+		).
+		Error; err != nil {
 
 		t.Fatal(err)
 	}
@@ -302,6 +200,7 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 func TestConcurrentVerifySameScan(t *testing.T) {
 
 	db, err := helpers.TestDatabase()
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +210,9 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 	}
 
 	clock := &helpers.FakeClock{
-		Current: time.Now().UTC(),
+		Current: time.Now().
+			UTC().
+			Truncate(time.Microsecond),
 	}
 
 	ticketService := helpers.NewTicketService(
@@ -319,173 +220,24 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 		clock,
 	)
 
-	// STAFF 1
-
-	staff1 := fixtures.User()
-
-	if err := db.Create(&staff1).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// STAFF 2
-
-	staff2 := fixtures.User()
-
-	if err := db.Create(&staff2).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CUSTOMER
-
-	customer := fixtures.User()
-
-	if err := db.Create(&customer).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff1.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// MEMBERS
-
-	members := []appModels.PartyMember{
-
-		{
-			ID: uuid.New(),
-
-			UserID: staff1.ID,
-
-			PartyID: party.ID,
-		},
-
-		{
-			ID: uuid.New(),
-
-			UserID: staff2.ID,
-
-			PartyID: party.ID,
-		},
-	}
-
-	for _, member := range members {
-
-		if err := db.Create(&member).Error; err != nil {
-			t.Fatal(err)
-		}
-
-		role := appModels.PartyMemberRole{
-
-			ID: uuid.New(),
-
-			PartyMemberID: member.ID,
-
-			Role: enum.RoleStaff,
-		}
-
-		if err := db.Create(&role).Error; err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: true,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-time.Hour),
-
-		EndsAt: clock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	//  Purchase
-	purchase := appModels.Purchase{
-
-		ID: uuid.New(),
-
-		UserID: customer.ID,
-
-		PartyID: party.ID,
-
-		Status: enum.PurchaseStatusPaid,
-	}
-
-	if err := db.Create(&purchase).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// Purchase
-	purchase = appModels.Purchase{
-
-		ID: uuid.New(),
-
-		UserID: customer.ID,
-
-		PartyID: party.ID,
-
-		Status: enum.PurchaseStatusPaid,
-	}
-
-	if err := db.Create(&purchase).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	//  Ticket
-	purchase = helpers.CreateTestPurchase(
+	scenario := createVerificationScenario(
+		t,
 		db,
-		customer.ID,
-		party.ID,
+		clock,
+		true,
 	)
 
-	ticket := fixtures.Ticket()
+	staff1 := scenario.Staff
 
-	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = customer.ID
-	ticket.PurchaseID = purchase.ID
+	// ADD SECOND STAFF MEMBER
 
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
+	staff2 := addSecondPartyStaff(
+		t,
+		db,
+		scenario.Party.ID,
+	)
+
+	ticket := scenario.Ticket
 
 	// CREATE PENDING SCAN
 
@@ -499,13 +251,11 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if scan.Status != enum.TicketScanPending {
-
-		t.Fatalf(
-			"expected pending scan, got %s",
-			scan.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		scan,
+		enum.TicketScanPending,
+	)
 
 	// RUN TWO APPROVALS CONCURRENTLY
 
@@ -554,7 +304,10 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 
 			successes++
 
-		} else if err == appErrors.ErrTicketScanAlreadyDecided {
+		} else if errors.Is(
+			err,
+			appErrors.ErrTicketScanAlreadyDecided,
+		) {
 
 			failures++
 
@@ -596,13 +349,11 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if updated.Status != enum.TicketScanVerified {
-
-		t.Fatalf(
-			"expected verified status, got %s",
-			updated.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		&updated,
+		enum.TicketScanVerified,
+	)
 
 	if updated.VerifiedByID == nil {
 

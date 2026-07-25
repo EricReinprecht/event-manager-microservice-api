@@ -34,13 +34,24 @@ type VerificationScenario struct {
 	Ticket appModels.Ticket
 
 	Purchase appModels.Purchase
+
+	Scan *appModels.TicketScan
 }
 
 func createVerificationScenario(
 	t *testing.T,
 	db *gorm.DB,
 	clock *helpers.FakeClock,
+	requiresVerification ...bool,
 ) *VerificationScenario {
+
+	t.Helper()
+
+	verificationRequired := true
+
+	if len(requiresVerification) > 0 {
+		verificationRequired = requiresVerification[0]
+	}
 
 	// STAFF
 
@@ -128,7 +139,7 @@ func createVerificationScenario(
 
 		PartyID: party.ID,
 
-		RequiresVerification: true,
+		RequiresVerification: verificationRequired,
 	}
 
 	if err := db.Create(&ticketCategory).Error; err != nil {
@@ -197,6 +208,59 @@ func createVerificationScenario(
 
 		Ticket: ticket,
 	}
+}
+
+func createVerifiedTicketScenario(
+	t *testing.T,
+	db *gorm.DB,
+	clock *helpers.FakeClock,
+) *VerificationScenario {
+
+	t.Helper()
+
+	scenario := createVerificationScenario(
+		t,
+		db,
+		clock,
+		true,
+	)
+
+	ticketService := helpers.NewTicketService(
+		db,
+		clock,
+	)
+
+	scan, err := ticketService.Scan(
+		context.Background(),
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if scan.Status != enum.TicketScanPending {
+		t.Fatalf(
+			"expected pending scan, got %s",
+			scan.Status,
+		)
+	}
+
+	err = ticketService.VerifyScan(
+		context.Background(),
+		scan.ID,
+		scenario.Staff.ID,
+		true,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	scenario.Scan = scan
+
+	return scenario
 }
 
 func changeStaffRole(
@@ -563,4 +627,37 @@ func changeTicketOwner(
 
 		t.Fatal(err)
 	}
+}
+
+func CreateTestPurchase(
+	t *testing.T,
+	db *gorm.DB,
+	userID uuid.UUID,
+	partyID uuid.UUID,
+) appModels.Purchase {
+
+	t.Helper()
+
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: userID,
+
+		PartyID: partyID,
+
+		Status: enum.PurchaseStatusPaid,
+
+		ExpiresAt: time.Now().
+			UTC().
+			Add(time.Hour),
+
+		TotalPrice: 0,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	return purchase
 }
