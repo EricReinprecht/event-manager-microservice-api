@@ -1,4 +1,4 @@
-package payment
+package refund
 
 import (
 	"context"
@@ -77,9 +77,10 @@ func TestPaymentRefundSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = paymentService.RefundPayment(
+	paymentService.RefundPayment(
 		context.Background(),
 		purchase.ID,
+		user.ID,
 	)
 
 	if err != nil {
@@ -164,7 +165,7 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 	)
 
 	// ----------------------------
-	// Setup user
+	// USER
 	// ----------------------------
 
 	user := fixtures.User()
@@ -173,11 +174,19 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// ----------------------------
+	// CATEGORY
+	// ----------------------------
+
 	category := fixtures.Category()
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
 	}
+
+	// ----------------------------
+	// PARTY
+	// ----------------------------
 
 	party := fixtures.PartyWithOrganizer(
 		user.ID,
@@ -190,7 +199,7 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 	}
 
 	// ----------------------------
-	// Create paid purchase
+	// PURCHASE
 	// ----------------------------
 
 	purchase := helpers.CreatePurchase(
@@ -201,8 +210,12 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 		enum.PurchaseStatusPaid,
 	)
 
-	purchase.PaymentProvider = "paypal"
+	// IMPORTANT:
+	// ensure purchase belongs to this party
+	purchase.PartyID = party.ID
+	purchase.UserID = user.ID
 
+	purchase.PaymentProvider = "paypal"
 	purchase.PaymentID = "PAYPAL-FAIL-REFUND"
 
 	if err := db.Save(&purchase).Error; err != nil {
@@ -210,23 +223,37 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 	}
 
 	// ----------------------------
-	// Execute refund
+	// EXECUTE REFUND
 	// ----------------------------
 
 	err = paymentService.RefundPayment(
 		context.Background(),
 		purchase.ID,
+		user.ID,
 	)
 
 	if err == nil {
-
 		t.Fatal(
 			"expected refund failure",
 		)
 	}
 
 	// ----------------------------
-	// Verify purchase unchanged
+	// VERIFY GATEWAY WAS CALLED
+	// ----------------------------
+
+	// The failing gateway does not expose a flag,
+	// but the error proves it was reached.
+	if err.Error() != "refund failed" {
+
+		t.Fatalf(
+			"expected refund failed error, got %v",
+			err,
+		)
+	}
+
+	// ----------------------------
+	// VERIFY PURCHASE UNCHANGED
 	// ----------------------------
 
 	var updated models.Purchase
@@ -354,6 +381,7 @@ func TestCannotRefundAlreadyRefundedPurchase(t *testing.T) {
 	err = paymentService.RefundPayment(
 		context.Background(),
 		purchase.ID,
+		user.ID,
 	)
 
 	if err == nil {

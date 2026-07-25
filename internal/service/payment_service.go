@@ -228,7 +228,33 @@ func (s *PaymentService) CapturePayment(
 func (s *PaymentService) RefundPayment(
 	ctx context.Context,
 	purchaseID uuid.UUID,
+	userID uuid.UUID,
 ) error {
+
+	purchase, err := s.purchaseService.GetPurchase(
+		ctx,
+		purchaseID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// permission check
+	if !s.partyMemberService.CanRefund(
+		ctx,
+		purchase.PartyID,
+		userID,
+	) {
+		return appErrors.ErrNotAllowed
+	}
+
+	// prevent duplicate refunds
+	if purchase.Status == enum.PurchaseStatusRefunded {
+		return errors.New(
+			"purchase already refunded",
+		)
+	}
 
 	return s.purchaseRepository.Transaction(
 		ctx,
@@ -243,6 +269,7 @@ func (s *PaymentService) RefundPayment(
 				return err
 			}
 
+			// protect against race condition:
 			if purchase.Status == enum.PurchaseStatusRefunded {
 				return errors.New(
 					"purchase already refunded",
@@ -261,19 +288,14 @@ func (s *PaymentService) RefundPayment(
 			now := time.Now()
 
 			purchase.Status = enum.PurchaseStatusRefunded
-
 			purchase.RefundID = refundID
-
 			purchase.RefundProvider = purchase.PaymentProvider
-
 			purchase.RefundedAt = &now
 
-			err = s.purchaseRepository.Update(
+			if err := s.purchaseRepository.Update(
 				tx,
 				purchase,
-			)
-
-			if err != nil {
+			); err != nil {
 				return err
 			}
 

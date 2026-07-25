@@ -416,12 +416,56 @@ func (h *PaymentHandler) Refund(c *gin.Context) {
 		return
 	}
 
+	userIDValue, exists := c.Get("userID")
+
+	if !exists {
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"error": "unauthorized",
+			},
+		)
+
+		return
+	}
+
+	userID, ok := userIDValue.(uuid.UUID)
+
+	if !ok {
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"error": "invalid user context",
+			},
+		)
+
+		return
+	}
+
 	err = h.service.RefundPayment(
 		c.Request.Context(),
+		userID,
 		purchaseID,
 	)
 
 	if err != nil {
+
+		if errors.Is(
+			err,
+			appErrors.ErrNotAllowed,
+		) {
+
+			c.JSON(
+				http.StatusForbidden,
+				gin.H{
+					"error": "not allowed",
+				},
+			)
+
+			return
+		}
 
 		c.JSON(
 			http.StatusBadRequest,

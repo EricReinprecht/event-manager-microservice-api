@@ -22,9 +22,28 @@ func NewPaymentService(
 		executor,
 	)
 
+	partyMemberRepository := repository.NewPartyMemberRepository(
+		executor,
+	)
+
+	partyRepository := repository.NewPartyRepository(
+		executor,
+	)
+
+	roleRepository := repository.NewPartyMemberRoleRepository(
+		executor,
+	)
+
+	partyMemberService := service.NewPartyMemberService(
+		partyMemberRepository,
+		partyRepository,
+		roleRepository,
+	)
+
 	return service.NewPaymentService(
 		purchaseService,
 		ticketService,
+		partyMemberService,
 		paymentGateway,
 		paymentEventRepository,
 		purchaseRepository,

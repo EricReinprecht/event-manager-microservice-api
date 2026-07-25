@@ -95,7 +95,9 @@ func (f *FailingPaymentGateway) RefundPayment(
 	paymentID string,
 ) (string, error) {
 
-	return "", errors.New("refund failed")
+	return "", errors.New(
+		"refund failed",
+	)
 }
 
 func (f *FailingPaymentGateway) VerifyWebhookSignature(
