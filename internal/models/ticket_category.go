@@ -24,6 +24,8 @@ type TicketCategory struct {
 
 	AccessWindows []TicketAccessWindow
 
+	RefundRequiresApproval bool
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
