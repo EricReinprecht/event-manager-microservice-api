@@ -202,6 +202,11 @@ func Register(
 		paymentHandler.CreateCheckout,
 	)
 
+	protected.POST(
+		"/purchases/:id/refund",
+		paymentHandler.Refund,
+	)
+
 	router.POST(
 		"/api/payments/paypal/webhook",
 		paymentHandler.Webhook,

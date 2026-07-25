@@ -397,3 +397,46 @@ func (h *PaymentHandler) processWebhookEvent(
 
 	return false
 }
+
+func (h *PaymentHandler) Refund(c *gin.Context) {
+
+	purchaseID, err := uuid.Parse(
+		c.Param("id"),
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "invalid purchase id",
+			},
+		)
+
+		return
+	}
+
+	err = h.service.RefundPayment(
+		c.Request.Context(),
+		purchaseID,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"message": "purchase refunded",
+		},
+	)
+}

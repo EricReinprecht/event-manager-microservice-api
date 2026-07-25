@@ -88,19 +88,17 @@ func (h *PartyMemberHandler) Create(
 		return
 	}
 
-	member := &models.PartyMember{
-
-		UserID: req.UserID,
-
+	member := models.PartyMember{
+		UserID:  req.UserID,
 		PartyID: partyID,
 
-		Role: req.Role,
+		Roles: []models.PartyMemberRole{
+			{
+				ID:   uuid.New(),
+				Role: enum.RoleOrganizer,
+			},
+		},
 	}
-
-	err = h.service.Create(
-		c.Request.Context(),
-		member,
-	)
 
 	if err != nil {
 

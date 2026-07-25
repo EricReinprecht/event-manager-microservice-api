@@ -7,4 +7,5 @@ const (
 	RoleAdmin     PartyRole = "ADMIN"
 	RoleStaff     PartyRole = "STAFF"
 	RoleAttendee  PartyRole = "ATTENDEE"
+	RoleRefunder  PartyRole = "REFUNDER"
 )

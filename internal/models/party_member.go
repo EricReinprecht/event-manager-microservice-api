@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type PartyMember struct {
@@ -17,7 +15,7 @@ type PartyMember struct {
 	PartyID uuid.UUID `gorm:"uniqueIndex:idx_party_member_user_party"`
 	Party   Party
 
-	Role enum.PartyRole `gorm:"type:varchar(20);check:role IN ('ORGANIZER','ADMIN','STAFF','ATTENDEE')"`
+	Roles []PartyMemberRole `gorm:"foreignKey:PartyMemberID"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
