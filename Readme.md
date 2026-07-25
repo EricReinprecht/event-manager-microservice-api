@@ -1,3 +1,22 @@
+# Basic
+
+Start Project with:
+
+```bash
+go run ./cmd/api
+```
+
+Access Database:
+
+```bash
+docker exec -it event-postgres psql -U event_user -d event_platform
+```
+
+# Setup Paypal
+
+Create a sandbox environment via paypal.
+After create a webhook with all permissions, with the url form ngrok for the webhook.
+
 # Integration Tests
 
 This project contains integration tests for the main application flows.
