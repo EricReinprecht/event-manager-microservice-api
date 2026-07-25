@@ -49,7 +49,9 @@ func (r *PartyMemberRepository) FindByPartyAndUser(
 
 	var member models.PartyMember
 
-	err := r.db.WithContext(ctx).
+	err := r.db.
+		WithContext(ctx).
+		Preload("Roles").
 		Where(
 			"party_id = ? AND user_id = ?",
 			partyID,
@@ -58,11 +60,7 @@ func (r *PartyMemberRepository) FindByPartyAndUser(
 		First(&member).
 		Error()
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &member, nil
+	return &member, err
 }
 
 func (r *PartyMemberRepository) FindByParty(

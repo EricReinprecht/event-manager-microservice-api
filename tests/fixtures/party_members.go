@@ -10,10 +10,9 @@ import (
 func PartyMember(
 	userID uuid.UUID,
 	partyID uuid.UUID,
-	role enum.PartyRole,
 ) models.PartyMember {
 
-	return models.PartyMember{
+	member := models.PartyMember{
 
 		ID: uuid.New(),
 
@@ -21,6 +20,14 @@ func PartyMember(
 
 		PartyID: partyID,
 
-		Role: role,
+		Roles: []models.PartyMemberRole{
+			{
+				ID: uuid.New(),
+
+				Role: enum.RoleStaff,
+			},
+		},
 	}
+
+	return member
 }

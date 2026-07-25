@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -29,18 +30,21 @@ func TestVerifiedTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 
 	ticketService := helpers.NewTicketService(db)
 
+	// User
 	staff := fixtures.User()
 
 	if err := db.Create(&staff).Error; err != nil {
 		t.Fatal(err)
 	}
 
+	// Category
 	category := fixtures.Category()
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
 	}
 
+	// Party
 	party := fixtures.PartyWithOrganizer(
 		staff.ID,
 	)
@@ -51,21 +55,31 @@ func TestVerifiedTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Party Member
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
 	}
 
 	if err := db.Create(&member).Error; err != nil {
 		t.Fatal(err)
 	}
 
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
+
+		Role: enum.RoleStaff,
+	}
+
+	if err := db.Create(&role).Error; err != nil {
+		t.Fatal(err)
+	}
+	// Ticket category
 	ticketCategory := appModels.TicketCategory{
 
 		ID: uuid.New(),
@@ -81,6 +95,7 @@ func TestVerifiedTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Access window
 	window := appModels.TicketAccessWindow{
 
 		ID: uuid.New(),
@@ -100,6 +115,23 @@ func TestVerifiedTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Purchase
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: staff.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// Ticket
 	ticket := appModels.Ticket{
 
 		ID: uuid.New(),
@@ -109,12 +141,15 @@ func TestVerifiedTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		TicketCategoryID: ticketCategory.ID,
 
 		UserID: staff.ID,
+
+		PurchaseID: purchase.ID,
 	}
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
 	}
 
+	// First scan
 	firstScan, err := ticketService.Scan(
 		context.Background(),
 		staff.ID,
@@ -133,6 +168,7 @@ func TestVerifiedTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		)
 	}
 
+	// Second scan should fail
 	_, err = ticketService.Scan(
 		context.Background(),
 		staff.ID,
@@ -146,7 +182,10 @@ func TestVerifiedTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		)
 	}
 
-	if err != appErrors.ErrTicketAlreadyScanned {
+	if !errors.Is(
+		err,
+		appErrors.ErrTicketAlreadyScanned,
+	) {
 
 		t.Fatalf(
 			"expected ErrTicketAlreadyScanned, got %v",
@@ -192,17 +231,26 @@ func TestPendingTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 	}
 
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -240,6 +288,23 @@ func TestPendingTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Purchase
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: staff.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// Ticket
 	ticket := appModels.Ticket{
 
 		ID: uuid.New(),
@@ -249,6 +314,8 @@ func TestPendingTicketCannotBeScannedTwiceInSameAccessWindow(t *testing.T) {
 		TicketCategoryID: ticketCategory.ID,
 
 		UserID: staff.ID,
+
+		PurchaseID: purchase.ID,
 	}
 
 	if err := db.Create(&ticket).Error; err != nil {
@@ -362,17 +429,26 @@ func TestRejectedTicketCanBeScannedAgain(t *testing.T) {
 	// PARTY MEMBER
 
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -414,8 +490,23 @@ func TestRejectedTicketCanBeScannedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TICKET
+	// Purchase
+	purchase := appModels.Purchase{
 
+		ID: uuid.New(),
+
+		UserID: staff.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// Ticket
 	ticket := appModels.Ticket{
 
 		ID: uuid.New(),
@@ -425,6 +516,8 @@ func TestRejectedTicketCanBeScannedAgain(t *testing.T) {
 		TicketCategoryID: ticketCategory.ID,
 
 		UserID: staff.ID,
+
+		PurchaseID: purchase.ID,
 	}
 
 	if err := db.Create(&ticket).Error; err != nil {
@@ -559,11 +652,22 @@ func TestRejectedScanCreatesHistory(t *testing.T) {
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -601,12 +705,32 @@ func TestRejectedScanCreatesHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// PURCHASE
+
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: customer.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
 	// TICKET
 
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
+
 	ticket.UserID = customer.ID
+
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
@@ -768,18 +892,47 @@ func TestStaffCannotScanTicketAfterVerificationExpired(t *testing.T) {
 
 	// PARTY MEMBER
 
-	member := appModels.PartyMember{
+	member := appModels.PartyMember{}
+
+	err = db.
+		Where(
+			"user_id = ? AND party_id = ?",
+			staff.ID,
+			party.ID,
+		).
+		First(&member).
+		Error
+
+	if err != nil {
+
+		// no member exists yet, create one
+
+		member = appModels.PartyMember{
+
+			ID: uuid.New(),
+
+			UserID: staff.ID,
+
+			PartyID: party.ID,
+		}
+
+		if err := db.Create(&member).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Add STAFF role
+
+	role := appModels.PartyMemberRole{
 
 		ID: uuid.New(),
 
-		UserID: staff.ID,
-
-		PartyID: party.ID,
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -819,6 +972,23 @@ func TestStaffCannotScanTicketAfterVerificationExpired(t *testing.T) {
 
 	// TICKET
 
+	// Purchase
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: staff.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// Ticket
 	ticket := appModels.Ticket{
 
 		ID: uuid.New(),
@@ -828,6 +998,8 @@ func TestStaffCannotScanTicketAfterVerificationExpired(t *testing.T) {
 		TicketCategoryID: ticketCategory.ID,
 
 		UserID: staff.ID,
+
+		PurchaseID: purchase.ID,
 	}
 
 	if err := db.Create(&ticket).Error; err != nil {

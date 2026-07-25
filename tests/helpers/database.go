@@ -79,6 +79,7 @@ func testDatabase(silent bool) (*gorm.DB, error) {
 		&models.Purchase{},
 		&models.PurchaseItem{},
 		&models.PaymentEvent{},
+		&models.PartyMemberRole{},
 	)
 
 	if err != nil {

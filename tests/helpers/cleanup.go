@@ -24,6 +24,8 @@ func CleanDatabase(db *gorm.DB) error {
 
 		&models.Purchase{},
 
+		&models.PartyMemberRole{},
+
 		&models.PartyMember{},
 
 		&models.Party{},
