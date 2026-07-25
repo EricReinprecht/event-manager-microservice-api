@@ -69,7 +69,6 @@ func WithoutPurchase() TicketScenarioOption {
 	return func(
 		config *TicketScenarioConfig,
 	) {
-
 		config.CreatePurchase = false
 	}
 }
@@ -215,7 +214,6 @@ func CreateTicketScenario(
 	ticket.UserID = customer.ID
 
 	if config.CreatePurchase {
-
 		ticket.PurchaseID = purchase.ID
 	}
 

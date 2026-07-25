@@ -10,8 +10,8 @@ import (
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 
-	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
 
 func TestDatabasePreventsDuplicateTicketWindowScan(t *testing.T) {
@@ -26,114 +26,47 @@ func TestDatabasePreventsDuplicateTicketWindowScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// USER
-
-	user := fixtures.User()
-
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		user.ID,
+	clock := helpers.NewFakeClock(
+		time.Now().
+			UTC().
+			Truncate(time.Microsecond),
 	)
 
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: false,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := fixtures.Ticket()
-
-	ticket.UserID = user.ID
-
-	ticket.TicketCategoryID = ticketCategory.ID
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := fixtures.TicketAccessWindow(
-		ticketCategory.ID,
+	scenario := scenarios.CreateScanScenario(
+		t,
+		db,
+		clock,
+		false,
 	)
 
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// FIRST ACTIVE SCAN
+	now := clock.Now()
 
 	firstScan := appModels.TicketScan{
 
 		ID: uuid.New(),
 
-		TicketID: ticket.ID,
+		TicketID: scenario.Ticket.ID,
 
-		TicketAccessWindowID: window.ID,
+		TicketAccessWindowID: scenario.Window.ID,
 
-		ScannedByID: user.ID,
+		ScannedByID: scenario.Staff.ID,
 
 		Status: enum.TicketScanPending,
 
-		ScannedAt: time.Now().UTC(),
+		ScannedAt: now,
 	}
 
 	if err := db.Create(&firstScan).Error; err != nil {
 		t.Fatal(err)
 	}
 
-	// SECOND ACTIVE SCAN
+	secondScan := firstScan
 
-	secondScan := appModels.TicketScan{
+	secondScan.ID = uuid.New()
 
-		ID: uuid.New(),
-
-		TicketID: ticket.ID,
-
-		TicketAccessWindowID: window.ID,
-
-		ScannedByID: user.ID,
-
-		Status: enum.TicketScanPending,
-
-		ScannedAt: time.Now().UTC(),
-	}
+	secondScan.ScannedAt = now.Add(time.Second)
 
 	err = db.Create(&secondScan).Error
-
-	// EXPECT DATABASE CONSTRAINT FAILURE
 
 	if err == nil {
 

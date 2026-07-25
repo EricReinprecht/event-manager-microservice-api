@@ -189,6 +189,12 @@ func CreateOverlappingAccessWindowScenario(
 		t.Fatal(err)
 	}
 
+	customer := fixtures.User()
+
+	if err := db.Create(&customer).Error; err != nil {
+		t.Fatal(err)
+	}
+
 	category := fixtures.Category()
 
 	if err := db.Create(&category).Error; err != nil {
@@ -255,10 +261,18 @@ func CreateOverlappingAccessWindowScenario(
 		t.Fatal(err)
 	}
 
+	purchase := CreatePurchase(
+		t,
+		db,
+		customer.ID,
+		party.ID,
+	)
+
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = staff.ID
+	ticket.UserID = customer.ID
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
@@ -305,6 +319,12 @@ func CreateMultipleActiveWindowsScenario(
 	staff := fixtures.User()
 
 	if err := db.Create(&staff).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	customer := fixtures.User()
+
+	if err := db.Create(&customer).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -374,10 +394,18 @@ func CreateMultipleActiveWindowsScenario(
 		t.Fatal(err)
 	}
 
+	purchase := CreatePurchase(
+		t,
+		db,
+		customer.ID,
+		party.ID,
+	)
+
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = staff.ID
+	ticket.UserID = customer.ID
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
@@ -426,6 +454,12 @@ func CreateNoAccessWindowScenario(
 		t.Fatal(err)
 	}
 
+	customer := fixtures.User()
+
+	if err := db.Create(&customer).Error; err != nil {
+		t.Fatal(err)
+	}
+
 	category := fixtures.Category()
 
 	if err := db.Create(&category).Error; err != nil {
@@ -467,10 +501,18 @@ func CreateNoAccessWindowScenario(
 	// IMPORTANT:
 	// No TicketAccessWindow is created.
 
+	purchase := CreatePurchase(
+		t,
+		db,
+		customer.ID,
+		party.ID,
+	)
+
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = staff.ID
+	ticket.UserID = customer.ID
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
@@ -512,6 +554,12 @@ func CreateSequentialAccessWindowsScenario(
 	staff := fixtures.User()
 
 	if err := db.Create(&staff).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	customer := fixtures.User()
+
+	if err := db.Create(&customer).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -581,10 +629,18 @@ func CreateSequentialAccessWindowsScenario(
 		t.Fatal(err)
 	}
 
+	purchase := CreatePurchase(
+		t,
+		db,
+		customer.ID,
+		party.ID,
+	)
+
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = staff.ID
+	ticket.UserID = customer.ID
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)

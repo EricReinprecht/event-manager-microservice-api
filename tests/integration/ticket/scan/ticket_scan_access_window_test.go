@@ -55,15 +55,11 @@ func TestStaffCannotScanTicketBeforeAccessWindow(t *testing.T) {
 func TestStaffCanScanTicketExactlyAtAccessWindowStart(t *testing.T) {
 
 	fakeClock := helpers.NewFakeClock(
-		time.Date(
+		helpers.UTCDate(
 			2026,
-			7,
+			time.July,
 			24,
 			12,
-			0,
-			0,
-			0,
-			time.UTC,
 		),
 	)
 
@@ -74,26 +70,24 @@ func TestStaffCanScanTicketExactlyAtAccessWindowStart(t *testing.T) {
 		fakeClock.Now().Add(2*time.Hour),
 	)
 
-	ticketService := scenario.TicketService
-	ticket := scenario.Ticket
-	staff := scenario.Staff
+	fakeClock.Set(
+		fakeClock.Now().Add(time.Hour),
+	)
 
-	scan, err := ticketService.Scan(
+	scan, err := scenario.TicketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
-
 		t.Fatal(err)
 	}
 
-	if scan.TicketID != ticket.ID {
-
+	if scan.TicketID != scenario.Ticket.ID {
 		t.Fatalf(
 			"expected ticket %s got %s",
-			ticket.ID,
+			scenario.Ticket.ID,
 			scan.TicketID,
 		)
 	}
@@ -102,15 +96,11 @@ func TestStaffCanScanTicketExactlyAtAccessWindowStart(t *testing.T) {
 func TestStaffCanScanTicketExactlyAtAccessWindowEnd(t *testing.T) {
 
 	fakeClock := helpers.NewFakeClock(
-		time.Date(
+		helpers.UTCDate(
 			2026,
-			7,
+			time.July,
 			24,
 			12,
-			0,
-			0,
-			0,
-			time.UTC,
 		),
 	)
 
@@ -153,15 +143,11 @@ func TestStaffCanScanTicketExactlyAtAccessWindowEnd(t *testing.T) {
 func TestStaffCannotScanTicketAfterAccessWindow(t *testing.T) {
 
 	fakeClock := helpers.NewFakeClock(
-		time.Date(
+		helpers.UTCDate(
 			2026,
-			7,
+			time.July,
 			24,
 			12,
-			0,
-			0,
-			0,
-			time.UTC,
 		),
 	)
 

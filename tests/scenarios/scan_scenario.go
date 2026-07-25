@@ -9,6 +9,8 @@ import (
 )
 
 type ScanScenario struct {
+	DB *gorm.DB
+
 	Staff models.User
 
 	Customer models.User
@@ -41,6 +43,8 @@ func CreateScanScenario(
 	)
 
 	return ScanScenario{
+		DB: db,
+
 		Staff: base.Staff,
 
 		Customer: base.Customer,
