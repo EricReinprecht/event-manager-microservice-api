@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
+
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 )
 
@@ -140,4 +143,17 @@ func (f *InvalidSignaturePaymentGateway) VerifyWebhookSignature(
 ) error {
 
 	return errors.New("invalid paypal signature")
+}
+
+type FailingTicketRepository struct {
+}
+
+func (r *FailingTicketRepository) CancelByPurchase(
+	tx database.DBExecutor,
+	purchaseID uuid.UUID,
+) error {
+
+	return errors.New(
+		"ticket cancellation failed",
+	)
 }

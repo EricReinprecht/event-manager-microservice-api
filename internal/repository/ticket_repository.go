@@ -8,6 +8,7 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type TicketRepository struct {
@@ -172,4 +173,42 @@ func (r *TicketRepository) CountByCategoryTx(
 		Error()
 
 	return count, err
+}
+
+func (r *TicketRepository) CancelByPurchase(
+	tx database.DBExecutor,
+	purchaseID uuid.UUID,
+) error {
+
+	var tickets []models.Ticket
+
+	err := tx.
+		Where(
+			"purchase_id = ?",
+			purchaseID,
+		).
+		Find(
+			&tickets,
+		).
+		Error()
+
+	if err != nil {
+		return err
+	}
+
+	for i := range tickets {
+
+		tickets[i].Status = enum.TicketStatusCancelled
+
+		if err := tx.
+			Save(
+				&tickets[i],
+			).
+			Error(); err != nil {
+
+			return err
+		}
+	}
+
+	return nil
 }

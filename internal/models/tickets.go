@@ -24,6 +24,10 @@ type Ticket struct {
 
 	Scans []TicketScan
 
+	PurchaseID uuid.UUID
+
+	Purchase Purchase
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 

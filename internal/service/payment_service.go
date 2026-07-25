@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/payment"
@@ -212,42 +213,57 @@ func (s *PaymentService) RefundPayment(
 	purchaseID uuid.UUID,
 ) error {
 
-	purchase, err := s.purchaseService.GetPurchase(
+	return s.purchaseRepository.Transaction(
 		ctx,
-		purchaseID,
-	)
+		func(tx database.DBExecutor) error {
 
-	if err != nil {
-		return err
-	}
+			purchase, err := s.purchaseRepository.FindByID(
+				tx,
+				purchaseID,
+			)
 
-	if purchase.Status != enum.PurchaseStatusPaid {
-		return errors.New(
-			"only paid purchases can be refunded",
-		)
-	}
+			if err != nil {
+				return err
+			}
 
-	refundID, err := s.paymentGateway.RefundPayment(
-		ctx,
-		purchase.PaymentID,
-	)
+			if purchase.Status == enum.PurchaseStatusRefunded {
+				return errors.New(
+					"purchase already refunded",
+				)
+			}
 
-	if err != nil {
-		return err
-	}
+			refundID, err := s.paymentGateway.RefundPayment(
+				ctx,
+				purchase.PaymentID,
+			)
 
-	now := time.Now()
+			if err != nil {
+				return err
+			}
 
-	purchase.Status = enum.PurchaseStatusRefunded
+			now := time.Now()
 
-	purchase.RefundID = refundID
+			purchase.Status = enum.PurchaseStatusRefunded
 
-	purchase.RefundProvider = purchase.PaymentProvider
+			purchase.RefundID = refundID
 
-	purchase.RefundedAt = &now
+			purchase.RefundProvider = purchase.PaymentProvider
 
-	return s.purchaseRepository.UpdateContext(
-		ctx,
-		purchase,
+			purchase.RefundedAt = &now
+
+			err = s.purchaseRepository.Update(
+				tx,
+				purchase,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			return s.ticketService.CancelByPurchase(
+				tx,
+				purchase.ID,
+			)
+		},
 	)
 }

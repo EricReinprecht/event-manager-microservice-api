@@ -19,17 +19,17 @@ import (
 )
 
 type TicketService struct {
-	tickets         *repository.TicketRepository
-	partyMembers    *repository.PartyMemberRepository
-	ticketScans     *repository.TicketScanRepository
-	accessWindows   *repository.TicketAccessWindowRepository
-	db              database.DBExecutor
-	clock           clock.Clock
-	verificationTTL time.Duration
+	ticketRepository repository.TicketRepositoryInterface
+	partyMembers     *repository.PartyMemberRepository
+	ticketScans      *repository.TicketScanRepository
+	accessWindows    *repository.TicketAccessWindowRepository
+	db               database.DBExecutor
+	clock            clock.Clock
+	verificationTTL  time.Duration
 }
 
 func NewTicketService(
-	ticketRepository *repository.TicketRepository,
+	ticketRepository repository.TicketRepositoryInterface,
 	partyMemberRepository *repository.PartyMemberRepository,
 	ticketScansRepository *repository.TicketScanRepository,
 	accessWindowRepository *repository.TicketAccessWindowRepository,
@@ -39,13 +39,13 @@ func NewTicketService(
 ) *TicketService {
 
 	return &TicketService{
-		tickets:         ticketRepository,
-		partyMembers:    partyMemberRepository,
-		ticketScans:     ticketScansRepository,
-		accessWindows:   accessWindowRepository,
-		db:              db,
-		clock:           clock,
-		verificationTTL: verificationTTL,
+		ticketRepository: ticketRepository,
+		partyMembers:     partyMemberRepository,
+		ticketScans:      ticketScansRepository,
+		accessWindows:    accessWindowRepository,
+		db:               db,
+		clock:            clock,
+		verificationTTL:  verificationTTL,
 	}
 }
 
@@ -54,7 +54,7 @@ func (s *TicketService) Create(
 	ticket *models.Ticket,
 ) error {
 
-	return s.tickets.Create(
+	return s.ticketRepository.Create(
 		ctx,
 		ticket,
 	)
@@ -65,7 +65,7 @@ func (s *TicketService) FindByCode(
 	code string,
 ) (*models.Ticket, error) {
 
-	return s.tickets.FindByCode(
+	return s.ticketRepository.FindByCode(
 		ctx,
 		code,
 	)
@@ -371,7 +371,7 @@ func (s *TicketService) GetMyTickets(
 	userID uuid.UUID,
 ) ([]models.Ticket, error) {
 
-	return s.tickets.FindByUser(
+	return s.ticketRepository.FindByUser(
 		ctx,
 		userID,
 	)
@@ -409,7 +409,11 @@ func (s *TicketService) GenerateFromPurchase(
 
 				UserID: purchase.UserID,
 
+				PurchaseID: purchase.ID,
+
 				TicketCategoryID: item.TicketCategoryID,
+
+				Status: enum.TicketStatusActive,
 			}
 
 			if err := ticketRepo.Create(
@@ -431,38 +435,13 @@ func (s *TicketService) GenerateFromPurchase(
 	return nil
 }
 
-func (s *TicketService) GenerateFromPurchaseTx(
-	ctx context.Context,
+func (s *TicketService) CancelByPurchase(
 	tx database.DBExecutor,
-	purchase *models.Purchase,
+	purchaseID uuid.UUID,
 ) error {
 
-	ticketRepo := repository.NewTicketRepository(tx)
-
-	for _, item := range purchase.Items {
-
-		for i := 0; i < item.Quantity; i++ {
-
-			ticket := models.Ticket{
-				ID: uuid.New(),
-
-				Code: strings.ToUpper(
-					uuid.NewString()[:8],
-				),
-
-				UserID: purchase.UserID,
-
-				TicketCategoryID: item.TicketCategoryID,
-			}
-
-			if err := ticketRepo.Create(
-				ctx,
-				&ticket,
-			); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return s.ticketRepository.CancelByPurchase(
+		tx,
+		purchaseID,
+	)
 }
