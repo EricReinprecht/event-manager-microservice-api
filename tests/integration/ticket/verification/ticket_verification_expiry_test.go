@@ -10,6 +10,7 @@ import (
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
 
 func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
@@ -35,7 +36,7 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 		clock,
 	)
 
-	scenario := createVerificationScenario(
+	scenario := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -54,7 +55,7 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -103,7 +104,7 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 
 	// ASSERT
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		&updated,
 		enum.TicketScanVerified,
@@ -144,7 +145,7 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 		clock,
 	)
 
-	scenario := createVerificationScenario(
+	scenario := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -163,7 +164,7 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -218,7 +219,7 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 
 	// ASSERT
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		&updated,
 		enum.TicketScanPending,
@@ -262,7 +263,7 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 		clock,
 	)
 
-	scenario := createVerificationScenario(
+	scenario := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -281,7 +282,7 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -342,7 +343,7 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 
 	// ASSERT
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		&updated,
 		enum.TicketScanPending,

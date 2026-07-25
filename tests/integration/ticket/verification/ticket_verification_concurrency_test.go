@@ -12,6 +12,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
 
 func TestConcurrentVerifyAndReject(t *testing.T) {
@@ -37,7 +38,7 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		clock,
 	)
 
-	scenario := createVerificationScenario(
+	scenario := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -59,7 +60,7 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -220,7 +221,7 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 		clock,
 	)
 
-	scenario := createVerificationScenario(
+	scenario := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -231,7 +232,7 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 
 	// ADD SECOND STAFF MEMBER
 
-	staff2 := addSecondPartyStaff(
+	staff2 := scenarios.AddSecondPartyStaff(
 		t,
 		db,
 		scenario.Party.ID,
@@ -251,7 +252,7 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -349,7 +350,7 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		&updated,
 		enum.TicketScanVerified,

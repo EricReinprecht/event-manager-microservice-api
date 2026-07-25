@@ -15,6 +15,7 @@ import (
 
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
 
 func TestStaffCanRejectPendingTicketScan(t *testing.T) {
@@ -33,7 +34,7 @@ func TestStaffCanRejectPendingTicketScan(t *testing.T) {
 		Current: time.Now().UTC(),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -46,7 +47,7 @@ func TestStaffCanRejectPendingTicketScan(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
@@ -55,7 +56,7 @@ func TestStaffCanRejectPendingTicketScan(t *testing.T) {
 
 	// ASSERT INITIAL STATE
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -63,7 +64,7 @@ func TestStaffCanRejectPendingTicketScan(t *testing.T) {
 
 	// REJECT
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -88,7 +89,7 @@ func TestStaffCanRejectPendingTicketScan(t *testing.T) {
 
 	// ASSERT
 
-	assertRejected(
+	scenarios.AssertRejected(
 		t,
 		&rejected,
 		s.Staff.ID,
@@ -125,7 +126,7 @@ func TestStaffCanVerifyPendingTicket(t *testing.T) {
 		clock,
 	)
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -133,14 +134,14 @@ func TestStaffCanVerifyPendingTicket(t *testing.T) {
 
 	// SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -148,7 +149,7 @@ func TestStaffCanVerifyPendingTicket(t *testing.T) {
 
 	// VERIFY
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -171,7 +172,7 @@ func TestStaffCanVerifyPendingTicket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertVerified(
+	scenarios.AssertVerified(
 		t,
 		&verified,
 		s.Staff.ID,
@@ -196,7 +197,7 @@ func TestVerificationCanOnlyBeDoneByPartyStaff(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -208,14 +209,14 @@ func TestVerificationCanOnlyBeDoneByPartyStaff(t *testing.T) {
 	)
 
 	// CREATE PENDING SCAN
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -264,7 +265,7 @@ func TestCannotVerifyAlreadyRejectedScan(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -277,14 +278,14 @@ func TestCannotVerifyAlreadyRejectedScan(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -292,7 +293,7 @@ func TestCannotVerifyAlreadyRejectedScan(t *testing.T) {
 
 	// REJECT SCAN
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -343,7 +344,7 @@ func TestCannotRejectAlreadyVerifiedScan(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -356,14 +357,14 @@ func TestCannotRejectAlreadyVerifiedScan(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -371,7 +372,7 @@ func TestCannotRejectAlreadyVerifiedScan(t *testing.T) {
 
 	// VERIFY SCAN
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -422,7 +423,7 @@ func TestCustomerCannotVerifyPendingTicketScan(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -435,14 +436,14 @@ func TestCustomerCannotVerifyPendingTicketScan(t *testing.T) {
 
 	// CREATE PENDING SCAN BY STAFF
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -514,13 +515,13 @@ func TestOrganizerCanVerifyPendingTicket(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
 	)
 
-	makeOrganizer(
+	scenarios.MakeOrganizer(
 		t,
 		db,
 		s,
@@ -533,14 +534,14 @@ func TestOrganizerCanVerifyPendingTicket(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -548,7 +549,7 @@ func TestOrganizerCanVerifyPendingTicket(t *testing.T) {
 
 	// ORGANIZER VERIFIES
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -571,7 +572,7 @@ func TestOrganizerCanVerifyPendingTicket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertVerified(
+	scenarios.AssertVerified(
 		t,
 		&updated,
 		s.Staff.ID,
@@ -596,7 +597,7 @@ func TestAdminCanVerifyPendingTicket(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -604,7 +605,7 @@ func TestAdminCanVerifyPendingTicket(t *testing.T) {
 
 	// CHANGE STAFF ROLE TO ADMIN
 
-	makeAdmin(
+	scenarios.MakeAdmin(
 		t,
 		db,
 		s,
@@ -617,14 +618,14 @@ func TestAdminCanVerifyPendingTicket(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -632,7 +633,7 @@ func TestAdminCanVerifyPendingTicket(t *testing.T) {
 
 	// ADMIN VERIFY
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -657,7 +658,7 @@ func TestAdminCanVerifyPendingTicket(t *testing.T) {
 
 	// ASSERT
 
-	assertVerified(
+	scenarios.AssertVerified(
 		t,
 		&updated,
 		s.Staff.ID,
@@ -682,7 +683,7 @@ func TestRejectedScanStoresRejectionMetadata(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -695,14 +696,14 @@ func TestRejectedScanStoresRejectionMetadata(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -710,7 +711,7 @@ func TestRejectedScanStoresRejectionMetadata(t *testing.T) {
 
 	// REJECT
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -735,7 +736,7 @@ func TestRejectedScanStoresRejectionMetadata(t *testing.T) {
 
 	// BASIC ASSERTIONS
 
-	assertRejected(
+	scenarios.AssertRejected(
 		t,
 		&updated,
 		s.Staff.ID,
@@ -790,7 +791,7 @@ func TestDeletedScanCannotBeVerified(t *testing.T) {
 			Truncate(time.Microsecond),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -803,14 +804,14 @@ func TestDeletedScanCannotBeVerified(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -895,7 +896,7 @@ func TestVerificationCannotBeDoneByStaffFromAnotherParty(t *testing.T) {
 		Current: time.Now().UTC(),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -908,7 +909,7 @@ func TestVerificationCannotBeDoneByStaffFromAnotherParty(t *testing.T) {
 
 	// SECOND PARTY
 
-	secondParty := createSecondParty(
+	secondParty := scenarios.CreateSecondParty(
 		t,
 		db,
 		s.OtherUser,
@@ -916,7 +917,7 @@ func TestVerificationCannotBeDoneByStaffFromAnotherParty(t *testing.T) {
 
 	// STAFF FROM SECOND PARTY
 
-	secondPartyStaff := addSecondPartyStaff(
+	secondPartyStaff := scenarios.AddSecondPartyStaff(
 		t,
 		db,
 		secondParty.ID,
@@ -924,14 +925,14 @@ func TestVerificationCannotBeDoneByStaffFromAnotherParty(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -979,7 +980,7 @@ func TestVerificationCannotBeDoneByStaffFromAnotherParty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		&updated,
 		enum.TicketScanPending,
@@ -1001,7 +1002,7 @@ func TestRejectedScanClearsVerificationExpiryMetadata(t *testing.T) {
 		Current: time.Now().UTC(),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -1014,14 +1015,14 @@ func TestRejectedScanClearsVerificationExpiryMetadata(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -1029,7 +1030,7 @@ func TestRejectedScanClearsVerificationExpiryMetadata(t *testing.T) {
 
 	// REJECT
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -1052,7 +1053,7 @@ func TestRejectedScanClearsVerificationExpiryMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertRejected(
+	scenarios.AssertRejected(
 		t,
 		&updated,
 		s.Staff.ID,
@@ -1090,7 +1091,7 @@ func TestVerifiedScanCannotBeRejectedByDifferentWindow(t *testing.T) {
 		Current: time.Now().UTC(),
 	}
 
-	s := createVerificationScenario(
+	s := scenarios.CreateVerificationScenario(
 		t,
 		db,
 		clock,
@@ -1103,7 +1104,7 @@ func TestVerifiedScanCannotBeRejectedByDifferentWindow(t *testing.T) {
 
 	// SECOND WINDOW
 
-	windowTwo := createAccessWindow(
+	windowTwo := scenarios.CreateAccessWindow(
 		t,
 		db,
 		s.TicketCategory.ID,
@@ -1113,14 +1114,14 @@ func TestVerifiedScanCannotBeRejectedByDifferentWindow(t *testing.T) {
 
 	// CREATE PENDING SCAN
 
-	scan := createPendingScan(
+	scan := scenarios.CreatePendingScan(
 		t,
 		ticketService,
 		s.Staff.ID,
 		s.Ticket,
 	)
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -1135,7 +1136,7 @@ func TestVerifiedScanCannotBeRejectedByDifferentWindow(t *testing.T) {
 
 	// VERIFY
 
-	verifyScan(
+	scenarios.VerifyScan(
 		t,
 		ticketService,
 		scan,
@@ -1178,7 +1179,7 @@ func TestVerifiedScanCannotBeRejectedByDifferentWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertVerified(
+	scenarios.AssertVerified(
 		t,
 		&updated,
 		s.Staff.ID,
@@ -1245,7 +1246,7 @@ func TestTicketCategoryVerificationSettingSnapshot(t *testing.T) {
 
 	// STAFF ROLE
 
-	addPartyRole(
+	scenarios.AddPartyRole(
 		t,
 		db,
 		staff.ID,
@@ -1272,7 +1273,7 @@ func TestTicketCategoryVerificationSettingSnapshot(t *testing.T) {
 
 	// ACCESS WINDOW
 
-	createAccessWindow(
+	scenarios.CreateAccessWindow(
 		t,
 		db,
 		ticketCategory.ID,
@@ -1319,7 +1320,7 @@ func TestTicketCategoryVerificationSettingSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanVerified,
@@ -1361,7 +1362,7 @@ func TestTicketCategoryVerificationSettingSnapshot(t *testing.T) {
 
 	// SNAPSHOT ASSERTION
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		&updated,
 		enum.TicketScanVerified,
@@ -1440,7 +1441,7 @@ func TestOrganizerCanRejectPendingTicket(t *testing.T) {
 
 	// ORGANIZER ROLE
 
-	addPartyRole(
+	scenarios.AddPartyRole(
 		t,
 		db,
 		organizer.ID,
@@ -1466,7 +1467,7 @@ func TestOrganizerCanRejectPendingTicket(t *testing.T) {
 
 	// ACCESS WINDOW
 
-	createAccessWindow(
+	scenarios.CreateAccessWindow(
 		t,
 		db,
 		ticketCategory.ID,
@@ -1509,7 +1510,7 @@ func TestOrganizerCanRejectPendingTicket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -1545,7 +1546,7 @@ func TestOrganizerCanRejectPendingTicket(t *testing.T) {
 
 	// ASSERT
 
-	assertRejected(
+	scenarios.AssertRejected(
 		t,
 		&updated,
 		organizer.ID,
@@ -1613,7 +1614,7 @@ func TestVerifyAfterAccessWindowClosed(t *testing.T) {
 
 	// STAFF ROLE
 
-	addPartyRole(
+	scenarios.AddPartyRole(
 		t,
 		db,
 		staff.ID,
@@ -1640,7 +1641,7 @@ func TestVerifyAfterAccessWindowClosed(t *testing.T) {
 
 	// ACCESS WINDOW
 
-	window := createAccessWindow(
+	window := scenarios.CreateAccessWindow(
 		t,
 		db,
 		ticketCategory.ID,
@@ -1683,7 +1684,7 @@ func TestVerifyAfterAccessWindowClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -1726,7 +1727,7 @@ func TestVerifyAfterAccessWindowClosed(t *testing.T) {
 
 	// ASSERT
 
-	assertVerified(
+	scenarios.AssertVerified(
 		t,
 		&updated,
 		staff.ID,
@@ -1794,7 +1795,7 @@ func TestScannerDeletedBeforeVerification(t *testing.T) {
 
 	// STAFF ROLE
 
-	addPartyRole(
+	scenarios.AddPartyRole(
 		t,
 		db,
 		staff.ID,
@@ -1821,7 +1822,7 @@ func TestScannerDeletedBeforeVerification(t *testing.T) {
 
 	// ACCESS WINDOW
 
-	createAccessWindow(
+	scenarios.CreateAccessWindow(
 		t,
 		db,
 		ticketCategory.ID,
@@ -1864,7 +1865,7 @@ func TestScannerDeletedBeforeVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		scan,
 		enum.TicketScanPending,
@@ -1942,7 +1943,7 @@ func TestScannerDeletedBeforeVerification(t *testing.T) {
 
 	// ASSERT UNCHANGED
 
-	assertScanStatus(
+	scenarios.AssertScanStatus(
 		t,
 		&updated,
 		enum.TicketScanPending,
