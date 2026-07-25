@@ -19,7 +19,7 @@ type ScanScenario struct {
 
 	TicketCategory models.TicketCategory
 
-	Window models.TicketAccessWindow
+	Window *models.TicketAccessWindow
 
 	Ticket models.Ticket
 }

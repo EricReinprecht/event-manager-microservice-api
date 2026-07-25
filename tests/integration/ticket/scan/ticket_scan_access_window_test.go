@@ -6,162 +6,38 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	appModels "github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"github.com/reinp/event-platform/backend/internal/service"
 
-	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
-
-func setupAccessWindowTest(
-	t *testing.T,
-	clock helpers.Clock,
-	start time.Time,
-	end time.Time,
-) (
-	*service.TicketService,
-	*gorm.DB,
-	appModels.Ticket,
-	appModels.User,
-) {
-
-	db, err := helpers.TestDatabase()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := helpers.CleanDatabase(db); err != nil {
-		t.Fatal(err)
-	}
-
-	ticketService := helpers.NewTicketService(
-		db,
-		clock,
-	)
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	member := appModels.PartyMember{
-
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		Price: 100,
-
-		Capacity: 100,
-
-		PartyID: party.ID,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	window := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: start,
-
-		EndsAt: end,
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	ticket := appModels.Ticket{
-
-		ID: uuid.New(),
-
-		Code: uuid.NewString(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		UserID: staff.ID,
-	}
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	return ticketService, db, ticket, staff
-}
 
 func TestStaffCannotScanTicketBeforeAccessWindow(t *testing.T) {
 
 	fakeClock := helpers.NewFakeClock(
-		time.Date(
+		helpers.UTCDate(
 			2026,
-			7,
+			time.July,
 			24,
 			12,
-			0,
-			0,
-			0,
-			time.UTC,
 		),
 	)
 
-	ticketService, _, ticket, staff := setupAccessWindowTest(
+	scenario := scenarios.CreateAccessWindowScenario(
 		t,
 		fakeClock,
 		fakeClock.Now().Add(time.Hour),
 		fakeClock.Now().Add(2*time.Hour),
 	)
 
-	_, err := ticketService.Scan(
+	_, err := scenario.TicketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err == nil {
-
 		t.Fatal(
 			"expected scan to fail before access window",
 		)
@@ -191,14 +67,16 @@ func TestStaffCanScanTicketExactlyAtAccessWindowStart(t *testing.T) {
 		),
 	)
 
-	start := fakeClock.Now()
-
-	ticketService, _, ticket, staff := setupAccessWindowTest(
+	scenario := scenarios.CreateAccessWindowScenario(
 		t,
 		fakeClock,
-		start,
-		start.Add(time.Hour),
+		fakeClock.Now().Add(time.Hour),
+		fakeClock.Now().Add(2*time.Hour),
 	)
+
+	ticketService := scenario.TicketService
+	ticket := scenario.Ticket
+	staff := scenario.Staff
 
 	scan, err := ticketService.Scan(
 		context.Background(),
@@ -238,12 +116,16 @@ func TestStaffCanScanTicketExactlyAtAccessWindowEnd(t *testing.T) {
 
 	end := fakeClock.Now().Add(time.Hour)
 
-	ticketService, _, ticket, staff := setupAccessWindowTest(
+	scenario := scenarios.CreateAccessWindowScenario(
 		t,
 		fakeClock,
 		end.Add(-time.Hour),
 		end,
 	)
+
+	ticketService := scenario.TicketService
+	ticket := scenario.Ticket
+	staff := scenario.Staff
 
 	fakeClock.Set(end)
 
@@ -283,12 +165,16 @@ func TestStaffCannotScanTicketAfterAccessWindow(t *testing.T) {
 		),
 	)
 
-	ticketService, _, ticket, staff := setupAccessWindowTest(
+	scenario := scenarios.CreateAccessWindowScenario(
 		t,
 		fakeClock,
 		fakeClock.Now().Add(-2*time.Hour),
 		fakeClock.Now().Add(-time.Hour),
 	)
+
+	ticketService := scenario.TicketService
+	ticket := scenario.Ticket
+	staff := scenario.Staff
 
 	_, err := ticketService.Scan(
 		context.Background(),
@@ -314,153 +200,32 @@ func TestStaffCannotScanTicketAfterAccessWindow(t *testing.T) {
 
 func TestScanUsesCorrectAccessWindowWhenWindowsOverlap(t *testing.T) {
 
-	db, err := helpers.TestDatabase()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := helpers.CleanDatabase(db); err != nil {
-		t.Fatal(err)
-	}
-
 	clock := &helpers.FakeClock{
 		Current: time.Now().
 			UTC().
 			Truncate(time.Microsecond),
 	}
 
-	ticketService := helpers.NewTicketService(
-		db,
+	ticketService, scenario := scenarios.CreateOverlappingAccessWindowScenario(
+		t,
 		clock,
 	)
 
-	// STAFF
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY MEMBER
-
-	member := appModels.PartyMember{
-
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: false,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// OVERLAPPING WINDOW 1 (starts earlier)
-
-	firstWindow := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-2 * time.Hour),
-
-		EndsAt: clock.Current.Add(2 * time.Hour),
-	}
-
-	if err := db.Create(&firstWindow).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// OVERLAPPING WINDOW 2 (starts later)
-
-	secondWindow := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-time.Hour),
-
-		EndsAt: clock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&secondWindow).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := fixtures.Ticket()
-
-	ticket.TicketCategoryID = ticketCategory.ID
-	ticket.UserID = staff.ID
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// SCAN
-
 	scan, err := ticketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// ASSERT CORRECT WINDOW
-
-	if scan.TicketAccessWindowID != firstWindow.ID {
+	if scan.TicketAccessWindowID != scenario.FirstWindow.ID {
 
 		t.Fatalf(
 			"expected scan to use first access window %s, got %s",
-			firstWindow.ID,
+			scenario.FirstWindow.ID,
 			scan.TicketAccessWindowID,
 		)
 	}
@@ -468,163 +233,36 @@ func TestScanUsesCorrectAccessWindowWhenWindowsOverlap(t *testing.T) {
 
 func TestScanTicketWithMultipleActiveWindows(t *testing.T) {
 
-	db, err := helpers.TestDatabase()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := helpers.CleanDatabase(db); err != nil {
-		t.Fatal(err)
-	}
-
 	clock := &helpers.FakeClock{
 		Current: time.Now().UTC(),
 	}
 
-	ticketService := helpers.NewTicketService(
-		db,
+	scenario := scenarios.CreateMultipleActiveWindowsScenario(
+		t,
 		clock,
 	)
 
-	// USER
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY MEMBER
-
-	member := appModels.PartyMember{
-
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: false,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACTIVE WINDOW ONE
-
-	windowOne := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-2 * time.Hour),
-
-		EndsAt: clock.Current.Add(2 * time.Hour),
-	}
-
-	if err := db.Create(&windowOne).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACTIVE WINDOW TWO (OVERLAPS)
-
-	windowTwo := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: clock.Current.Add(-time.Hour),
-
-		EndsAt: clock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&windowTwo).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := appModels.Ticket{
-
-		ID: uuid.New(),
-
-		Code: uuid.NewString(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		UserID: staff.ID,
-	}
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// SCAN
-
-	scan, err := ticketService.Scan(
+	scan, err := scenario.TicketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if scan.TicketID != ticket.ID {
+	if scan.TicketID != scenario.Ticket.ID {
 
 		t.Fatalf(
 			"expected ticket %s got %s",
-			ticket.ID,
+			scenario.Ticket.ID,
 			scan.TicketID,
 		)
 	}
 
-	// VERIFY ONE WINDOW WAS SELECTED
-
-	if scan.TicketAccessWindowID != windowOne.ID &&
-		scan.TicketAccessWindowID != windowTwo.ID {
+	if scan.TicketAccessWindowID != scenario.WindowOne.ID &&
+		scan.TicketAccessWindowID != scenario.WindowTwo.ID {
 
 		t.Fatalf(
 			"expected scan to belong to one active window, got %s",
@@ -632,15 +270,13 @@ func TestScanTicketWithMultipleActiveWindows(t *testing.T) {
 		)
 	}
 
-	// VERIFY ONLY ONE SCAN EXISTS
-
 	var count int64
 
-	if err := db.
+	if err := scenario.DB.
 		Model(&appModels.TicketScan{}).
 		Where(
 			"ticket_id = ?",
-			ticket.ID,
+			scenario.Ticket.ID,
 		).
 		Count(&count).
 		Error; err != nil {
@@ -659,113 +295,19 @@ func TestScanTicketWithMultipleActiveWindows(t *testing.T) {
 
 func TestScanTicketWithoutAccessWindow(t *testing.T) {
 
-	db, err := helpers.TestDatabase()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := helpers.CleanDatabase(db); err != nil {
-		t.Fatal(err)
-	}
-
 	clock := &helpers.FakeClock{
 		Current: time.Now().UTC(),
 	}
 
-	ticketService := helpers.NewTicketService(
-		db,
+	scenario := scenarios.CreateNoAccessWindowScenario(
+		t,
 		clock,
 	)
 
-	// USER
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY MEMBER
-
-	member := appModels.PartyMember{
-
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY WITHOUT ACCESS WINDOWS
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: false,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// IMPORTANT:
-	// No TicketAccessWindow is created.
-
-	// TICKET
-
-	ticket := appModels.Ticket{
-
-		ID: uuid.New(),
-
-		Code: uuid.NewString(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		UserID: staff.ID,
-	}
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// SCAN
-
-	_, err = ticketService.Scan(
+	_, err := scenario.TicketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err == nil {
@@ -786,15 +328,13 @@ func TestScanTicketWithoutAccessWindow(t *testing.T) {
 		)
 	}
 
-	// VERIFY NO SCAN WAS CREATED
-
 	var count int64
 
-	if err := db.
+	if err := scenario.DB.
 		Model(&appModels.TicketScan{}).
 		Where(
 			"ticket_id = ?",
-			ticket.ID,
+			scenario.Ticket.ID,
 		).
 		Count(&count).
 		Error; err != nil {
@@ -813,162 +353,38 @@ func TestScanTicketWithoutAccessWindow(t *testing.T) {
 
 func TestTicketCanBeScannedInDifferentAccessWindow(t *testing.T) {
 
-	db, err := helpers.TestDatabase()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := helpers.CleanDatabase(db); err != nil {
-		t.Fatal(err)
-	}
-
-	fakeClock := &helpers.FakeClock{
+	clock := &helpers.FakeClock{
 		Current: time.Now().UTC(),
 	}
 
-	ticketService := helpers.NewTicketService(
-		db,
-		fakeClock,
+	scenario := scenarios.CreateSequentialAccessWindowsScenario(
+		t,
+		clock,
 	)
 
-	// USER
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY MEMBER
-
-	member := appModels.PartyMember{
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		RequiresVerification: false,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// FIRST ACCESS WINDOW
-
-	windowOne := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: fakeClock.Current.Add(-time.Hour),
-
-		EndsAt: fakeClock.Current.Add(time.Hour),
-	}
-
-	if err := db.Create(&windowOne).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// SECOND ACCESS WINDOW
-
-	windowTwo := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: fakeClock.Current.Add(2 * time.Hour),
-
-		EndsAt: fakeClock.Current.Add(3 * time.Hour),
-	}
-
-	if err := db.Create(&windowTwo).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := appModels.Ticket{
-
-		ID: uuid.New(),
-
-		Code: uuid.NewString(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		UserID: staff.ID,
-	}
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// FIRST SCAN IN WINDOW ONE
-
-	firstScan, err := ticketService.Scan(
+	firstScan, err := scenario.TicketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if firstScan.TicketAccessWindowID != windowOne.ID {
+	if firstScan.TicketAccessWindowID != scenario.WindowOne.ID {
 
 		t.Fatalf(
 			"expected first scan in window one",
 		)
 	}
 
-	// SECOND SCAN IN SAME WINDOW SHOULD FAIL
+	// same window should reject duplicate
 
-	_, err = ticketService.Scan(
+	_, err = scenario.TicketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err == nil {
@@ -978,25 +394,23 @@ func TestTicketCanBeScannedInDifferentAccessWindow(t *testing.T) {
 		)
 	}
 
-	// MOVE CLOCK INTO SECOND WINDOW
+	// move clock into second window
 
-	fakeClock.Current = fakeClock.Current.Add(
+	clock.Current = clock.Current.Add(
 		2 * time.Hour,
 	)
 
-	// SCAN AGAIN IN SECOND WINDOW
-
-	secondScan, err := ticketService.Scan(
+	secondScan, err := scenario.TicketService.Scan(
 		context.Background(),
-		staff.ID,
-		ticket.Code,
+		scenario.Staff.ID,
+		scenario.Ticket.Code,
 	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if secondScan.TicketAccessWindowID != windowTwo.ID {
+	if secondScan.TicketAccessWindowID != scenario.WindowTwo.ID {
 
 		t.Fatalf(
 			"expected second scan in window two",
@@ -1006,7 +420,7 @@ func TestTicketCanBeScannedInDifferentAccessWindow(t *testing.T) {
 	if secondScan.ID == firstScan.ID {
 
 		t.Fatal(
-			"expected a new scan record",
+			"expected new scan record",
 		)
 	}
 }

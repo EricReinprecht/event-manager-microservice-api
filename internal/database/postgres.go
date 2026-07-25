@@ -16,12 +16,12 @@ import (
 func Connect(cfg *config.Config) (*gorm.DB, error) {
 
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
 		cfg.DBHost,
+		cfg.DBPort,
 		cfg.DBUser,
 		cfg.DBPassword,
 		cfg.DBName,
-		cfg.DBPort,
 	)
 
 	db, err := gorm.Open(

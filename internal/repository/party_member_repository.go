@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 
@@ -77,10 +76,6 @@ func (r *PartyMemberRepository) FindByParty(
 		).
 		Find(&members).
 		Error()
-
-	fmt.Println("PARTY ID:", partyID)
-	fmt.Println("FOUND:", len(members))
-	fmt.Printf("%+v\n", members)
 
 	return members, err
 }
