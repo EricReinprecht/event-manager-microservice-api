@@ -80,6 +80,8 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 		party.ID,
 	)
 
+	ticketCategory.Price = 1000
+
 	if err := db.Create(&ticketCategory).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -104,6 +106,27 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	// --------------------------------
 	// Create PayPal checkout
 	// --------------------------------
+
+	var items []models.PurchaseItem
+
+	if err := db.
+		Where(
+			"purchase_id = ?",
+			purchase.ID,
+		).
+		Find(&items).
+		Error; err != nil {
+		t.Fatal(err)
+	}
+
+	for _, item := range items {
+		t.Logf(
+			"purchase item: category=%s quantity=%d price=%d",
+			item.TicketCategoryID,
+			item.Quantity,
+			item.UnitPrice,
+		)
+	}
 
 	approveURL, err := paymentService.CreateCheckout(
 		context.Background(),

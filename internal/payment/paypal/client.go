@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 )
@@ -145,10 +147,17 @@ func (c *Client) CreateOrder(
 
 	if resp.StatusCode != http.StatusCreated {
 
-		return nil,
-			errors.New(
-				"paypal order creation failed",
-			)
+		responseBody, err := io.ReadAll(resp.Body)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf(
+			"paypal order creation failed: status=%d body=%s",
+			resp.StatusCode,
+			string(responseBody),
+		)
 	}
 
 	var result struct {

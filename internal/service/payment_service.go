@@ -70,9 +70,23 @@ func (s *PaymentService) CreateCheckout(
 		)
 	}
 
+	var total int64
+
+	for _, item := range purchase.Items {
+
+		total += item.UnitPrice * int64(item.Quantity)
+
+	}
+
+	if total <= 0 {
+		return "", errors.New(
+			"purchase total must be greater than zero",
+		)
+	}
+
 	order, err := s.paymentGateway.CreateOrder(
 		ctx,
-		purchase.TotalPrice,
+		total,
 	)
 
 	if err != nil {

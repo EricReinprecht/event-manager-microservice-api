@@ -211,16 +211,18 @@ func TestPayPalCaptureOrderSuccess(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		120*time.Second,
+		60*time.Second,
 	)
 
 	defer cancel()
 
 	client := helpers.NewPayPalClient()
 
+	// Create PayPal order
+
 	order, err := client.CreateOrder(
 		ctx,
-		1000,
+		10,
 	)
 
 	if err != nil {
@@ -230,6 +232,22 @@ func TestPayPalCaptureOrderSuccess(t *testing.T) {
 			err,
 		)
 	}
+
+	if order.ID == "" {
+
+		t.Fatal(
+			"paypal order id is empty",
+		)
+	}
+
+	if order.ApprovalURL == "" {
+
+		t.Fatal(
+			"paypal approval url is empty",
+		)
+	}
+
+	// Approve order as sandbox buyer
 
 	err = helpers.ApprovePayPalOrder(
 		order.ApprovalURL,
@@ -243,6 +261,14 @@ func TestPayPalCaptureOrderSuccess(t *testing.T) {
 		)
 	}
 
+	// Give PayPal sandbox time to update order state
+
+	time.Sleep(
+		2 * time.Second,
+	)
+
+	// Capture payment
+
 	err = client.CaptureOrder(
 		ctx,
 		order.ID,
@@ -251,7 +277,8 @@ func TestPayPalCaptureOrderSuccess(t *testing.T) {
 	if err != nil {
 
 		t.Fatalf(
-			"capture failed: %v",
+			"capture failed for order %s: %v",
+			order.ID,
 			err,
 		)
 	}

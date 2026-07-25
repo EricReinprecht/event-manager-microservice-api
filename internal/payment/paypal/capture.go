@@ -2,7 +2,8 @@ package paypal
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -51,10 +52,18 @@ func (c *Client) CaptureOrder(
 
 	defer resp.Body.Close()
 
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return err
+	}
+
 	if resp.StatusCode != http.StatusCreated {
 
-		return errors.New(
-			"paypal capture failed",
+		return fmt.Errorf(
+			"paypal capture failed: status=%d body=%s",
+			resp.StatusCode,
+			string(body),
 		)
 	}
 

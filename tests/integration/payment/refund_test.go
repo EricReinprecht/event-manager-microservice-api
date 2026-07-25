@@ -293,17 +293,23 @@ func TestCannotRefundAlreadyRefundedPurchase(t *testing.T) {
 		fakeGateway,
 	)
 
+	// USER
+
 	user := fixtures.User()
 
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatal(err)
 	}
 
+	// CATEGORY
+
 	category := fixtures.Category()
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
 	}
+
+	// PARTY
 
 	party := fixtures.PartyWithOrganizer(
 		user.ID,
@@ -315,26 +321,35 @@ func TestCannotRefundAlreadyRefundedPurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// ALREADY REFUNDED PURCHASE
+
 	purchase := helpers.CreatePurchase(
 		t,
 		db,
 		&user,
 		&party,
-		enum.PurchaseStatusRefunded,
+		enum.PurchaseStatusPaid,
 	)
 
 	purchase.PaymentProvider = "paypal"
+
 	purchase.PaymentID = "PAYPAL-ALREADY-REFUNDED"
 
+	purchase.Status = enum.PurchaseStatusRefunded
+
 	purchase.RefundID = "REFUND-123"
+
 	purchase.RefundProvider = "paypal"
 
-	now := time.Now()
+	now := time.Now().UTC()
+
 	purchase.RefundedAt = &now
 
 	if err := db.Save(&purchase).Error; err != nil {
 		t.Fatal(err)
 	}
+
+	// TRY REFUND AGAIN
 
 	err = paymentService.RefundPayment(
 		context.Background(),

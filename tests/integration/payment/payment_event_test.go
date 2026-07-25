@@ -181,7 +181,7 @@ func TestPaymentEvent_CreatesEvent(t *testing.T) {
 	}
 }
 
-func TestPaymentEvent_EventIDMustBeUnique(t *testing.T) {
+func TestPaymentEventEventIDMustBeUnique(t *testing.T) {
 
 	db, err := helpers.TestDatabaseSilent()
 
@@ -189,9 +189,7 @@ func TestPaymentEvent_EventIDMustBeUnique(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = helpers.CleanDatabase(db)
-
-	if err != nil {
+	if err := helpers.CleanDatabase(db); err != nil {
 		t.Fatal(err)
 	}
 

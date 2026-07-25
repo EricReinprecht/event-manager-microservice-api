@@ -8,21 +8,29 @@ import (
 
 func CleanDatabase(db *gorm.DB) error {
 
+	err := db.Exec(
+		"SET CONSTRAINTS ALL DEFERRED",
+	).Error
+
+	if err != nil {
+		return err
+	}
+
 	tables := []interface{}{
 
 		&models.TicketScan{},
 
 		&models.PaymentEvent{},
 
+		&models.Ticket{},
+
 		&models.PurchaseItem{},
 
-		&models.Ticket{},
+		&models.Purchase{},
 
 		&models.TicketAccessWindow{},
 
 		&models.TicketCategory{},
-
-		&models.Purchase{},
 
 		&models.PartyMemberRole{},
 

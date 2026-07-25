@@ -1,7 +1,9 @@
 package helpers
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/mxschmitt/playwright-go"
 )
@@ -20,7 +22,7 @@ func ApprovePayPalOrder(
 
 	browser, err := pw.Chromium.Launch(
 		playwright.BrowserTypeLaunchOptions{
-			Headless: playwright.Bool(false),
+			Headless: playwright.Bool(true),
 		},
 	)
 
@@ -40,6 +42,9 @@ func ApprovePayPalOrder(
 
 	_, err = page.Goto(
 		url,
+		playwright.PageGotoOptions{
+			WaitUntil: playwright.WaitUntilStateNetworkidle,
+		},
 	)
 
 	if err != nil {
@@ -54,35 +59,27 @@ func ApprovePayPalOrder(
 		"PAYPAL_BUYER_PASSWORD",
 	)
 
-	err = page.
+	if err := page.
 		Locator("#email").
-		Fill(email)
-
-	if err != nil {
+		Fill(email); err != nil {
 		return err
 	}
 
-	err = page.
+	if err := page.
 		Locator("#btnNext").
-		Click()
-
-	if err != nil {
+		Click(); err != nil {
 		return err
 	}
 
-	err = page.
+	if err := page.
 		Locator("#password").
-		Fill(password)
-
-	if err != nil {
+		Fill(password); err != nil {
 		return err
 	}
 
-	err = page.
+	if err := page.
 		Locator("#btnLogin").
-		Click()
-
-	if err != nil {
+		Click(); err != nil {
 		return err
 	}
 
@@ -90,17 +87,35 @@ func ApprovePayPalOrder(
 		"button:has-text('Kauf abschließen'), button:has-text('Pay Now')",
 	)
 
-	err = button.WaitFor()
-
-	if err != nil {
+	if err := button.WaitFor(); err != nil {
 		return err
 	}
 
-	err = button.Click()
-
-	if err != nil {
+	if err := button.Click(); err != nil {
 		return err
 	}
+
+	// IMPORTANT:
+	// PayPal approval is asynchronous.
+	// Wait until PayPal redirects back to your application.
+	err = page.WaitForURL(
+		"**?token=*",
+		playwright.PageWaitForURLOptions{
+			Timeout: playwright.Float(120000),
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf(
+			"paypal approval redirect failed: %w",
+			err,
+		)
+	}
+
+	// Give PayPal a moment to finalize order state
+	time.Sleep(
+		2 * time.Second,
+	)
 
 	return nil
 }

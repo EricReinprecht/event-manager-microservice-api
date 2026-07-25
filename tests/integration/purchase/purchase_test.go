@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
 
 func setupPurchaseTest(t *testing.T) (
@@ -626,6 +628,15 @@ func TestPurchaseRejectsSoldOutTicketCategory(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create a purchase because tickets require a valid PurchaseID
+
+	purchase := scenarios.CreatePurchase(
+		t,
+		db,
+		user.ID,
+		party.ID,
+	)
+
 	// Simulate that all tickets were already sold
 
 	tickets := []appModels.Ticket{
@@ -634,18 +645,26 @@ func TestPurchaseRejectsSoldOutTicketCategory(t *testing.T) {
 
 			Code: "SOLD001",
 
+			Status: enum.TicketStatusActive,
+
 			UserID: user.ID,
 
 			TicketCategoryID: category.ID,
+
+			PurchaseID: purchase.ID,
 		},
 		{
 			ID: uuid.New(),
 
 			Code: "SOLD002",
 
+			Status: enum.TicketStatusActive,
+
 			UserID: user.ID,
 
 			TicketCategoryID: category.ID,
+
+			PurchaseID: purchase.ID,
 		},
 	}
 
@@ -666,10 +685,15 @@ func TestPurchaseRejectsSoldOutTicketCategory(t *testing.T) {
 	)
 
 	if err == nil {
-		t.Fatal("expected sold-out category to be rejected")
+		t.Fatal(
+			"expected sold-out category to be rejected",
+		)
 	}
 
-	if err != appErrors.ErrTicketSoldOut {
+	if !errors.Is(
+		err,
+		appErrors.ErrTicketSoldOut,
+	) {
 		t.Fatalf(
 			"expected ErrTicketSoldOut, got %v",
 			err,

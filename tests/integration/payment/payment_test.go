@@ -25,18 +25,13 @@ func TestPaymentCreateCheckoutSuccess(
 		t.Fatal(err)
 	}
 
-	err = helpers.CleanDatabase(
-		db,
-	)
+	err = helpers.CleanDatabase(db)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	executor :=
-		database.NewGormExecutor(
-			db,
-		)
+	executor := database.NewGormExecutor(db)
 
 	// -----------------------
 	// Create fixtures
@@ -44,19 +39,13 @@ func TestPaymentCreateCheckoutSuccess(
 
 	category := fixtures.Category()
 
-	if err := db.Create(
-		&category,
-	).Error; err != nil {
-
+	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
 	}
 
 	user := fixtures.User()
 
-	if err := db.Create(
-		&user,
-	).Error; err != nil {
-
+	if err := db.Create(&user).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -66,21 +55,69 @@ func TestPaymentCreateCheckoutSuccess(
 
 	party.CategoryID = category.ID
 
-	if err := db.Create(
+	if err := db.Create(&party).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase := helpers.CreatePurchase(
+		t,
+		db,
+		&user,
 		&party,
+		enum.PruchaseStatusPending,
+	)
+
+	// -----------------------
+	// Add purchase item
+	// -----------------------
+
+	ticketCategory := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	ticketCategory.Price = 1000
+
+	if err := db.Create(
+		&ticketCategory,
 	).Error; err != nil {
 
 		t.Fatal(err)
 	}
 
-	purchase :=
-		helpers.CreatePurchase(
-			t,
-			db,
-			&user,
-			&party,
-			enum.PruchaseStatusPending,
-		)
+	item := models.PurchaseItem{
+
+		ID: uuid.New(),
+
+		PurchaseID: purchase.ID,
+
+		TicketCategoryID: ticketCategory.ID,
+
+		Quantity: 1,
+
+		UnitPrice: ticketCategory.Price,
+	}
+
+	if err := db.Create(
+		&item,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// -----------------------
+	// Reload purchase
+	// -----------------------
+
+	if err := db.
+		Preload("Items").
+		First(
+			&purchase,
+			purchase.ID,
+		).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
 
 	// -----------------------
 	// Services
@@ -123,6 +160,7 @@ func TestPaymentCreateCheckoutSuccess(
 		)
 
 	if err != nil {
+
 		t.Fatalf(
 			"unexpected error: %v",
 			err,
@@ -386,6 +424,45 @@ func TestPaymentCreateCheckoutCreatesPayPalOrder(t *testing.T) {
 		enum.PruchaseStatusPending,
 	)
 
+	// -----------------------
+	// Add purchase item
+	// -----------------------
+
+	ticketCategory := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	ticketCategory.Price = 1000
+
+	if err := db.Create(
+		&ticketCategory,
+	).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	item := models.PurchaseItem{
+
+		ID: uuid.New(),
+
+		PurchaseID: purchase.ID,
+
+		TicketCategoryID: ticketCategory.ID,
+
+		Quantity: 1,
+
+		UnitPrice: ticketCategory.Price,
+	}
+
+	if err := db.Create(
+		&item,
+	).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// -----------------------
+	// Execute
+	// -----------------------
+
 	url, err := paymentService.CreateCheckout(
 		context.Background(),
 		purchase.ID,
@@ -504,6 +581,45 @@ func TestPaymentCreateCheckoutSavesPaymentID(t *testing.T) {
 		enum.PruchaseStatusPending,
 	)
 
+	// -----------------------
+	// Add purchase item
+	// -----------------------
+
+	ticketCategory := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	ticketCategory.Price = 1000
+
+	if err := db.Create(
+		&ticketCategory,
+	).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	item := models.PurchaseItem{
+
+		ID: uuid.New(),
+
+		PurchaseID: purchase.ID,
+
+		TicketCategoryID: ticketCategory.ID,
+
+		Quantity: 1,
+
+		UnitPrice: ticketCategory.Price,
+	}
+
+	if err := db.Create(
+		&item,
+	).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// -----------------------
+	// Create checkout
+	// -----------------------
+
 	_, err = paymentService.CreateCheckout(
 		context.Background(),
 		purchase.ID,
@@ -512,6 +628,10 @@ func TestPaymentCreateCheckoutSavesPaymentID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// -----------------------
+	// Verify
+	// -----------------------
 
 	var updatedPurchase models.Purchase
 
