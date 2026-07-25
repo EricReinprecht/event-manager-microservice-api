@@ -16,6 +16,10 @@ type FakePaymentGateway struct {
 
 	CapturedOrderID string
 
+	RefundCalled bool
+
+	RefundedPaymentID string
+
 	VerifyWebhookCalled bool
 }
 
@@ -39,6 +43,18 @@ func (f *FakePaymentGateway) CaptureOrder(
 	f.CapturedOrderID = orderID
 
 	return nil
+}
+
+func (f *FakePaymentGateway) RefundPayment(
+	ctx context.Context,
+	paymentID string,
+) (string, error) {
+
+	f.RefundCalled = true
+
+	f.RefundedPaymentID = paymentID
+
+	return "REFUND-123", nil
 }
 
 func (f *FakePaymentGateway) VerifyWebhookSignature(
@@ -71,6 +87,14 @@ func (f *FailingPaymentGateway) CaptureOrder(
 	return errors.New("capture failed")
 }
 
+func (f *FailingPaymentGateway) RefundPayment(
+	ctx context.Context,
+	paymentID string,
+) (string, error) {
+
+	return "", errors.New("refund failed")
+}
+
 func (f *FailingPaymentGateway) VerifyWebhookSignature(
 	ctx context.Context,
 	headers paypal.WebhookHeaders,
@@ -99,6 +123,14 @@ func (f *InvalidSignaturePaymentGateway) CaptureOrder(
 ) error {
 
 	return errors.New("not implemented")
+}
+
+func (f *InvalidSignaturePaymentGateway) RefundPayment(
+	ctx context.Context,
+	paymentID string,
+) (string, error) {
+
+	return "", errors.New("not implemented")
 }
 
 func (f *InvalidSignaturePaymentGateway) VerifyWebhookSignature(

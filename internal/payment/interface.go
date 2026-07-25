@@ -22,4 +22,9 @@ type Gateway interface {
 		headers paypal.WebhookHeaders,
 		body []byte,
 	) error
+
+	RefundPayment(
+		ctx context.Context,
+		paymentID string,
+	) (string, error)
 }

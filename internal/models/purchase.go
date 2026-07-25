@@ -29,6 +29,12 @@ type Purchase struct {
 
 	Items []PurchaseItem `gorm:"foreignKey:PurchaseID"`
 
+	RefundID string
+
+	RefundProvider string
+
+	RefundedAt *time.Time
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
