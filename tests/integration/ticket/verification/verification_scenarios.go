@@ -522,7 +522,7 @@ func assertVerified(
 
 func assertRejected(
 	t *testing.T,
-	scan appModels.TicketScan,
+	scan *appModels.TicketScan,
 	userID uuid.UUID,
 ) {
 
