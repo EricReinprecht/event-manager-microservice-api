@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type RefundRequest struct {

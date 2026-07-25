@@ -224,14 +224,14 @@ func Register(
 		partyMemberHandler.GetAll,
 	)
 
-	protected.PUT(
-		"/parties/:id/members/:memberID",
-		partyMemberHandler.Update,
-	)
-
 	protected.DELETE(
 		"/parties/:id/members/:memberID",
 		partyMemberHandler.Delete,
+	)
+
+	protected.PUT(
+		"/parties/:id/members/:memberID/roles",
+		partyMemberHandler.UpdateRoles,
 	)
 	// * PartyMembers * //
 

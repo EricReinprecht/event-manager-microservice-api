@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -17,6 +18,7 @@ type PartyService struct {
 	memberRepository   *repository.PartyMemberRepository
 	categoryRepository *repository.CategoryRepository
 	mediaRepository    *repository.MediaRepository
+	roleRepository     *repository.PartyMemberRoleRepository
 }
 
 func NewPartyService(
@@ -24,6 +26,7 @@ func NewPartyService(
 	memberRepository *repository.PartyMemberRepository,
 	categoryRepository *repository.CategoryRepository,
 	mediaRepository *repository.MediaRepository,
+	roleRepository *repository.PartyMemberRoleRepository,
 ) *PartyService {
 
 	return &PartyService{
@@ -31,6 +34,7 @@ func NewPartyService(
 		memberRepository:   memberRepository,
 		categoryRepository: categoryRepository,
 		mediaRepository:    mediaRepository,
+		roleRepository:     roleRepository,
 	}
 }
 
@@ -76,34 +80,62 @@ func (s *PartyService) Create(
 		}
 	}
 
-	// Create party
-	err = s.parties.Create(
+	return s.parties.Transaction(
 		ctx,
-		party,
-		imageIDs,
+		func(tx database.DBExecutor) error {
+
+			// Create party + images
+			err := s.parties.Create(
+				tx,
+				party,
+				imageIDs,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			// Create organizer membership
+			member := &models.PartyMember{
+
+				ID: uuid.New(),
+
+				UserID: party.OrganizerID,
+
+				PartyID: party.ID,
+			}
+
+			err = s.memberRepository.Create(
+				tx,
+				member,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			// Create organizer role
+			role := &models.PartyMemberRole{
+
+				ID: uuid.New(),
+
+				PartyMemberID: member.ID,
+
+				Role: enum.RoleOrganizer,
+			}
+
+			err = s.roleRepository.Create(
+				tx,
+				role,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
 	)
-
-	if err != nil {
-		return err
-	}
-
-	// Create organizer membership
-	member := &models.PartyMember{
-		UserID:  party.OrganizerID,
-		PartyID: party.ID,
-		Role:    enum.RoleOrganizer,
-	}
-
-	err = s.memberRepository.Create(
-		ctx,
-		member,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (s *PartyService) FindAll(

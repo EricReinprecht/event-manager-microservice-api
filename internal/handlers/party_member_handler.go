@@ -27,13 +27,12 @@ func NewPartyMemberHandler(
 }
 
 type createPartyMemberRequest struct {
-	UserID uuid.UUID `json:"user_id" binding:"required"`
-
-	Role enum.PartyRole `json:"role" binding:"required"`
+	UserID uuid.UUID      `json:"user_id" binding:"required"`
+	Role   enum.PartyRole `json:"role" binding:"required"`
 }
 
-type updatePartyMemberRequest struct {
-	Role enum.PartyRole `json:"role" binding:"required"`
+type updatePartyMemberRolesRequest struct {
+	Roles []enum.PartyRole `json:"roles" binding:"required"`
 }
 
 func (h *PartyMemberHandler) Create(
@@ -165,70 +164,6 @@ func (h *PartyMemberHandler) GetAll(
 	)
 }
 
-func (h *PartyMemberHandler) Update(
-	c *gin.Context,
-) {
-
-	memberID, err := uuid.Parse(
-		c.Param("memberID"),
-	)
-
-	if err != nil {
-
-		c.JSON(400, gin.H{
-			"error": "invalid member id",
-		})
-
-		return
-	}
-
-	var req updatePartyMemberRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-
-		c.JSON(400, gin.H{
-			"error": err.Error(),
-		})
-
-		return
-	}
-
-	member, err := h.service.FindByID(
-		c.Request.Context(),
-		memberID,
-	)
-
-	if err != nil {
-
-		c.JSON(404, gin.H{
-			"error": "member not found",
-		})
-
-		return
-	}
-
-	member.Role = req.Role
-
-	err = h.service.Update(
-		c.Request.Context(),
-		member,
-	)
-
-	if err != nil {
-
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
-
-		return
-	}
-
-	c.JSON(
-		200,
-		member,
-	)
-}
-
 func (h *PartyMemberHandler) Delete(
 	c *gin.Context,
 ) {
@@ -279,5 +214,53 @@ func (h *PartyMemberHandler) Delete(
 
 	c.JSON(200, gin.H{
 		"message": "member removed",
+	})
+}
+
+func (h *PartyMemberHandler) UpdateRoles(
+	c *gin.Context,
+) {
+
+	memberID, err := uuid.Parse(
+		c.Param("memberID"),
+	)
+
+	if err != nil {
+
+		c.JSON(400, gin.H{
+			"error": "invalid member id",
+		})
+
+		return
+	}
+
+	var req updatePartyMemberRolesRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		c.JSON(400, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	err = h.service.SyncRoles(
+		c.Request.Context(),
+		memberID,
+		req.Roles,
+	)
+
+	if err != nil {
+
+		c.JSON(500, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": "roles updated",
 	})
 }

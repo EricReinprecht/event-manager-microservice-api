@@ -131,11 +131,15 @@ func (s *TicketService) Scan(
 		return nil, appErrors.ErrNotAllowed
 	}
 
-	if member.Role != enum.RoleOrganizer &&
-		member.Role != enum.RoleAdmin &&
-		member.Role != enum.RoleStaff {
+	hasPermission :=
+		member.HasRole(enum.RoleOrganizer) ||
+			member.HasRole(enum.RoleAdmin) ||
+			member.HasRole(enum.RoleStaff)
+
+	if !hasPermission {
 
 		tx.Rollback()
+
 		return nil, appErrors.ErrNotAllowed
 	}
 
@@ -293,9 +297,12 @@ func (s *TicketService) VerifyScan(
 		return appErrors.ErrNotAllowed
 	}
 
-	if member.Role != enum.RoleOrganizer &&
-		member.Role != enum.RoleAdmin &&
-		member.Role != enum.RoleStaff {
+	hasPermission :=
+		member.HasRole(enum.RoleOrganizer) ||
+			member.HasRole(enum.RoleAdmin) ||
+			member.HasRole(enum.RoleStaff)
+
+	if !hasPermission {
 
 		return appErrors.ErrNotAllowed
 	}

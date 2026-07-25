@@ -4,17 +4,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
 type PartyRepository struct {
-	db *gorm.DB
+	db database.DBExecutor
 }
 
 func NewPartyRepository(
-	db *gorm.DB,
+	db database.DBExecutor,
 ) *PartyRepository {
 
 	return &PartyRepository{
@@ -23,31 +23,36 @@ func NewPartyRepository(
 }
 
 func (r *PartyRepository) Create(
-	ctx context.Context,
+	tx database.DBExecutor,
 	party *models.Party,
 	imageIDs []uuid.UUID,
 ) error {
 
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := tx.
+		Create(party).
+		Error(); err != nil {
 
-		if len(imageIDs) > 0 {
+		return err
+	}
 
-			var images []models.Media
+	for _, imageID := range imageIDs {
 
-			err := tx.
-				Where("id IN ?", imageIDs).
-				Find(&images).
-				Error
+		link := models.PartyMedia{
 
-			if err != nil {
-				return err
-			}
+			PartyID: party.ID,
 
-			party.Images = images
+			MediaID: imageID,
 		}
 
-		return tx.Create(party).Error
-	})
+		if err := tx.
+			Create(&link).
+			Error(); err != nil {
+
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *PartyRepository) FindAll(
@@ -62,7 +67,7 @@ func (r *PartyRepository) FindAll(
 		Preload("Category").
 		Preload("Thumbnail").
 		Find(&parties).
-		Error
+		Error()
 
 	return parties, err
 }
@@ -81,7 +86,7 @@ func (r *PartyRepository) FindByID(
 		Preload("Category").
 		Preload("Organizer").
 		First(&party, "id = ?", id).
-		Error
+		Error()
 
 	return &party, err
 }
@@ -104,7 +109,7 @@ func (r *PartyRepository) Update(
 			"start_at":     party.StartAt,
 			"end_at":       party.EndAt,
 		}).
-		Error
+		Error()
 }
 
 func (r *PartyRepository) Delete(
@@ -115,7 +120,7 @@ func (r *PartyRepository) Delete(
 	return r.db.
 		WithContext(ctx).
 		Delete(party).
-		Error
+		Error()
 }
 
 func (r *PartyRepository) UpdateImages(
@@ -124,25 +129,72 @@ func (r *PartyRepository) UpdateImages(
 	imageIDs []uuid.UUID,
 ) error {
 
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return r.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
 
-		var images []models.Media
-
-		if len(imageIDs) > 0 {
+			// remove old images
 
 			err := tx.
-				Where("id IN ?", imageIDs).
-				Find(&images).
-				Error
+				Where(
+					"party_id = ?",
+					party.ID,
+				).
+				Delete(
+					&models.PartyMedia{},
+				).
+				Error()
 
 			if err != nil {
 				return err
 			}
-		}
 
-		return tx.
-			Model(party).
-			Association("Images").
-			Replace(images)
-	})
+			// insert new relations
+
+			for _, imageID := range imageIDs {
+
+				link := models.PartyMedia{
+
+					PartyID: party.ID,
+
+					MediaID: imageID,
+				}
+
+				err := tx.
+					Create(
+						&link,
+					).
+					Error()
+
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		},
+	)
+}
+
+func (r *PartyRepository) Transaction(
+	ctx context.Context,
+	fn func(tx database.DBExecutor) error,
+) error {
+
+	tx := r.db.
+		WithContext(ctx).
+		Begin()
+
+	if err := tx.Error(); err != nil {
+		return err
+	}
+
+	if err := fn(tx); err != nil {
+
+		_ = tx.Rollback()
+
+		return err
+	}
+
+	return tx.Commit()
 }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type PartyMember struct {
@@ -19,4 +20,18 @@ type PartyMember struct {
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+func (m *PartyMember) HasRole(
+	role enum.PartyRole,
+) bool {
+
+	for _, r := range m.Roles {
+
+		if r.Role == role {
+			return true
+		}
+	}
+
+	return false
 }

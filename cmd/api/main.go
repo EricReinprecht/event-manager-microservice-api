@@ -31,13 +31,18 @@ func main() {
 		&models.Party{},
 		&models.Media{},
 		&models.PartyMedia{},
+
 		&models.Ticket{},
 		&models.TicketCategory{},
 		&models.TicketAccessWindow{},
 		&models.TicketScan{},
+
 		&models.Purchase{},
 		&models.PurchaseItem{},
+
 		&models.PartyMember{},
+		&models.PartyMemberRole{},
+
 		&models.PaymentEvent{},
 	); err != nil {
 		log.Fatal(err)
@@ -62,7 +67,7 @@ func main() {
 	appClock := clock.RealClock{}
 
 	userRepository := repository.NewUserRepository(db)
-	partyRepository := repository.NewPartyRepository(db)
+	partyRepository := repository.NewPartyRepository(executor)
 	categoryRepository := repository.NewCategoryRepository(db)
 	mediaRepository := repository.NewMediaRepository(db)
 	ticketCategoryRepository := repository.NewTicketCategoryRepository(executor)
@@ -72,6 +77,7 @@ func main() {
 	ticketScanRepository := repository.NewTicketScanRepository(executor)
 	ticketAccessWindowRepository := repository.NewTicketAccessWindowRepository(executor)
 	paymentEventRepository := repository.NewPaymentEventRepository(executor)
+	partyMemberRoleRepository := repository.NewPartyMemberRoleRepository(executor)
 
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
@@ -86,6 +92,7 @@ func main() {
 	partyMemberService := service.NewPartyMemberService(
 		partyMemberRepository,
 		partyRepository,
+		partyMemberRoleRepository,
 	)
 
 	partyService := service.NewPartyService(
@@ -93,6 +100,7 @@ func main() {
 		partyMemberRepository,
 		categoryRepository,
 		mediaRepository,
+		partyMemberRoleRepository,
 	)
 
 	categoryService := service.NewCategoryService(

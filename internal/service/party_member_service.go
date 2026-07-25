@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -16,16 +17,19 @@ import (
 type PartyMemberService struct {
 	repository      *repository.PartyMemberRepository
 	partyRepository *repository.PartyRepository
+	roleRepository  *repository.PartyMemberRoleRepository
 }
 
 func NewPartyMemberService(
 	repository *repository.PartyMemberRepository,
 	partyRepository *repository.PartyRepository,
+	roleRepository *repository.PartyMemberRoleRepository,
 ) *PartyMemberService {
 
 	return &PartyMemberService{
 		repository:      repository,
 		partyRepository: partyRepository,
+		roleRepository:  roleRepository,
 	}
 }
 
@@ -34,7 +38,10 @@ func (s *PartyMemberService) Create(
 	member *models.PartyMember,
 ) error {
 
-	err := s.repository.Create(ctx, member)
+	err := s.repository.Create(
+		s.repository.DB(ctx),
+		member,
+	)
 
 	if err != nil {
 
@@ -130,7 +137,6 @@ func (s *PartyMemberService) Delete(
 	)
 }
 
-// Permission helper
 func (s *PartyMemberService) HasRole(
 	ctx context.Context,
 	partyID uuid.UUID,
@@ -148,10 +154,13 @@ func (s *PartyMemberService) HasRole(
 		return false
 	}
 
-	for _, role := range roles {
+	for _, wantedRole := range roles {
 
-		if member.Role == role {
-			return true
+		for _, memberRole := range member.Roles {
+
+			if memberRole.Role == wantedRole {
+				return true
+			}
 		}
 	}
 
@@ -166,5 +175,50 @@ func (s *PartyMemberService) FindByID(
 	return s.repository.FindByID(
 		ctx,
 		id,
+	)
+}
+
+func (s *PartyMemberService) SyncRoles(
+	ctx context.Context,
+	memberID uuid.UUID,
+	roles []enum.PartyRole,
+) error {
+
+	return s.repository.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			roleRepo := repository.NewPartyMemberRoleRepository(tx)
+
+			if err := roleRepo.DeleteAll(
+				tx,
+				memberID,
+			); err != nil {
+
+				return err
+			}
+
+			for _, role := range roles {
+
+				memberRole := models.PartyMemberRole{
+
+					ID: uuid.New(),
+
+					PartyMemberID: memberID,
+
+					Role: role,
+				}
+
+				if err := roleRepo.Create(
+					tx,
+					&memberRole,
+				); err != nil {
+
+					return err
+				}
+			}
+
+			return nil
+		},
 	)
 }

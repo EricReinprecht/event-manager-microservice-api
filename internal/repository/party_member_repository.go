@@ -23,12 +23,20 @@ func NewPartyMemberRepository(
 	}
 }
 
-func (r *PartyMemberRepository) Create(
+func (r *PartyMemberRepository) DB(
 	ctx context.Context,
+) database.DBExecutor {
+
+	return r.db.
+		WithContext(ctx)
+}
+
+func (r *PartyMemberRepository) Create(
+	tx database.DBExecutor,
 	member *models.PartyMember,
 ) error {
 
-	return r.db.WithContext(ctx).
+	return tx.
 		Create(member).
 		Error()
 }
@@ -119,4 +127,27 @@ func (r *PartyMemberRepository) Update(
 	return r.db.WithContext(ctx).
 		Save(member).
 		Error()
+}
+
+func (r *PartyMemberRepository) Transaction(
+	ctx context.Context,
+	fn func(tx database.DBExecutor) error,
+) error {
+
+	tx := r.db.
+		WithContext(ctx).
+		Begin()
+
+	if tx.Error() != nil {
+		return tx.Error()
+	}
+
+	if err := fn(tx); err != nil {
+
+		tx.Rollback()
+
+		return err
+	}
+
+	return tx.Commit()
 }
