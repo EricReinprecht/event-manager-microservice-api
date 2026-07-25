@@ -18,6 +18,7 @@ import (
 type PaymentService struct {
 	purchaseService        *PurchaseService
 	ticketService          *TicketService
+	partyMemberService     *PartyMemberService
 	paymentGateway         payment.Gateway
 	paymentEventRepository *repository.PaymentEventRepository
 	purchaseRepository     *repository.PurchaseRepository
@@ -26,6 +27,7 @@ type PaymentService struct {
 func NewPaymentService(
 	purchaseService *PurchaseService,
 	ticketService *TicketService,
+	partyMemberService *PartyMemberService,
 	paymentGateway payment.Gateway,
 	paymentEventRepository *repository.PaymentEventRepository,
 	purchaseRepository *repository.PurchaseRepository,
@@ -34,6 +36,7 @@ func NewPaymentService(
 	return &PaymentService{
 		purchaseService:        purchaseService,
 		ticketService:          ticketService,
+		partyMemberService:     partyMemberService,
 		paymentGateway:         paymentGateway,
 		paymentEventRepository: paymentEventRepository,
 		purchaseRepository:     purchaseRepository,

@@ -144,6 +144,28 @@ func (s *PartyMemberService) HasRole(
 	roles ...enum.PartyRole,
 ) bool {
 
+	party, err := s.partyRepository.FindByID(
+		ctx,
+		partyID,
+	)
+
+	if err == nil {
+
+		if party.OrganizerID == userID {
+
+			for _, role := range roles {
+
+				if role == enum.RoleOrganizer {
+					return true
+				}
+
+				if role == enum.RoleAdmin {
+					return true
+				}
+			}
+		}
+	}
+
 	member, err := s.repository.FindByPartyAndUser(
 		ctx,
 		partyID,

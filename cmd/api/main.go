@@ -142,6 +142,7 @@ func main() {
 	paymentService := service.NewPaymentService(
 		purchaseService,
 		ticketService,
+		partyMemberService,
 		paypalClient,
 		paymentEventRepository,
 		purchaseRepository,
