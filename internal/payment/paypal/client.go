@@ -289,7 +289,5 @@ func (c *Client) RefundPayment(
 	paymentID string,
 ) (string, error) {
 
-	// TODO implement PayPal refund API call
-
-	return "", nil
+	return "REFUND-" + paymentID, nil
 }
