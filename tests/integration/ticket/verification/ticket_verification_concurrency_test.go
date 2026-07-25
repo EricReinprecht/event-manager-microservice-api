@@ -80,11 +80,22 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,13 +131,18 @@ func TestConcurrentVerifyAndReject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TICKET
+	//  Ticket
+	purchase := helpers.CreateTestPurchase(
+		db,
+		customer.ID,
+		party.ID,
+	)
 
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
-
 	ticket.UserID = customer.ID
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
@@ -357,8 +373,6 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 			UserID: staff1.ID,
 
 			PartyID: party.ID,
-
-			Role: enum.RoleStaff,
 		},
 
 		{
@@ -367,14 +381,25 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 			UserID: staff2.ID,
 
 			PartyID: party.ID,
-
-			Role: enum.RoleStaff,
 		},
 	}
 
 	for _, member := range members {
 
 		if err := db.Create(&member).Error; err != nil {
+			t.Fatal(err)
+		}
+
+		role := appModels.PartyMemberRole{
+
+			ID: uuid.New(),
+
+			PartyMemberID: member.ID,
+
+			Role: enum.RoleStaff,
+		}
+
+		if err := db.Create(&role).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -413,13 +438,50 @@ func TestConcurrentVerifySameScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TICKET
+	//  Purchase
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: customer.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// Purchase
+	purchase = appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: customer.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	//  Ticket
+	purchase = helpers.CreateTestPurchase(
+		db,
+		customer.ID,
+		party.ID,
+	)
 
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
-
 	ticket.UserID = customer.ID
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)

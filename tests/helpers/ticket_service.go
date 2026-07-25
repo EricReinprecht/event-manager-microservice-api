@@ -19,11 +19,9 @@ func NewTicketService(
 
 	executor := database.NewGormExecutor(db)
 
-	appClock := clock.Clock(
-		clock.RealClock{},
-	)
+	var appClock clock.Clock = clock.RealClock{}
 
-	if len(clocks) > 0 {
+	if len(clocks) > 0 && clocks[0] != nil {
 		appClock = clocks[0]
 	}
 

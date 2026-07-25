@@ -78,11 +78,21 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,6 +130,27 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// PURCHASE
+
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: customer.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+
+		ExpiresAt: clock.Current.Add(time.Hour),
+
+		TotalPrice: 0,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
 	// TICKET
 
 	ticket := fixtures.Ticket()
@@ -127,6 +158,8 @@ func TestVerificationFailsExactlyAtExpiryBoundary(t *testing.T) {
 	ticket.TicketCategoryID = ticketCategory.ID
 
 	ticket.UserID = customer.ID
+
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
@@ -290,11 +323,21 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -339,6 +382,15 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 	ticket.TicketCategoryID = ticketCategory.ID
 
 	ticket.UserID = customer.ID
+
+	// create required purchase FK
+	purchase := helpers.CreateTestPurchase(
+		db,
+		customer.ID,
+		party.ID,
+	)
+
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)
@@ -386,7 +438,10 @@ func TestPendingScanExpiresCannotBeVerified(t *testing.T) {
 		true,
 	)
 
-	if err != appErrors.ErrTicketVerificationExpired {
+	if !errors.Is(
+		err,
+		appErrors.ErrTicketVerificationExpired,
+	) {
 
 		t.Fatalf(
 			"expected verification expired error, got %v",
@@ -492,17 +547,26 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 	// STAFF MEMBER
 
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -540,12 +604,32 @@ func TestVerificationExpiredPendingScanCannotBeVerified(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// PURCHASE
+
+	purchase := appModels.Purchase{
+
+		ID: uuid.New(),
+
+		UserID: customer.ID,
+
+		PartyID: party.ID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
 	// TICKET
 
 	ticket := fixtures.Ticket()
 
 	ticket.TicketCategoryID = ticketCategory.ID
+
 	ticket.UserID = customer.ID
+
+	ticket.PurchaseID = purchase.ID
 
 	if err := db.Create(&ticket).Error; err != nil {
 		t.Fatal(err)

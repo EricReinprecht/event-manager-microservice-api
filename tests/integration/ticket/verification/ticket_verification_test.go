@@ -29,170 +29,49 @@ func TestStaffCanRejectPendingTicketScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ticketService := helpers.NewTicketService(db)
-
-	// USER
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
+	clock := &helpers.FakeClock{
+		Current: time.Now().UTC(),
 	}
 
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
+	s := createVerificationScenario(
+		t,
+		db,
+		clock,
 	)
 
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY MEMBER
-
-	member := appModels.PartyMember{
-
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY REQUIRES VERIFICATION
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		Price: 100,
-
-		Capacity: 100,
-
-		PartyID: party.ID,
-
-		RequiresVerification: true,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: time.Now().
-			UTC().
-			Add(-time.Hour),
-
-		EndsAt: time.Now().
-			UTC().
-			Add(time.Hour),
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := appModels.Ticket{
-
-		ID: uuid.New(),
-
-		Code: uuid.NewString(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		UserID: staff.ID,
-	}
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// SCAN
-
-	result, err := ticketService.Scan(
-		context.Background(),
-		staff.ID,
-		ticket.Code,
+	ticketService := helpers.NewTicketService(
+		db,
+		clock,
 	)
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	// CREATE PENDING SCAN
 
-	if result.TicketID != ticket.ID {
+	scan := createPendingScan(
+		t,
+		ticketService,
+		s.Staff.ID,
+		s.Ticket,
+	)
 
-		t.Fatalf(
-			"wrong ticket scanned. expected %s got %s",
-			ticket.ID,
-			result.TicketID,
-		)
-	}
+	// ASSERT INITIAL STATE
 
-	// CHECK INITIAL PENDING STATE
+	assertScanStatus(
+		t,
+		scan,
+		enum.TicketScanPending,
+	)
 
-	var scan appModels.TicketScan
+	// REJECT
 
-	if err := db.
-		Where(
-			"ticket_id = ?",
-			ticket.ID,
-		).
-		First(&scan).
-		Error; err != nil {
-
-		t.Fatal(err)
-	}
-
-	if scan.Status != enum.TicketScanPending {
-
-		t.Fatalf(
-			"expected pending status, got %s",
-			scan.Status,
-		)
-	}
-
-	// REJECT SCAN
-
-	err = ticketService.VerifyScan(
-		context.Background(),
-		scan.ID,
-		staff.ID,
+	verifyScan(
+		t,
+		ticketService,
+		scan,
+		s.Staff.ID,
 		false,
 	)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// VERIFY DATABASE
+	// RELOAD
 
 	var rejected appModels.TicketScan
 
@@ -207,34 +86,13 @@ func TestStaffCanRejectPendingTicketScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if rejected.Status != enum.TicketScanRejected {
+	// ASSERT
 
-		t.Fatalf(
-			"expected rejected status, got %s",
-			rejected.Status,
-		)
-	}
-
-	if rejected.VerifiedAt == nil {
-
-		t.Fatal(
-			"expected verification timestamp",
-		)
-	}
-
-	if rejected.VerifiedByID == nil {
-
-		t.Fatal(
-			"expected verifier id",
-		)
-	}
-
-	if *rejected.VerifiedByID != staff.ID {
-
-		t.Fatal(
-			"wrong verifier",
-		)
-	}
+	assertRejected(
+		t,
+		rejected,
+		s.Staff.ID,
+	)
 }
 
 func TestStaffCanVerifyPendingTicket(t *testing.T) {
@@ -251,144 +109,51 @@ func TestStaffCanVerifyPendingTicket(t *testing.T) {
 
 	ticketService := helpers.NewTicketService(db)
 
-	// USER
-
-	staff := fixtures.User()
-
-	if err := db.Create(&staff).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		staff.ID,
+	clock := helpers.NewFakeClock(
+		time.Date(
+			2026,
+			7,
+			25,
+			12,
+			0,
+			0,
+			0,
+			time.UTC,
+		),
 	)
 
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY MEMBER
-
-	member := appModels.PartyMember{
-
-		ID: uuid.New(),
-
-		UserID: staff.ID,
-
-		PartyID: party.ID,
-
-		Role: enum.RoleStaff,
-	}
-
-	if err := db.Create(&member).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET CATEGORY REQUIRES VERIFICATION
-
-	ticketCategory := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		Price: 100,
-
-		Capacity: 100,
-
-		PartyID: party.ID,
-
-		RequiresVerification: true,
-	}
-
-	if err := db.Create(&ticketCategory).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ACCESS WINDOW
-
-	window := appModels.TicketAccessWindow{
-
-		ID: uuid.New(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		StartsAt: time.Now().
-			UTC().
-			Add(-time.Hour),
-
-		EndsAt: time.Now().
-			UTC().
-			Add(time.Hour),
-	}
-
-	if err := db.Create(&window).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// TICKET
-
-	ticket := appModels.Ticket{
-
-		ID: uuid.New(),
-
-		Code: uuid.NewString(),
-
-		TicketCategoryID: ticketCategory.ID,
-
-		UserID: staff.ID,
-	}
-
-	if err := db.Create(&ticket).Error; err != nil {
-		t.Fatal(err)
-	}
+	s := createVerificationScenario(
+		t,
+		db,
+		clock,
+	)
 
 	// SCAN
 
-	scan, err := ticketService.Scan(
-		context.Background(),
-		staff.ID,
-		ticket.Code,
+	scan := createPendingScan(
+		t,
+		ticketService,
+		s.Staff.ID,
+		s.Ticket,
 	)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if scan.Status != enum.TicketScanPending {
-
-		t.Fatalf(
-			"expected pending scan, got %s",
-			scan.Status,
-		)
-	}
+	assertScanStatus(
+		t,
+		scan,
+		enum.TicketScanPending,
+	)
 
 	// VERIFY
 
-	err = ticketService.VerifyScan(
-		context.Background(),
-		scan.ID,
-		staff.ID,
+	verifyScan(
+		t,
+		ticketService,
+		scan,
+		s.Staff.ID,
 		true,
 	)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// CHECK DATABASE
+	// CHECK RESULT
 
 	var verified appModels.TicketScan
 
@@ -403,34 +168,11 @@ func TestStaffCanVerifyPendingTicket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if verified.Status != enum.TicketScanVerified {
-
-		t.Fatalf(
-			"expected verified status, got %s",
-			verified.Status,
-		)
-	}
-
-	if verified.VerifiedAt == nil {
-
-		t.Fatal(
-			"expected verification timestamp",
-		)
-	}
-
-	if verified.VerifiedByID == nil {
-
-		t.Fatal(
-			"expected verifier id",
-		)
-	}
-
-	if *verified.VerifiedByID != staff.ID {
-
-		t.Fatal(
-			"wrong verifier",
-		)
-	}
+	assertVerified(
+		t,
+		&verified,
+		s.Staff.ID,
+	)
 }
 
 func TestVerificationCanOnlyBeDoneByPartyStaff(t *testing.T) {
@@ -504,11 +246,22 @@ func TestVerificationCanOnlyBeDoneByPartyStaff(t *testing.T) {
 		UserID: organizer.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&staffMember).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	staffRole := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: staffMember.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&staffMember).Error; err != nil {
+	if err := db.Create(&staffRole).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -665,20 +418,30 @@ func TestCannotVerifyAlreadyRejectedScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// PARTY STAFF
-
+	// MEMBER
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -848,20 +611,30 @@ func TestCannotRejectAlreadyVerifiedScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// STAFF MEMBER
-
+	/// MEMBER
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -1031,20 +804,30 @@ func TestCustomerCannotVerifyPendingTicketScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// STAFF MEMBER
-
+	// MEMBER
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -1242,11 +1025,22 @@ func TestOrganizerCanVerifyPendingTicket(t *testing.T) {
 		UserID: organizer.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleOrganizer,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -1422,11 +1216,22 @@ func TestAdminCanVerifyPendingTicket(t *testing.T) {
 		UserID: admin.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	role := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleAdmin,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -1611,19 +1416,29 @@ func TestRejectedScanStoresRejectionMetadata(t *testing.T) {
 	}
 
 	// PARTY MEMBER
-
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -1843,19 +1658,30 @@ func TestDeletedScanCannotBeVerified(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// STAFF MEMBER
-
+	// MEMBER
 	member := appModels.PartyMember{
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -2061,11 +1887,22 @@ func TestVerificationCannotBeDoneByStaffFromAnotherParty(t *testing.T) {
 		UserID: staffA.ID,
 
 		PartyID: partyA.ID,
+	}
+
+	if err := db.Create(&memberA).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	roleA := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: memberA.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&memberA).Error; err != nil {
+	if err := db.Create(&roleA).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -2103,11 +1940,22 @@ func TestVerificationCannotBeDoneByStaffFromAnotherParty(t *testing.T) {
 		UserID: staffB.ID,
 
 		PartyID: partyB.ID,
+	}
+
+	if err := db.Create(&memberB).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	roleB := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: memberB.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&memberB).Error; err != nil {
+	if err := db.Create(&roleB).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -2283,19 +2131,29 @@ func TestRejectedScanClearsVerificationExpiryMetadata(t *testing.T) {
 	}
 
 	// MEMBER
-
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -2491,19 +2349,29 @@ func TestVerifiedScanCannotBeRejectedByDifferentWindow(t *testing.T) {
 	}
 
 	// MEMBER
-
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -2707,18 +2575,29 @@ func TestTicketCategoryVerificationSettingSnapshot(t *testing.T) {
 	}
 
 	// MEMBER
-
 	member := appModels.PartyMember{
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -2908,6 +2787,7 @@ func TestOrganizerCanRejectPendingTicket(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// ORGANIZER MEMBERSHIP
 	organizerMember := appModels.PartyMember{
 
 		ID: uuid.New(),
@@ -2915,11 +2795,22 @@ func TestOrganizerCanRejectPendingTicket(t *testing.T) {
 		UserID: organizer.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&organizerMember).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	organizerRole := appModels.PartyMemberRole{
+
+		ID: uuid.New(),
+
+		PartyMemberID: organizerMember.ID,
 
 		Role: enum.RoleOrganizer,
 	}
 
-	if err := db.Create(&organizerMember).Error; err != nil {
+	if err := db.Create(&organizerRole).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -3114,19 +3005,29 @@ func TestVerifyAfterAccessWindowClosed(t *testing.T) {
 	}
 
 	// MEMBER
-
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -3309,20 +3210,30 @@ func TestScannerDeletedBeforeVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// PARTY MEMBER
-
+	// MEMBER
 	member := appModels.PartyMember{
-
 		ID: uuid.New(),
 
 		UserID: staff.ID,
 
 		PartyID: party.ID,
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// MEMBER ROLE
+
+	role := appModels.PartyMemberRole{
+		ID: uuid.New(),
+
+		PartyMemberID: member.ID,
 
 		Role: enum.RoleStaff,
 	}
 
-	if err := db.Create(&member).Error; err != nil {
+	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
 	}
 

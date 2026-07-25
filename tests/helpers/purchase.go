@@ -13,6 +13,8 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/service"
+
+	appModels "github.com/reinp/event-platform/backend/internal/models"
 )
 
 func NewPurchaseService(db *gorm.DB) *service.PurchaseService {
@@ -61,4 +63,27 @@ func CreatePurchase(
 	}
 
 	return &purchase
+}
+
+func CreateTestPurchase(
+	db *gorm.DB,
+	userID uuid.UUID,
+	partyID uuid.UUID,
+) appModels.Purchase {
+
+	purchase := appModels.Purchase{
+		ID: uuid.New(),
+
+		UserID: userID,
+
+		PartyID: partyID,
+
+		Status: enum.PurchaseStatusPaid,
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
+		panic(err)
+	}
+
+	return purchase
 }
