@@ -143,3 +143,32 @@ func ChangeStaffRole(
 		t.Fatal(err)
 	}
 }
+
+func RemovePartyMember(
+	t *testing.T,
+	db *gorm.DB,
+	member *appModels.PartyMember,
+) {
+
+	t.Helper()
+
+	if err := db.
+		Where(
+			"party_member_id = ?",
+			member.ID,
+		).
+		Delete(
+			&appModels.PartyMemberRole{},
+		).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if err := db.Delete(
+		member,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+}

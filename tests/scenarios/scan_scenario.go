@@ -28,6 +28,8 @@ type ScanScenario struct {
 
 	Category models.Category
 
+	Member models.PartyMember
+
 	TicketCategory models.TicketCategory
 
 	Window models.TicketAccessWindow
@@ -101,19 +103,21 @@ func CreateScanScenario(
 
 	// PARTY STAFF
 
-	for _, userID := range []uuid.UUID{
+	staffMember := AddPartyRole(
+		t,
+		db,
 		staffOne.ID,
-		staffTwo.ID,
-	} {
+		party.ID,
+		enum.RoleStaff,
+	)
 
-		AddPartyRole(
-			t,
-			db,
-			userID,
-			party.ID,
-			enum.RoleStaff,
-		)
-	}
+	AddPartyRole(
+		t,
+		db,
+		staffTwo.ID,
+		party.ID,
+		enum.RoleStaff,
+	)
 
 	// TICKET CATEGORY
 
@@ -188,6 +192,8 @@ func CreateScanScenario(
 
 		Category: category,
 
+		Member: staffMember,
+
 		TicketCategory: ticketCategory,
 
 		Window: window,
@@ -257,4 +263,19 @@ func CreatePendingTicketScan(
 	}
 
 	return scan
+}
+
+func CancelTicket(
+	t *testing.T,
+	db *gorm.DB,
+	ticket *models.Ticket,
+) {
+
+	t.Helper()
+
+	ticket.Status = enum.TicketStatusCancelled
+
+	if err := db.Save(ticket).Error; err != nil {
+		t.Fatal(err)
+	}
 }
