@@ -23,6 +23,8 @@ type Purchase struct {
 	PaymentProvider string
 	PaymentID       string
 
+	ExpiresAt time.Time
+
 	TotalPrice int64
 
 	Items []PurchaseItem `gorm:"foreignKey:PurchaseID"`

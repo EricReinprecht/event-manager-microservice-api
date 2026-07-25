@@ -18,10 +18,15 @@ func NewPaymentService(
 		executor,
 	)
 
+	purchaseRepository := repository.NewPurchaseRepository(
+		executor,
+	)
+
 	return service.NewPaymentService(
 		purchaseService,
 		ticketService,
 		paymentGateway,
 		paymentEventRepository,
+		purchaseRepository,
 	)
 }

@@ -154,3 +154,22 @@ func (r *TicketRepository) CountByCategory(
 
 	return count, err
 }
+
+func (r *TicketRepository) CountByCategoryTx(
+	tx database.DBExecutor,
+	categoryID uuid.UUID,
+) (int64, error) {
+
+	var count int64
+
+	err := tx.
+		Model(&models.Ticket{}).
+		Where(
+			"ticket_category_id = ?",
+			categoryID,
+		).
+		Count(&count).
+		Error()
+
+	return count, err
+}

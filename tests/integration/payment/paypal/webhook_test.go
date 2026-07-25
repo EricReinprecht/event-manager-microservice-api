@@ -15,6 +15,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/handlers"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )
@@ -1261,10 +1262,10 @@ func TestPayPalWebhookUnprocessedEventRetrySucceeds(t *testing.T) {
 
 	handler.Webhook(c)
 
-	if w.Code != http.StatusInternalServerError {
+	if w.Code != http.StatusOK {
 
 		t.Fatalf(
-			"expected first attempt 500, got %d body %s",
+			"expected 200 because unknown order is ignored, got %d body %s",
 			w.Code,
 			w.Body.String(),
 		)
@@ -2006,6 +2007,454 @@ func TestWebhook_RejectsModifiedPayload(t *testing.T) {
 		t.Fatalf(
 			"expected invalid signature error, got %s",
 			w.Body.String(),
+		)
+	}
+}
+
+func TestPayPalWebhookReplayProtection(t *testing.T) {
+
+	gin.SetMode(gin.ReleaseMode)
+
+	db, err := helpers.TestDatabaseSilent()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = helpers.CleanDatabase(db)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	executor := database.NewGormExecutor(db)
+
+	purchaseService := helpers.NewPurchaseService(db)
+
+	ticketService := helpers.NewTicketService(db)
+
+	gateway := &helpers.FakePaymentGateway{
+		Order: &paypal.Order{
+			ID: "ORDER-REPLAY-001",
+		},
+	}
+
+	paymentService := helpers.NewPaymentService(
+		executor,
+		purchaseService,
+		ticketService,
+		gateway,
+	)
+
+	handler := handlers.NewPaymentHandler(
+		paymentService,
+	)
+
+	// ----------------------------
+	// Create purchase setup
+	// ----------------------------
+
+	user := fixtures.User()
+
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	category := fixtures.Category()
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	party := fixtures.PartyWithOrganizer(
+		user.ID,
+	)
+
+	party.CategoryID = category.ID
+
+	if err := db.Create(&party).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase := helpers.CreatePurchase(
+		t,
+		db,
+		&user,
+		&party,
+		enum.StatusPending,
+	)
+
+	ticketCategory := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	if err := db.Create(&ticketCategory).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	item := models.PurchaseItem{
+
+		ID: uuid.New(),
+
+		PurchaseID: purchase.ID,
+
+		TicketCategoryID: ticketCategory.ID,
+
+		Quantity: 1,
+
+		UnitPrice: ticketCategory.Price,
+	}
+
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase.PaymentID = "ORDER-REPLAY-001"
+
+	purchase.PaymentProvider = "paypal"
+
+	if err := db.Save(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Webhook payload
+	// ----------------------------
+
+	body := []byte(`
+{
+	"id": "WH-REPLAY-001",
+
+	"event_type": "PAYMENT.CAPTURE.COMPLETED",
+
+	"resource": {
+
+		"id": "CAPTURE-REPLAY-001",
+
+		"supplementary_data": {
+
+			"related_ids": {
+
+				"order_id": "ORDER-REPLAY-001"
+
+			}
+		}
+	}
+}
+`)
+
+	sendWebhook := func() int {
+
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"/paypal/webhook",
+			bytes.NewReader(body),
+		)
+
+		req.Header.Set(
+			"PAYPAL-TRANSMISSION-ID",
+			"replay-transmission-001",
+		)
+
+		req.Header.Set(
+			"PAYPAL-TRANSMISSION-TIME",
+			"2026-01-01T00:00:00Z",
+		)
+
+		req.Header.Set(
+			"PAYPAL-TRANSMISSION-SIG",
+			"valid-signature",
+		)
+
+		req.Header.Set(
+			"PAYPAL-CERT-URL",
+			"https://example.com/cert",
+		)
+
+		req.Header.Set(
+			"PAYPAL-AUTH-ALGO",
+			"SHA256withRSA",
+		)
+
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = req
+
+		handler.Webhook(c)
+
+		return w.Code
+	}
+
+	// ----------------------------
+	// First delivery
+	// ----------------------------
+
+	code := sendWebhook()
+
+	if code != http.StatusOK {
+
+		t.Fatalf(
+			"first webhook failed with status %d",
+			code,
+		)
+	}
+
+	// ----------------------------
+	// Replay same webhook
+	// ----------------------------
+
+	code = sendWebhook()
+
+	if code != http.StatusOK {
+
+		t.Fatalf(
+			"replayed webhook failed with status %d",
+			code,
+		)
+	}
+
+	// ----------------------------
+	// Verify only one event stored
+	// ----------------------------
+
+	var events []models.PaymentEvent
+
+	err = db.
+		Where(
+			"event_id = ?",
+			"WH-REPLAY-001",
+		).
+		Find(&events).
+		Error
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(events) != 1 {
+
+		t.Fatalf(
+			"expected exactly one payment event, got %d",
+			len(events),
+		)
+	}
+
+	// ----------------------------
+	// Verify tickets not duplicated
+	// ----------------------------
+
+	var tickets []models.Ticket
+
+	err = db.
+		Where(
+			"user_id = ?",
+			user.ID,
+		).
+		Find(&tickets).
+		Error
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tickets) != 1 {
+
+		t.Fatalf(
+			"expected exactly one ticket, got %d",
+			len(tickets),
+		)
+	}
+}
+
+func TestPayPalWebhookUnknownOrderDoesNotCreatePayment(t *testing.T) {
+
+	gin.SetMode(gin.ReleaseMode)
+
+	db, err := helpers.TestDatabaseSilent()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
+
+	// --------------------------------
+	// Setup payment service
+	// --------------------------------
+
+	executor := database.NewGormExecutor(db)
+
+	purchaseService := helpers.NewPurchaseService(db)
+
+	ticketService := helpers.NewTicketService(db)
+
+	paymentService := helpers.NewPaymentService(
+		executor,
+		purchaseService,
+		ticketService,
+		&helpers.FakePaymentGateway{
+			Order: &paypal.Order{
+				ID: "ORDER-DOES-NOT-EXIST",
+			},
+		},
+	)
+
+	handler := handlers.NewPaymentHandler(
+		paymentService,
+	)
+
+	// --------------------------------
+	// Unknown PayPal order payload
+	// --------------------------------
+
+	body := []byte(`
+{
+	"id": "WH-UNKNOWN-ORDER-001",
+
+	"event_type": "PAYMENT.CAPTURE.COMPLETED",
+
+	"resource": {
+
+		"id": "CAPTURE-UNKNOWN",
+
+		"supplementary_data": {
+
+			"related_ids": {
+
+				"order_id": "ORDER-DOES-NOT-EXIST"
+
+			}
+		}
+	}
+}
+`)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/paypal/webhook",
+		bytes.NewReader(body),
+	)
+
+	req.Header.Set(
+		"PAYPAL-TRANSMISSION-ID",
+		"transmission-unknown-order",
+	)
+
+	req.Header.Set(
+		"PAYPAL-TRANSMISSION-TIME",
+		"2026-01-01T00:00:00Z",
+	)
+
+	req.Header.Set(
+		"PAYPAL-TRANSMISSION-SIG",
+		"valid-signature",
+	)
+
+	req.Header.Set(
+		"PAYPAL-CERT-URL",
+		"https://example.com/cert",
+	)
+
+	req.Header.Set(
+		"PAYPAL-AUTH-ALGO",
+		"SHA256withRSA",
+	)
+
+	w := httptest.NewRecorder()
+
+	c, _ := gin.CreateTestContext(w)
+
+	c.Request = req
+
+	// --------------------------------
+	// Execute webhook
+	// --------------------------------
+
+	handler.Webhook(c)
+
+	// --------------------------------
+	// Assertions
+	// --------------------------------
+
+	if w.Code != http.StatusOK {
+
+		t.Fatalf(
+			"expected 200 for unknown order webhook, got %d body: %s",
+			w.Code,
+			w.Body.String(),
+		)
+	}
+
+	// --------------------------------
+	// No purchase should exist
+	// --------------------------------
+
+	var purchases []models.Purchase
+
+	if err := db.Find(
+		&purchases,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(purchases) != 0 {
+
+		t.Fatalf(
+			"expected no purchases, got %d",
+			len(purchases),
+		)
+	}
+
+	// --------------------------------
+	// No tickets generated
+	// --------------------------------
+
+	var tickets []models.Ticket
+
+	if err := db.Find(
+		&tickets,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(tickets) != 0 {
+
+		t.Fatalf(
+			"expected no tickets, got %d",
+			len(tickets),
+		)
+	}
+
+	// --------------------------------
+	// Event should still be stored
+	// --------------------------------
+	// PayPal replay protection requires unknown events
+	// to be recorded. We only ignore the business action.
+
+	var events []models.PaymentEvent
+
+	if err := db.
+		Where(
+			"event_id = ?",
+			"WH-UNKNOWN-ORDER-001",
+		).
+		Find(&events).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(events) != 1 {
+
+		t.Fatalf(
+			"expected webhook event to be stored once, got %d",
+			len(events),
 		)
 	}
 }

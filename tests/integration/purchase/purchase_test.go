@@ -3,10 +3,13 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/database"
+	"github.com/reinp/event-platform/backend/internal/models"
 	appModels "github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/requests"
@@ -63,22 +66,17 @@ func TestUserCanCreatePendingPurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	helpers.CleanDatabase(db)
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
 
 	user, party := setupPurchaseTest(t)
 
 	service := helpers.NewPurchaseService(db)
 
-	category := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		Price: 5000,
-	}
+	category := fixtures.TicketCategory(
+		party.ID,
+	)
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
@@ -110,8 +108,18 @@ func TestUserCanCreatePendingPurchase(t *testing.T) {
 
 	if len(purchase.Items) != 1 {
 
-		t.Fatal(
-			"expected one purchase item",
+		t.Fatalf(
+			"expected one purchase item, got %d",
+			len(purchase.Items),
+		)
+	}
+
+	if purchase.Items[0].UnitPrice != category.Price {
+
+		t.Fatalf(
+			"expected snapshot price %d got %d",
+			category.Price,
+			purchase.Items[0].UnitPrice,
 		)
 	}
 }
@@ -130,16 +138,11 @@ func TestPurchaseStoresPriceSnapshot(t *testing.T) {
 
 	service := helpers.NewPurchaseService(db)
 
-	category := appModels.TicketCategory{
+	category := fixtures.TicketCategory(
+		party.ID,
+	)
 
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		Price: 5000,
-	}
+	category.Price = 5000
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
@@ -218,16 +221,11 @@ func TestPurchaseCalculatesTotal(t *testing.T) {
 
 	service := helpers.NewPurchaseService(db)
 
-	category := appModels.TicketCategory{
+	category := fixtures.TicketCategory(
+		party.ID,
+	)
 
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		Price: 2500,
-	}
+	category.Price = 2500
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
@@ -290,16 +288,9 @@ func TestCannotPurchaseTicketCategoryFromAnotherParty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	category := appModels.TicketCategory{
-
-		ID: uuid.New(),
-
-		Name: "VIP",
-
-		PartyID: otherParty.ID,
-
-		Price: 5000,
-	}
+	category := fixtures.TicketCategory(
+		otherParty.ID,
+	)
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
@@ -347,24 +338,26 @@ func TestPurchaseCanBeMarkedPaid(t *testing.T) {
 
 	user, party := setupPurchaseTest(t)
 
-	service := helpers.NewPurchaseService(db)
+	purchaseService := helpers.NewPurchaseService(db)
 
-	category := appModels.TicketCategory{
+	ticketService := helpers.NewTicketService(db)
 
-		ID: uuid.New(),
+	paymentService := helpers.NewPaymentService(
+		database.NewGormExecutor(db),
+		purchaseService,
+		ticketService,
+		helpers.NewPayPalClient(),
+	)
 
-		Name: "VIP",
-
-		PartyID: party.ID,
-
-		Price: 5000,
-	}
+	category := fixtures.TicketCategory(
+		party.ID,
+	)
 
 	if err := db.Create(&category).Error; err != nil {
 		t.Fatal(err)
 	}
 
-	purchase, err := service.CreatePurchase(
+	purchase, err := purchaseService.CreatePurchase(
 		context.Background(),
 		user.ID,
 		party.ID,
@@ -382,7 +375,7 @@ func TestPurchaseCanBeMarkedPaid(t *testing.T) {
 
 	paymentID := "PAYPAL-ORDER-123"
 
-	err = service.AttachPayment(
+	err = purchaseService.AttachPayment(
 		context.Background(),
 		purchase.ID,
 		"paypal",
@@ -393,7 +386,7 @@ func TestPurchaseCanBeMarkedPaid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	updatedPurchase, err := service.ConfirmPayment(
+	updatedPurchase, err := paymentService.ConfirmPayment(
 		context.Background(),
 		paymentID,
 	)
@@ -424,6 +417,351 @@ func TestPurchaseCanBeMarkedPaid(t *testing.T) {
 			"expected payment id %s got %s",
 			paymentID,
 			updatedPurchase.PaymentID,
+		)
+	}
+}
+
+func TestPaymentUsesPurchasePriceSnapshot(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
+
+	purchaseService := helpers.NewPurchaseService(db)
+
+	ticketService := helpers.NewTicketService(db)
+
+	paymentService := helpers.NewPaymentService(
+		database.NewGormExecutor(db),
+		purchaseService,
+		ticketService,
+		helpers.NewPayPalClient(),
+	)
+
+	// ----------------------------
+	// Setup
+	// ----------------------------
+
+	user := fixtures.User()
+
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	category := fixtures.Category()
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	party := fixtures.Party()
+
+	party.CategoryID = category.ID
+	party.OrganizerID = user.ID
+
+	if err := db.Create(&party).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	ticketCategory := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	ticketCategory.Price = 5000
+
+	if err := db.Create(&ticketCategory).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Create purchase with snapshot
+	// ----------------------------
+
+	purchase, err := purchaseService.CreatePurchase(
+		context.Background(),
+		user.ID,
+		party.ID,
+		[]requests.PurchaseItemRequest{
+			{
+				TicketCategoryID: ticketCategory.ID,
+				Quantity:         1,
+			},
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	purchase.ExpiresAt = time.Now().Add(
+		30 * time.Minute,
+	)
+
+	purchase.PaymentProvider = "paypal"
+
+	purchase.PaymentID = "PRICE-SNAPSHOT"
+
+	if err := db.Save(
+		purchase,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Change ticket price AFTER purchase
+	// ----------------------------
+
+	ticketCategory.Price = 9000
+
+	if err := db.Save(
+		&ticketCategory,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Confirm payment
+	// ----------------------------
+
+	_, err = paymentService.ConfirmPayment(
+		context.Background(),
+		purchase.PaymentID,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Reload purchase
+	// ----------------------------
+
+	var updated models.Purchase
+
+	if err := db.
+		Preload("Items").
+		First(
+			&updated,
+			"id = ?",
+			purchase.ID,
+		).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(updated.Items) != 1 {
+
+		t.Fatalf(
+			"expected 1 purchase item, got %d",
+			len(updated.Items),
+		)
+	}
+
+	if updated.Items[0].UnitPrice != 5000 {
+
+		t.Fatalf(
+			"expected purchase snapshot price 5000, got %d",
+			updated.Items[0].UnitPrice,
+		)
+	}
+
+	// ----------------------------
+	// Verify ticket created
+	// ----------------------------
+
+	var tickets []models.Ticket
+
+	if err := db.
+		Where(
+			"user_id = ?",
+			user.ID,
+		).
+		Find(&tickets).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(tickets) != 1 {
+
+		t.Fatalf(
+			"expected 1 ticket, got %d",
+			len(tickets),
+		)
+	}
+}
+
+func TestPurchaseRejectsSoldOutTicketCategory(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
+
+	user, party := setupPurchaseTest(t)
+
+	service := helpers.NewPurchaseService(db)
+
+	category := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	category.Capacity = 2
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate that all tickets were already sold
+
+	tickets := []appModels.Ticket{
+		{
+			ID: uuid.New(),
+
+			Code: "SOLD001",
+
+			UserID: user.ID,
+
+			TicketCategoryID: category.ID,
+		},
+		{
+			ID: uuid.New(),
+
+			Code: "SOLD002",
+
+			UserID: user.ID,
+
+			TicketCategoryID: category.ID,
+		},
+	}
+
+	if err := db.Create(&tickets).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = service.CreatePurchase(
+		context.Background(),
+		user.ID,
+		party.ID,
+		[]requests.PurchaseItemRequest{
+			{
+				TicketCategoryID: category.ID,
+				Quantity:         1,
+			},
+		},
+	)
+
+	if err == nil {
+		t.Fatal("expected sold-out category to be rejected")
+	}
+
+	if err != appErrors.ErrTicketSoldOut {
+		t.Fatalf(
+			"expected ErrTicketSoldOut, got %v",
+			err,
+		)
+	}
+}
+
+func TestPurchaseTransactionRollbackOnFailure(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
+
+	user, party := setupPurchaseTest(t)
+
+	service := helpers.NewPurchaseService(db)
+
+	category := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = service.CreatePurchase(
+		context.Background(),
+		user.ID,
+		party.ID,
+		[]requests.PurchaseItemRequest{
+
+			{
+				TicketCategoryID: category.ID,
+				Quantity:         1,
+			},
+
+			{
+				// invalid category forces failure
+				TicketCategoryID: uuid.New(),
+				Quantity:         1,
+			},
+		},
+	)
+
+	if err == nil {
+
+		t.Fatal(
+			"expected purchase creation to fail",
+		)
+	}
+
+	// ----------------------------
+	// Verify rollback
+	// ----------------------------
+
+	var purchases []appModels.Purchase
+
+	if err := db.Find(
+		&purchases,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(purchases) != 0 {
+
+		t.Fatalf(
+			"expected zero purchases after rollback, got %d",
+			len(purchases),
+		)
+	}
+
+	var items []appModels.PurchaseItem
+
+	if err := db.Find(
+		&items,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(items) != 0 {
+
+		t.Fatalf(
+			"expected zero purchase items after rollback, got %d",
+			len(items),
 		)
 	}
 }

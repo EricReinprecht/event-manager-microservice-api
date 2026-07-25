@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/service"
@@ -267,6 +269,22 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 	)
 
 	if err != nil {
+
+		if errors.Is(
+			err,
+			appErrors.ErrUnknownPaymentOrder,
+		) {
+
+			// external PayPal order
+			c.JSON(
+				http.StatusOK,
+				gin.H{
+					"message": "unknown order ignored",
+				},
+			)
+
+			return
+		}
 
 		c.JSON(
 			http.StatusInternalServerError,

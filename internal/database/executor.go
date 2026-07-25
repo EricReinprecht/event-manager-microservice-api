@@ -1,6 +1,10 @@
 package database
 
-import "context"
+import (
+	"context"
+
+	"gorm.io/gorm/clause"
+)
 
 type DBExecutor interface {
 	WithContext(ctx context.Context) DBExecutor
@@ -8,6 +12,8 @@ type DBExecutor interface {
 	Model(value interface{}) DBExecutor
 
 	Where(query interface{}, args ...interface{}) DBExecutor
+
+	Clauses(conds ...clause.Expression) DBExecutor
 
 	Order(value interface{}) DBExecutor
 

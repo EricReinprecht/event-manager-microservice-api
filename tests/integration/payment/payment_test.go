@@ -2,6 +2,7 @@ package payment
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -10,8 +11,6 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
-	"github.com/reinp/event-platform/backend/internal/repository"
-	"github.com/reinp/event-platform/backend/internal/service"
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )
@@ -105,17 +104,12 @@ func TestPaymentCreateCheckoutSuccess(
 			},
 		}
 
-	paymentEventRepository :=
-		repository.NewPaymentEventRepository(
-			executor,
-		)
-
 	paymentService :=
-		service.NewPaymentService(
+		helpers.NewPaymentService(
+			executor,
 			purchaseService,
 			ticketService,
 			fakeGateway,
-			paymentEventRepository,
 		)
 
 	// -----------------------
@@ -1744,6 +1738,652 @@ func TestPayment_DoesNotGenerateDuplicateTickets(t *testing.T) {
 			"expected ticket count to remain %d, got %d",
 			firstCount,
 			secondCount,
+		)
+	}
+}
+
+func TestPaymentConfirmPaymentConcurrentCalls(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = helpers.CleanDatabase(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	purchaseService := helpers.NewPurchaseService(db)
+
+	ticketService := helpers.NewTicketService(db)
+
+	paymentService := helpers.NewPaymentService(
+		database.NewGormExecutor(db),
+		purchaseService,
+		ticketService,
+		helpers.NewPayPalClient(),
+	)
+
+	// ----------------------------
+	// Setup
+	// ----------------------------
+
+	user := fixtures.User()
+
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	category := fixtures.Category()
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	party := fixtures.Party()
+
+	party.CategoryID = category.ID
+	party.OrganizerID = user.ID
+
+	if err := db.Create(&party).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase := helpers.CreatePurchase(
+		t,
+		db,
+		&user,
+		&party,
+		enum.StatusPending,
+	)
+
+	ticketCategory := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	if err := db.Create(&ticketCategory).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	item := models.PurchaseItem{
+
+		ID: uuid.New(),
+
+		PurchaseID: purchase.ID,
+
+		TicketCategoryID: ticketCategory.ID,
+
+		Quantity: 1,
+
+		UnitPrice: ticketCategory.Price,
+	}
+
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// Fake PayPal order id
+
+	paymentID := "PAYPAL-CONCURRENT-TEST"
+
+	purchase.PaymentID = paymentID
+
+	if err := db.Save(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Concurrent confirmation
+	// ----------------------------
+
+	var wg sync.WaitGroup
+
+	errors := make(chan error, 2)
+
+	wg.Add(2)
+
+	for i := 0; i < 2; i++ {
+
+		go func() {
+
+			defer wg.Done()
+
+			_, err := paymentService.ConfirmPayment(
+				context.Background(),
+				paymentID,
+			)
+
+			errors <- err
+
+		}()
+
+	}
+
+	wg.Wait()
+
+	close(errors)
+
+	// ----------------------------
+	// Validate result
+	// ----------------------------
+
+	for err := range errors {
+
+		if err != nil {
+
+			t.Log(
+				"concurrent confirm returned:",
+				err,
+			)
+		}
+	}
+
+	var tickets []models.Ticket
+
+	err = db.
+		Where(
+			"user_id = ?",
+			user.ID,
+		).
+		Find(&tickets).
+		Error
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tickets) != 1 {
+
+		t.Fatalf(
+			"expected exactly 1 ticket, got %d",
+			len(tickets),
+		)
+	}
+
+	var updatedPurchase models.Purchase
+
+	err = db.
+		First(
+			&updatedPurchase,
+			"id = ?",
+			purchase.ID,
+		).
+		Error
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if updatedPurchase.Status != enum.StatusPaid {
+
+		t.Fatalf(
+			"expected PAID got %s",
+			updatedPurchase.Status,
+		)
+	}
+}
+
+func TestConcurrentConfirmPayment(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
+
+	purchaseService := helpers.NewPurchaseService(db)
+
+	ticketService := helpers.NewTicketService(db)
+
+	paymentService := helpers.NewPaymentService(
+		database.NewGormExecutor(db),
+		purchaseService,
+		ticketService,
+		helpers.NewPayPalClient(),
+	)
+
+	// ----------------------------
+	// Setup
+	// ----------------------------
+
+	user := fixtures.User()
+
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	category := fixtures.Category()
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	party := fixtures.Party()
+
+	party.CategoryID = category.ID
+	party.OrganizerID = user.ID
+
+	if err := db.Create(&party).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase := helpers.CreatePurchase(
+		t,
+		db,
+		&user,
+		&party,
+		enum.StatusPending,
+	)
+
+	ticketCategory := fixtures.TicketCategory(party.ID)
+
+	if err := db.Create(&ticketCategory).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	item := models.PurchaseItem{
+		ID:               uuid.New(),
+		PurchaseID:       purchase.ID,
+		TicketCategoryID: ticketCategory.ID,
+		Quantity:         1,
+		UnitPrice:        ticketCategory.Price,
+	}
+
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase.PaymentProvider = "paypal"
+	purchase.PaymentID = "PAYPAL-CONCURRENT"
+
+	if err := db.Save(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Execute concurrently
+	// ----------------------------
+
+	const workers = 10
+
+	var wg sync.WaitGroup
+
+	wg.Add(workers)
+
+	for i := 0; i < workers; i++ {
+
+		go func() {
+
+			defer wg.Done()
+
+			_, _ = paymentService.ConfirmPayment(
+				context.Background(),
+				purchase.PaymentID,
+			)
+
+		}()
+
+	}
+
+	wg.Wait()
+
+	// ----------------------------
+	// Verify purchase
+	// ----------------------------
+
+	var updated models.Purchase
+
+	if err := db.First(
+		&updated,
+		"id = ?",
+		purchase.ID,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if updated.Status != enum.StatusPaid {
+
+		t.Fatalf(
+			"expected purchase to be PAID, got %s",
+			updated.Status,
+		)
+	}
+
+	// ----------------------------
+	// Verify tickets
+	// ----------------------------
+
+	var tickets []models.Ticket
+
+	if err := db.
+		Where(
+			"user_id = ?",
+			user.ID,
+		).
+		Find(&tickets).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(tickets) != 1 {
+
+		t.Fatalf(
+			"expected exactly 1 ticket after concurrent confirmation, got %d",
+			len(tickets),
+		)
+	}
+}
+
+func TestPaymentCaptureFailureRollback(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Setup
+	// ----------------------------
+
+	user := fixtures.User()
+
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	category := fixtures.Category()
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	party := fixtures.Party()
+
+	party.CategoryID = category.ID
+	party.OrganizerID = user.ID
+
+	if err := db.Create(&party).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase := helpers.CreatePurchase(
+		t,
+		db,
+		&user,
+		&party,
+		enum.StatusPending,
+	)
+
+	ticketCategory := fixtures.TicketCategory(party.ID)
+
+	if err := db.Create(&ticketCategory).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	item := models.PurchaseItem{
+		ID:               uuid.New(),
+		PurchaseID:       purchase.ID,
+		TicketCategoryID: ticketCategory.ID,
+		Quantity:         2,
+		UnitPrice:        ticketCategory.Price,
+	}
+
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase.PaymentProvider = "paypal"
+	purchase.PaymentID = "INVALID-ORDER"
+
+	if err := db.Save(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchaseService := helpers.NewPurchaseService(db)
+	ticketService := helpers.NewTicketService(db)
+
+	paymentService := helpers.NewPaymentService(
+		database.NewGormExecutor(db),
+		purchaseService,
+		ticketService,
+		helpers.NewPayPalClient(),
+	)
+
+	// ----------------------------
+	// Execute
+	// ----------------------------
+
+	err = paymentService.CapturePayment(
+		context.Background(),
+		purchase.PaymentID,
+	)
+
+	if err == nil {
+		t.Fatal("expected capture to fail")
+	}
+
+	// ----------------------------
+	// Purchase should still be pending
+	// ----------------------------
+
+	var updated models.Purchase
+
+	if err := db.First(
+		&updated,
+		"id = ?",
+		purchase.ID,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if updated.Status != enum.StatusPending {
+
+		t.Fatalf(
+			"expected purchase to remain PENDING, got %s",
+			updated.Status,
+		)
+	}
+
+	// ----------------------------
+	// No tickets generated
+	// ----------------------------
+
+	var tickets []models.Ticket
+
+	if err := db.
+		Where(
+			"user_id = ?",
+			user.ID,
+		).
+		Find(&tickets).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(tickets) != 0 {
+
+		t.Fatalf(
+			"expected 0 tickets after failed capture, got %d",
+			len(tickets),
+		)
+	}
+}
+
+func TestPaymentSupportsMultipleTicketCategories(t *testing.T) {
+
+	db, err := helpers.TestDatabase()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := helpers.CleanDatabase(db); err != nil {
+		t.Fatal(err)
+	}
+
+	purchaseService := helpers.NewPurchaseService(db)
+
+	ticketService := helpers.NewTicketService(db)
+
+	paymentService := helpers.NewPaymentService(
+		database.NewGormExecutor(db),
+		purchaseService,
+		ticketService,
+		helpers.NewPayPalClient(),
+	)
+
+	// ----------------------------
+	// Setup
+	// ----------------------------
+
+	user := fixtures.User()
+
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	category := fixtures.Category()
+
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	party := fixtures.Party()
+
+	party.CategoryID = category.ID
+	party.OrganizerID = user.ID
+
+	if err := db.Create(&party).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase := helpers.CreatePurchase(
+		t,
+		db,
+		&user,
+		&party,
+		enum.StatusPending,
+	)
+
+	vip := fixtures.TicketCategory(party.ID)
+	vip.Name = "VIP"
+
+	if err := db.Create(&vip).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	standard := fixtures.TicketCategory(party.ID)
+	standard.Name = "Standard"
+
+	if err := db.Create(&standard).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	items := []models.PurchaseItem{
+		{
+			ID:               uuid.New(),
+			PurchaseID:       purchase.ID,
+			TicketCategoryID: vip.ID,
+			Quantity:         2,
+			UnitPrice:        vip.Price,
+		},
+		{
+			ID:               uuid.New(),
+			PurchaseID:       purchase.ID,
+			TicketCategoryID: standard.ID,
+			Quantity:         3,
+			UnitPrice:        standard.Price,
+		},
+	}
+
+	if err := db.Create(&items).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	purchase.PaymentProvider = "paypal"
+	purchase.PaymentID = "MULTI-CATEGORY"
+
+	if err := db.Save(&purchase).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Confirm payment
+	// ----------------------------
+
+	_, err = paymentService.ConfirmPayment(
+		context.Background(),
+		purchase.PaymentID,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ----------------------------
+	// Verify tickets
+	// ----------------------------
+
+	var tickets []models.Ticket
+
+	if err := db.
+		Where("user_id = ?", user.ID).
+		Find(&tickets).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if len(tickets) != 5 {
+
+		t.Fatalf(
+			"expected 5 tickets, got %d",
+			len(tickets),
+		)
+	}
+
+	var vipCount int
+	var standardCount int
+
+	for _, ticket := range tickets {
+
+		switch ticket.TicketCategoryID {
+
+		case vip.ID:
+			vipCount++
+
+		case standard.ID:
+			standardCount++
+		}
+	}
+
+	if vipCount != 2 {
+
+		t.Fatalf(
+			"expected 2 VIP tickets, got %d",
+			vipCount,
+		)
+	}
+
+	if standardCount != 3 {
+
+		t.Fatalf(
+			"expected 3 Standard tickets, got %d",
+			standardCount,
 		)
 	}
 }

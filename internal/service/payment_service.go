@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/payment"
@@ -17,6 +18,7 @@ type PaymentService struct {
 	ticketService          *TicketService
 	paymentGateway         payment.Gateway
 	paymentEventRepository *repository.PaymentEventRepository
+	purchaseRepository     *repository.PurchaseRepository
 }
 
 func NewPaymentService(
@@ -24,6 +26,7 @@ func NewPaymentService(
 	ticketService *TicketService,
 	paymentGateway payment.Gateway,
 	paymentEventRepository *repository.PaymentEventRepository,
+	purchaseRepository *repository.PurchaseRepository,
 ) *PaymentService {
 
 	return &PaymentService{
@@ -31,6 +34,7 @@ func NewPaymentService(
 		ticketService:          ticketService,
 		paymentGateway:         paymentGateway,
 		paymentEventRepository: paymentEventRepository,
+		purchaseRepository:     purchaseRepository,
 	}
 }
 
@@ -98,16 +102,22 @@ func (s *PaymentService) ConfirmPayment(
 	)
 
 	if err != nil {
+
+		if errors.Is(
+			err,
+			appErrors.ErrPurchaseNotFound,
+		) {
+			return nil, appErrors.ErrUnknownPaymentOrder
+		}
+
 		return nil, err
 	}
 
-	// Idempotency protection
+	// idempotency
 	if purchase.Status == enum.StatusPaid {
+
 		return purchase, nil
 	}
-
-	// Payment was already captured by PayPal webhook.
-	// Only update local state now.
 
 	purchase, err = s.purchaseService.ConfirmPayment(
 		ctx,

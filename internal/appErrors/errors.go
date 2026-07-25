@@ -20,4 +20,7 @@ var (
 	ErrTicketVerificationExpired  = errors.New("ticket verification expired")
 	ErrCategoryNotFound           = errors.New("category does not exist")
 	ErrMediaNotFound              = errors.New("media does not exist")
+	ErrTicketSoldOut              = errors.New("ticket category is sold out")
+	ErrPurchaseNotFound           = errors.New("purchase not found")
+	ErrUnknownPaymentOrder        = errors.New("unknown payment order")
 )

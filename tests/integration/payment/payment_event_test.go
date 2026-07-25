@@ -121,10 +121,10 @@ func TestPaymentEvent_CreatesEvent(t *testing.T) {
 	// therefore the payment will fail because ORDER-123
 	// does not exist. We only care about the event.
 
-	if w.Code != http.StatusInternalServerError {
+	if w.Code != http.StatusOK {
 
 		t.Fatalf(
-			"expected 500 because order is missing, got %d body %s",
+			"expected 200 because unknown order is ignored, got %d body %s",
 			w.Code,
 			w.Body.String(),
 		)

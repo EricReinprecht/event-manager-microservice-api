@@ -2,11 +2,15 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PurchaseRepository struct {
@@ -118,7 +122,6 @@ func (r *PurchaseRepository) FindByPaymentID(
 
 	err := r.db.
 		WithContext(ctx).
-		Preload("Items").
 		Where(
 			"payment_id = ?",
 			paymentID,
@@ -127,6 +130,15 @@ func (r *PurchaseRepository) FindByPaymentID(
 		Error()
 
 	if err != nil {
+
+		if errors.Is(
+			err,
+			gorm.ErrRecordNotFound,
+		) {
+
+			return nil, appErrors.ErrPurchaseNotFound
+		}
+
 		return nil, err
 	}
 
@@ -170,6 +182,143 @@ func (r *PurchaseRepository) FindByPaymentIDWithDB(
 		).
 		First(&purchase).
 		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &purchase, nil
+}
+
+func (r *PurchaseRepository) FindByPaymentIDForUpdate(
+	tx database.DBExecutor,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	var purchase models.Purchase
+
+	err := tx.
+		WithContext(context.Background()).
+		Clauses(
+			clause.Locking{
+				Strength: "UPDATE",
+			},
+		).
+		Preload("Items").
+		Where(
+			"payment_id = ?",
+			paymentID,
+		).
+		First(
+			&purchase,
+		).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &purchase, nil
+}
+
+func (r *PurchaseRepository) ConfirmPaymentAtomic(
+	ctx context.Context,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	var purchase models.Purchase
+
+	err := r.db.
+		WithContext(ctx).
+		Clauses(
+			clause.Locking{
+				Strength: "UPDATE",
+			},
+		).
+		Where(
+			"payment_id = ?",
+			paymentID,
+		).
+		First(
+			&purchase,
+		).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if purchase.Status == enum.StatusPaid {
+		return &purchase, nil
+	}
+
+	purchase.Status = enum.StatusPaid
+
+	if err := r.db.
+		WithContext(ctx).
+		Save(
+			&purchase,
+		).
+		Error(); err != nil {
+
+		return nil, err
+	}
+
+	return &purchase, nil
+}
+
+func (r *PurchaseRepository) Update(
+	tx database.DBExecutor,
+	purchase *models.Purchase,
+) error {
+
+	return tx.
+		Save(
+			purchase,
+		).
+		Error()
+}
+
+func (r *PurchaseRepository) ConfirmPayment(
+	ctx context.Context,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	var purchase models.Purchase
+
+	err := r.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			p, err := r.FindByPaymentIDForUpdate(
+				tx,
+				paymentID,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			// already processed
+			if p.Status == enum.StatusPaid {
+				purchase = *p
+				return nil
+			}
+
+			p.Status = enum.StatusPaid
+
+			if err := r.Update(
+				tx,
+				p,
+			); err != nil {
+				return err
+			}
+
+			purchase = *p
+
+			return nil
+		},
+	)
 
 	if err != nil {
 		return nil, err

@@ -119,6 +119,7 @@ func main() {
 
 	purchaseService := service.NewPurchaseService(
 		purchaseRepository,
+		ticketRepository,
 	)
 
 	paypalClient := paypal.NewClient(
@@ -135,6 +136,7 @@ func main() {
 		ticketService,
 		paypalClient,
 		paymentEventRepository,
+		purchaseRepository,
 	)
 
 	sqlDB, err := db.DB()

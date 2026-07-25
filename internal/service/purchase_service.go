@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -15,15 +16,18 @@ import (
 )
 
 type PurchaseService struct {
-	repository *repository.PurchaseRepository
+	repository       *repository.PurchaseRepository
+	ticketRepository *repository.TicketRepository
 }
 
 func NewPurchaseService(
 	repository *repository.PurchaseRepository,
+	ticketRepository *repository.TicketRepository,
 ) *PurchaseService {
 
 	return &PurchaseService{
-		repository: repository,
+		repository:       repository,
+		ticketRepository: ticketRepository,
 	}
 }
 
@@ -45,6 +49,10 @@ func (s *PurchaseService) CreatePurchase(
 				UserID:  userID,
 				PartyID: partyID,
 				Status:  enum.StatusPending,
+
+				ExpiresAt: time.Now().Add(
+					30 * time.Minute,
+				),
 			}
 
 			var total int64
@@ -64,6 +72,28 @@ func (s *PurchaseService) CreatePurchase(
 					return appErrors.ErrTicketCategoryNotFound
 				}
 
+				// -----------------------------
+				// Sold-out protection
+				// -----------------------------
+
+				sold, err := s.ticketRepository.CountByCategoryTx(
+					tx,
+					category.ID,
+				)
+
+				if err != nil {
+					return err
+				}
+
+				if sold+int64(item.Quantity) > int64(category.Capacity) {
+
+					return appErrors.ErrTicketSoldOut
+				}
+
+				// -----------------------------
+				// Create purchase item snapshot
+				// -----------------------------
+
 				purchase.Items = append(
 					purchase.Items,
 					models.PurchaseItem{
@@ -73,6 +103,7 @@ func (s *PurchaseService) CreatePurchase(
 
 						Quantity: item.Quantity,
 
+						// price snapshot
 						UnitPrice: category.Price,
 					},
 				)
@@ -120,6 +151,15 @@ func (s *PurchaseService) AttachPayment(
 				return errors.New("purchase is not pending")
 			}
 
+			if time.Now().After(
+				purchase.ExpiresAt,
+			) {
+
+				return errors.New(
+					"purchase expired",
+				)
+			}
+
 			return s.repository.UpdatePayment(
 				tx,
 				purchase,
@@ -128,54 +168,6 @@ func (s *PurchaseService) AttachPayment(
 			)
 		},
 	)
-}
-
-func (s *PurchaseService) ConfirmPayment(
-	ctx context.Context,
-	paymentID string,
-) (*models.Purchase, error) {
-
-	var purchase *models.Purchase
-
-	err := s.repository.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
-
-			var err error
-
-			purchase, err = s.repository.FindByPaymentIDWithDB(
-				tx,
-				paymentID,
-			)
-
-			if err != nil {
-				return err
-			}
-
-			// webhook idempotency
-			if purchase.Status == enum.StatusPaid {
-				return nil
-			}
-
-			if purchase.Status != enum.StatusPending {
-				return errors.New(
-					"purchase cannot be paid",
-				)
-			}
-
-			return s.repository.UpdateStatus(
-				tx,
-				purchase,
-				enum.StatusPaid,
-			)
-		},
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return purchase, nil
 }
 
 func (s *PurchaseService) GetPurchase(
@@ -198,4 +190,53 @@ func (s *PurchaseService) FindByPaymentID(
 		ctx,
 		paymentID,
 	)
+}
+
+func (s *PurchaseService) ConfirmPayment(
+	ctx context.Context,
+	paymentID string,
+) (*models.Purchase, error) {
+
+	var result *models.Purchase
+
+	err := s.repository.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			purchase, err := s.repository.FindByPaymentIDForUpdate(
+				tx,
+				paymentID,
+			)
+
+			if err != nil {
+				return err
+			}
+
+			if purchase.Status == enum.StatusPaid {
+
+				result = purchase
+				return nil
+			}
+
+			purchase.Status = enum.StatusPaid
+
+			if err := s.repository.Update(
+				tx,
+				purchase,
+			); err != nil {
+
+				return err
+			}
+
+			result = purchase
+
+			return nil
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

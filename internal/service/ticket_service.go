@@ -430,3 +430,39 @@ func (s *TicketService) GenerateFromPurchase(
 
 	return nil
 }
+
+func (s *TicketService) GenerateFromPurchaseTx(
+	ctx context.Context,
+	tx database.DBExecutor,
+	purchase *models.Purchase,
+) error {
+
+	ticketRepo := repository.NewTicketRepository(tx)
+
+	for _, item := range purchase.Items {
+
+		for i := 0; i < item.Quantity; i++ {
+
+			ticket := models.Ticket{
+				ID: uuid.New(),
+
+				Code: strings.ToUpper(
+					uuid.NewString()[:8],
+				),
+
+				UserID: purchase.UserID,
+
+				TicketCategoryID: item.TicketCategoryID,
+			}
+
+			if err := ticketRepo.Create(
+				ctx,
+				&ticket,
+			); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

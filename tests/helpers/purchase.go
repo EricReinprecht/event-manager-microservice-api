@@ -2,6 +2,9 @@ package helpers
 
 import (
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 
 	"gorm.io/gorm"
 
@@ -10,21 +13,23 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/service"
-	"github.com/reinp/event-platform/backend/tests/fixtures"
 )
 
-func NewPurchaseService(
-	db *gorm.DB,
-) *service.PurchaseService {
+func NewPurchaseService(db *gorm.DB) *service.PurchaseService {
 
 	executor := database.NewGormExecutor(db)
 
-	repository := repository.NewPurchaseRepository(
+	purchaseRepository := repository.NewPurchaseRepository(
+		executor,
+	)
+
+	ticketRepository := repository.NewTicketRepository(
 		executor,
 	)
 
 	return service.NewPurchaseService(
-		repository,
+		purchaseRepository,
+		ticketRepository,
 	)
 }
 
@@ -36,19 +41,22 @@ func CreatePurchase(
 	status enum.PurchaseStatus,
 ) *models.Purchase {
 
-	t.Helper()
+	purchase := models.Purchase{
 
-	purchase := fixtures.Purchase(
-		user.ID,
-		party.ID,
-	)
+		ID: uuid.New(),
 
-	purchase.Status = status
+		UserID: user.ID,
 
-	if err := db.Create(
-		&purchase,
-	).Error; err != nil {
+		PartyID: party.ID,
 
+		Status: status,
+
+		ExpiresAt: time.Now().Add(
+			30 * time.Minute,
+		),
+	}
+
+	if err := db.Create(&purchase).Error; err != nil {
 		t.Fatal(err)
 	}
 

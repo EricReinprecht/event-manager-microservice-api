@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GormExecutor struct {
@@ -31,6 +32,15 @@ func (g *GormExecutor) Model(value interface{}) DBExecutor {
 func (g *GormExecutor) Where(query interface{}, args ...interface{}) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Where(query, args...),
+	}
+}
+
+func (g *GormExecutor) Clauses(
+	conds ...clause.Expression,
+) DBExecutor {
+
+	return &GormExecutor{
+		db: g.db.Clauses(conds...),
 	}
 }
 
