@@ -119,15 +119,6 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, item := range items {
-		t.Logf(
-			"purchase item: category=%s quantity=%d price=%d",
-			item.TicketCategoryID,
-			item.Quantity,
-			item.UnitPrice,
-		)
-	}
-
 	approveURL, err := paymentService.CreateCheckout(
 		context.Background(),
 		purchase.ID,
@@ -143,11 +134,6 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 			"paypal approve url missing",
 		)
 	}
-
-	t.Log(
-		"Approve URL:",
-		approveURL,
-	)
 
 	// --------------------------------
 	// Approve order with browser
