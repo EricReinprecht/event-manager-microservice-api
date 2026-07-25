@@ -161,7 +161,20 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 	}
 
 	// ---------------------------------------
-	// STEP 1: Capture approved orders
+	// Idempotency
+	// ---------------------------------------
+
+	if h.processWebhookEvent(
+		c,
+		payload.EventID,
+		payload.EventType,
+		body,
+	) {
+		return
+	}
+
+	// ---------------------------------------
+	// Capture approved orders
 	// ---------------------------------------
 
 	if payload.EventType == "CHECKOUT.ORDER.APPROVED" {
@@ -177,6 +190,23 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 				http.StatusInternalServerError,
 				gin.H{
 					"error": "capture failed",
+				},
+			)
+
+			return
+		}
+
+		err = h.service.MarkPaymentEventProcessed(
+			c.Request.Context(),
+			payload.EventID,
+		)
+
+		if err != nil {
+
+			c.JSON(
+				http.StatusInternalServerError,
+				gin.H{
+					"error": "could not mark event processed",
 				},
 			)
 
@@ -209,31 +239,6 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 		return
 	}
 
-	// ---------------------------------------
-	// STEP 2: Idempotency
-	// ---------------------------------------
-
-	existing, err := h.service.FindPaymentEvent(
-		c.Request.Context(),
-		payload.EventID,
-	)
-
-	if err != nil {
-		existing = nil
-	}
-
-	if existing != nil && existing.Processed {
-
-		c.JSON(
-			http.StatusOK,
-			gin.H{
-				"message": "event already processed",
-			},
-		)
-
-		return
-	}
-
 	orderID := payload.
 		Resource.
 		SupplementaryData.
@@ -253,46 +258,7 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 	}
 
 	// ---------------------------------------
-	// STEP 3: Store event
-	// ---------------------------------------
-
-	if existing == nil {
-
-		event := &models.PaymentEvent{
-
-			ID: uuid.New(),
-
-			Provider: "paypal",
-
-			EventID: payload.EventID,
-
-			Type: payload.EventType,
-
-			Payload: string(body),
-
-			Processed: false,
-		}
-
-		err = h.service.CreatePaymentEvent(
-			c.Request.Context(),
-			event,
-		)
-
-		if err != nil {
-
-			c.JSON(
-				http.StatusOK,
-				gin.H{
-					"message": "duplicate event",
-				},
-			)
-
-			return
-		}
-	}
-
-	// ---------------------------------------
-	// STEP 4: Confirm payment
+	// Confirm payment
 	// ---------------------------------------
 
 	_, err = h.service.ConfirmPayment(
@@ -313,7 +279,7 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 	}
 
 	// ---------------------------------------
-	// STEP 5: Mark webhook processed
+	// Mark webhook processed
 	// ---------------------------------------
 
 	err = h.service.MarkPaymentEventProcessed(
@@ -339,4 +305,77 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 			"message": "payment confirmed",
 		},
 	)
+}
+
+func (h *PaymentHandler) processWebhookEvent(
+	c *gin.Context,
+	payloadID string,
+	eventType string,
+	body []byte,
+) bool {
+
+	existing, err := h.service.FindPaymentEvent(
+		c.Request.Context(),
+		payloadID,
+	)
+
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"error": "could not check webhook event",
+			},
+		)
+
+		return true
+	}
+
+	if existing != nil && existing.Processed {
+
+		c.JSON(
+			http.StatusOK,
+			gin.H{
+				"message": "event already processed",
+			},
+		)
+
+		return true
+	}
+
+	if existing == nil {
+
+		event := &models.PaymentEvent{
+
+			ID: uuid.New(),
+
+			Provider: "paypal",
+
+			EventID: payloadID,
+
+			Type: eventType,
+
+			Payload: string(body),
+
+			Processed: false,
+		}
+
+		err = h.service.CreatePaymentEvent(
+			c.Request.Context(),
+			event,
+		)
+
+		if err != nil {
+
+			c.JSON(
+				http.StatusOK,
+				gin.H{
+					"message": "duplicate event",
+				},
+			)
+
+			return true
+		}
+	}
+
+	return false
 }

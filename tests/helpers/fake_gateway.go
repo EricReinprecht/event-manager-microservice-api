@@ -12,6 +12,8 @@ type FakePaymentGateway struct {
 
 	CreateOrderCalled bool
 
+	CaptureOrderCalled bool
+
 	CapturedOrderID string
 
 	VerifyWebhookCalled bool
@@ -31,6 +33,8 @@ func (f *FakePaymentGateway) CaptureOrder(
 	ctx context.Context,
 	orderID string,
 ) error {
+
+	f.CaptureOrderCalled = true
 
 	f.CapturedOrderID = orderID
 
@@ -74,4 +78,34 @@ func (f *FailingPaymentGateway) VerifyWebhookSignature(
 ) error {
 
 	return nil
+}
+
+// Used for webhook signature rejection tests
+
+type InvalidSignaturePaymentGateway struct {
+}
+
+func (f *InvalidSignaturePaymentGateway) CreateOrder(
+	ctx context.Context,
+	amount int64,
+) (*paypal.Order, error) {
+
+	return nil, errors.New("not implemented")
+}
+
+func (f *InvalidSignaturePaymentGateway) CaptureOrder(
+	ctx context.Context,
+	orderID string,
+) error {
+
+	return errors.New("not implemented")
+}
+
+func (f *InvalidSignaturePaymentGateway) VerifyWebhookSignature(
+	ctx context.Context,
+	headers paypal.WebhookHeaders,
+	body []byte,
+) error {
+
+	return errors.New("invalid paypal signature")
 }

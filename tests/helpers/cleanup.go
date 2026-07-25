@@ -9,20 +9,25 @@ import (
 func CleanDatabase(db *gorm.DB) error {
 
 	tables := []interface{}{
-		// deepest children first
 
 		&models.TicketScan{},
 
+		&models.PaymentEvent{},
+
 		&models.PurchaseItem{},
-		&models.Purchase{},
 
 		&models.Ticket{},
+
 		&models.TicketAccessWindow{},
+
 		&models.TicketCategory{},
+
+		&models.Purchase{},
 
 		&models.PartyMember{},
 
 		&models.Party{},
+
 		&models.Category{},
 
 		&models.User{},

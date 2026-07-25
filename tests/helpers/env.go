@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func loadTestEnv() error {
+func LoadTestEnv() error {
 
 	dir, err := os.Getwd()
 

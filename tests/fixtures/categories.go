@@ -12,7 +12,7 @@ func Category() models.Category {
 
 		ID: uuid.New(),
 
-		Name: "Festival",
+		Name: "Festival-" + uuid.New().String(),
 	}
 }
 
@@ -24,6 +24,6 @@ func CategoryWithID(
 
 		ID: id,
 
-		Name: "Festival",
+		Name: "Festival-" + uuid.New().String(),
 	}
 }

@@ -23,7 +23,7 @@ func TestDatabaseSilent() (*gorm.DB, error) {
 
 func testDatabase(silent bool) (*gorm.DB, error) {
 
-	err := loadTestEnv()
+	err := LoadTestEnv()
 
 	if err != nil {
 		return nil, err
@@ -78,6 +78,7 @@ func testDatabase(silent bool) (*gorm.DB, error) {
 		&models.TicketScan{},
 		&models.Purchase{},
 		&models.PurchaseItem{},
+		&models.PaymentEvent{},
 	)
 
 	if err != nil {

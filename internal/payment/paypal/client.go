@@ -38,6 +38,25 @@ func NewClient(
 	}
 }
 
+func NewClientWithBaseURL(
+	clientID string,
+	clientSecret string,
+	baseURL string,
+	returnURL string,
+	cancelURL string,
+	webhookID string,
+) *Client {
+
+	return &Client{
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		baseURL:      baseURL,
+		returnURL:    returnURL,
+		cancelURL:    cancelURL,
+		webhookID:    webhookID,
+	}
+}
+
 type Order struct {
 	ID string
 

@@ -2,11 +2,15 @@ package paypal
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )
@@ -100,6 +104,155 @@ func TestPaymentCreateCheckoutPayPalUnavailable(t *testing.T) {
 
 		t.Fatal(
 			"expected payment id not to be saved when PayPal fails",
+		)
+	}
+}
+
+func TestPayPalCreateOrderSuccess(t *testing.T) {
+
+	err := helpers.LoadTestEnv()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := helpers.NewPayPalClient()
+
+	order, err := client.CreateOrder(
+		context.Background(),
+		1000,
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"paypal order creation failed: %v",
+			err,
+		)
+	}
+
+	if order.ID == "" {
+		t.Fatal("expected paypal order id")
+	}
+
+	if order.ApprovalURL == "" {
+		t.Fatal("expected approval url")
+	}
+}
+
+func TestPayPalCreateOrderInvalidAmount(t *testing.T) {
+
+	err := helpers.LoadTestEnv()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := helpers.NewPayPalClient()
+
+	_, err = client.CreateOrder(
+		context.Background(),
+		0,
+	)
+
+	if err == nil {
+		t.Fatal(
+			"expected error for invalid amount",
+		)
+	}
+}
+
+func TestPayPalCreateOrderAPIError(t *testing.T) {
+
+	server := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+
+				w.WriteHeader(
+					http.StatusInternalServerError,
+				)
+
+				w.Write([]byte(`{
+					"error": "server_error"
+				}`))
+			},
+		),
+	)
+
+	defer server.Close()
+
+	client := paypal.NewClientWithBaseURL(
+		"test",
+		"test",
+		server.URL,
+		"http://return",
+		"http://cancel",
+		"webhook",
+	)
+
+	_, err := client.CreateOrder(
+		context.Background(),
+		1000,
+	)
+
+	if err == nil {
+		t.Fatal(
+			"expected paypal api error",
+		)
+	}
+}
+
+func TestPayPalCaptureOrderSuccess(t *testing.T) {
+
+	err := helpers.LoadTestEnv()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		120*time.Second,
+	)
+
+	defer cancel()
+
+	client := helpers.NewPayPalClient()
+
+	order, err := client.CreateOrder(
+		ctx,
+		1000,
+	)
+
+	if err != nil {
+
+		t.Fatalf(
+			"create order failed: %v",
+			err,
+		)
+	}
+
+	err = helpers.ApprovePayPalOrder(
+		order.ApprovalURL,
+	)
+
+	if err != nil {
+
+		t.Fatalf(
+			"paypal approval failed: %v",
+			err,
+		)
+	}
+
+	err = client.CaptureOrder(
+		ctx,
+		order.ID,
+	)
+
+	if err != nil {
+
+		t.Fatalf(
+			"capture failed: %v",
+			err,
 		)
 	}
 }
