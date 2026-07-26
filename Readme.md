@@ -12,6 +12,12 @@ Access Database:
 docker exec -it event-postgres psql -U event_user -d event_platform
 ```
 
+Start ngrok:
+
+```bash
+ngrok http 8080
+```
+
 # Setup Paypal
 
 Create a sandbox environment via paypal.

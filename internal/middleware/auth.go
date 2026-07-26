@@ -109,8 +109,8 @@ func Auth(
 		}
 
 		c.Set(
-			"user_id",
-			user.ID.String(),
+			"userID",
+			user.ID,
 		)
 
 		c.Set(
