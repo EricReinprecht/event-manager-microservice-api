@@ -32,7 +32,7 @@ This project contains integration tests for the main application flows.
 Run all integration tests:
 
 ```bash
-go test -p 1 ./tests/integration/... -v
+go test -p 1 ./tests/integration... -v
 ```
 
 `-p 1` is used to run tests sequentially and avoid database conflicts between tests.

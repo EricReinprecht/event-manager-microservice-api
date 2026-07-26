@@ -15,7 +15,7 @@ type Gateway interface {
 	CaptureOrder(
 		ctx context.Context,
 		orderID string,
-	) (string, error)
+	) error
 
 	VerifyWebhookSignature(
 		ctx context.Context,

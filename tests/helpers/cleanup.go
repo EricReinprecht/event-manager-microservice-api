@@ -1,64 +1,32 @@
 package helpers
 
 import (
-	"gorm.io/gorm"
+	"sync"
 
-	"github.com/reinp/event-platform/backend/internal/models"
+	"gorm.io/gorm"
 )
+
+var DatabaseCleanupMutex sync.Mutex
 
 func CleanDatabase(db *gorm.DB) error {
 
-	err := db.Exec(
-		"SET CONSTRAINTS ALL DEFERRED",
-	).Error
+	DatabaseCleanupMutex.Lock()
+	defer DatabaseCleanupMutex.Unlock()
 
-	if err != nil {
-		return err
-	}
-
-	tables := []interface{}{
-
-		&models.TicketScan{},
-
-		&models.PaymentEvent{},
-
-		&models.Ticket{},
-
-		&models.PurchaseItem{},
-
-		&models.Purchase{},
-
-		&models.TicketAccessWindow{},
-
-		&models.TicketCategory{},
-
-		&models.PartyMemberRole{},
-
-		&models.PartyMember{},
-
-		&models.Party{},
-
-		&models.Category{},
-
-		&models.User{},
-	}
-
-	for _, table := range tables {
-
-		err := db.
-			Unscoped().
-			Session(
-				&gorm.Session{
-					AllowGlobalUpdate: true,
-				},
-			).
-			Delete(table).
-			Error
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return db.Exec(`
+		TRUNCATE TABLE
+			ticket_scans,
+			payment_events,
+			tickets,
+			purchase_items,
+			purchases,
+			ticket_access_windows,
+			ticket_categories,
+			party_member_roles,
+			party_members,
+			parties,
+			categories,
+			users
+		RESTART IDENTITY CASCADE
+	`).Error
 }
