@@ -8,23 +8,30 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/auth"
+	"github.com/reinp/event-platform/backend/internal/mail"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
 )
 
 type AuthService struct {
-	users *repository.UserRepository
-	jwt   *auth.JWT
+	users         *repository.UserRepository
+	jwt           *auth.JWT
+	mailer        *mail.Mailer
+	verifications *repository.EmailVerificationRepository
 }
 
 func NewAuthService(
 	users *repository.UserRepository,
 	jwt *auth.JWT,
+	mailer *mail.Mailer,
+	verifications *repository.EmailVerificationRepository,
 ) *AuthService {
 
 	return &AuthService{
-		users: users,
-		jwt:   jwt,
+		users:         users,
+		jwt:           jwt,
+		mailer:        mailer,
+		verifications: verifications,
 	}
 }
 

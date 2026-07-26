@@ -32,6 +32,12 @@ type Config struct {
 	PayPalCancelURL string
 
 	CORSAllowedOrigins []string
+
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
 }
 
 func Load() *Config {
@@ -123,6 +129,31 @@ func Load() *Config {
 			[]string{
 				"http://localhost:5173",
 			},
+		),
+
+		SMTPHost: getEnv(
+			"SMTP_HOST",
+			"localhost",
+		),
+
+		SMTPPort: getEnvInt(
+			"SMTP_PORT",
+			587,
+		),
+
+		SMTPUser: getEnv(
+			"SMTP_USER",
+			"",
+		),
+
+		SMTPPassword: getEnv(
+			"SMTP_PASSWORD",
+			"",
+		),
+
+		SMTPFrom: getEnv(
+			"SMTP_FROM",
+			"",
 		),
 	}
 }

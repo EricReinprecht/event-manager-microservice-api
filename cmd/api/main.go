@@ -7,6 +7,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/clock"
 	"github.com/reinp/event-platform/backend/internal/config"
 	"github.com/reinp/event-platform/backend/internal/database"
+	"github.com/reinp/event-platform/backend/internal/mail"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -27,6 +28,7 @@ func main() {
 
 	if err := db.AutoMigrate(
 		&models.User{},
+		&models.EmailVerification{},
 		&models.Category{},
 		&models.Party{},
 		&models.Media{},
@@ -67,6 +69,7 @@ func main() {
 	appClock := clock.RealClock{}
 
 	userRepository := repository.NewUserRepository(db)
+	emailVerificationRepository := repository.NewEmailVerificationRepository(executor)
 	partyRepository := repository.NewPartyRepository(executor)
 	categoryRepository := repository.NewCategoryRepository(db)
 	mediaRepository := repository.NewMediaRepository(db)
@@ -84,9 +87,19 @@ func main() {
 		clock.RealClock{},
 	)
 
+	mailer := mail.NewMailer(
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUser,
+		cfg.SMTPPassword,
+		cfg.SMTPFrom,
+	)
+
 	authService := service.NewAuthService(
 		userRepository,
 		jwt,
+		mailer,
+		emailVerificationRepository,
 	)
 
 	partyMemberService := service.NewPartyMemberService(
