@@ -19,7 +19,7 @@ func NewAuthService(
 	executor := database.NewGormExecutor(db)
 
 	userRepository := repository.NewUserRepository(
-		db,
+		executor,
 	)
 
 	emailVerificationRepository := repository.NewEmailVerificationRepository(

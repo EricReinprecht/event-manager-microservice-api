@@ -68,7 +68,7 @@ func main() {
 
 	appClock := clock.RealClock{}
 
-	userRepository := repository.NewUserRepository(db)
+	userRepository := repository.NewUserRepository(executor)
 	emailVerificationRepository := repository.NewEmailVerificationRepository(executor)
 	partyRepository := repository.NewPartyRepository(executor)
 	categoryRepository := repository.NewCategoryRepository(db)

@@ -4,19 +4,23 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
 type UserRepository struct {
-	db *gorm.DB
+	executor database.DBExecutor
 }
 
-func NewUserRepository(db *gorm.DB) *UserRepository {
+func NewUserRepository(
+	executor database.DBExecutor,
+) *UserRepository {
+
 	return &UserRepository{
-		db: db,
+		executor: executor,
 	}
+
 }
 
 func (r *UserRepository) Create(
@@ -24,7 +28,11 @@ func (r *UserRepository) Create(
 	user *models.User,
 ) error {
 
-	return r.db.WithContext(ctx).Create(user).Error
+	return r.executor.
+		WithContext(ctx).
+		Create(user).
+		Error()
+
 }
 
 func (r *UserRepository) FindByEmail(
@@ -34,17 +42,23 @@ func (r *UserRepository) FindByEmail(
 
 	var user models.User
 
-	err := r.db.
+	err := r.executor.
 		WithContext(ctx).
-		Where("email = ?", email).
-		First(&user).
-		Error
+		Where(
+			"email = ?",
+			email,
+		).
+		First(
+			&user,
+		).
+		Error()
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &user, nil
+
 }
 
 func (r *UserRepository) FindByID(
@@ -54,14 +68,19 @@ func (r *UserRepository) FindByID(
 
 	var user models.User
 
-	err := r.db.
+	err := r.executor.
 		WithContext(ctx).
-		First(&user, "id = ?", id).
-		Error
+		First(
+			&user,
+			"id = ?",
+			id,
+		).
+		Error()
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &user, nil
+
 }
