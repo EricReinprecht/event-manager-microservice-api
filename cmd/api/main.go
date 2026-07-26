@@ -115,6 +115,8 @@ func main() {
 		ticketCategoryRepository,
 	)
 
+	refundService := service.NewRefundService()
+
 	ticketService := service.NewTicketService(
 		ticketRepository,
 		partyMemberRepository,
@@ -146,6 +148,7 @@ func main() {
 		paypalClient,
 		paymentEventRepository,
 		purchaseRepository,
+		refundService,
 	)
 
 	sqlDB, err := db.DB()
