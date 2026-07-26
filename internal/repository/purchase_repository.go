@@ -44,7 +44,7 @@ func (r *PurchaseRepository) FindByID(
 	var purchase models.Purchase
 
 	err := db.
-		Preload("Items").
+		Preload("Items.TicketCategory.RefundPolicy").
 		First(&purchase, id).
 		Error()
 

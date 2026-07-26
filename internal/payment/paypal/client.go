@@ -296,7 +296,94 @@ func (c *Client) VerifyWebhookSignature(
 func (c *Client) RefundPayment(
 	ctx context.Context,
 	paymentID string,
+	amount int64,
 ) (string, error) {
 
-	return "REFUND-" + paymentID, nil
+	token, err := c.GetAccessToken(ctx)
+
+	if err != nil {
+		return "", err
+	}
+
+	value := strconv.FormatFloat(
+		float64(amount)/100,
+		'f',
+		2,
+		64,
+	)
+
+	payload := refundRequest{
+		Amount: refundAmount{
+			Value:        value,
+			CurrencyCode: "EUR",
+		},
+	}
+
+	body, err := json.Marshal(payload)
+
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		c.baseURL+"/v2/payments/captures/"+paymentID+"/refund",
+		bytes.NewBuffer(body),
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set(
+		"Authorization",
+		"Bearer "+token,
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	resp, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+
+		responseBody, _ := io.ReadAll(resp.Body)
+
+		return "",
+			fmt.Errorf(
+				"paypal refund failed: status=%d body=%s",
+				resp.StatusCode,
+				string(responseBody),
+			)
+	}
+
+	var result struct {
+		ID string `json:"id"`
+	}
+
+	err = json.NewDecoder(
+		resp.Body,
+	).Decode(&result)
+
+	if err != nil {
+		return "", err
+	}
+
+	if result.ID == "" {
+		return "",
+			errors.New(
+				"paypal returned empty refund id",
+			)
+	}
+
+	return result.ID, nil
 }

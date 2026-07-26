@@ -26,6 +26,9 @@ type TicketCategory struct {
 
 	RefundRequiresApproval bool
 
+	RefundPolicyID *uuid.UUID
+	RefundPolicy   *RefundPolicy
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 

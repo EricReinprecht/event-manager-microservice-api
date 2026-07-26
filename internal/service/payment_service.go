@@ -23,6 +23,7 @@ type PaymentService struct {
 	paymentGateway         payment.Gateway
 	paymentEventRepository *repository.PaymentEventRepository
 	purchaseRepository     *repository.PurchaseRepository
+	refundService          *RefundService
 }
 
 func NewPaymentService(
@@ -32,6 +33,7 @@ func NewPaymentService(
 	paymentGateway payment.Gateway,
 	paymentEventRepository *repository.PaymentEventRepository,
 	purchaseRepository *repository.PurchaseRepository,
+	refundService *RefundService,
 ) *PaymentService {
 
 	return &PaymentService{
@@ -41,6 +43,7 @@ func NewPaymentService(
 		paymentGateway:         paymentGateway,
 		paymentEventRepository: paymentEventRepository,
 		purchaseRepository:     purchaseRepository,
+		refundService:          refundService,
 	}
 }
 
@@ -218,7 +221,7 @@ func (s *PaymentService) MarkPaymentEventProcessed(
 func (s *PaymentService) CapturePayment(
 	ctx context.Context,
 	orderID string,
-) error {
+) (string, error) {
 
 	return s.paymentGateway.CaptureOrder(
 		ctx,
@@ -293,9 +296,18 @@ func (s *PaymentService) RefundPayment(
 				return appErrors.ErrPurchaseAlreadyRefunded
 			}
 
+			refundAmount, err := s.refundService.CalculateRefundAmount(
+				purchase,
+			)
+
+			if err != nil {
+				return err
+			}
+
 			refundID, err := s.paymentGateway.RefundPayment(
 				ctx,
 				purchase.PaymentID,
+				refundAmount,
 			)
 
 			if err != nil {

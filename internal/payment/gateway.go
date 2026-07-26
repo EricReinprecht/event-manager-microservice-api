@@ -15,7 +15,7 @@ type Gateway interface {
 	CaptureOrder(
 		ctx context.Context,
 		orderID string,
-	) error
+	) (string, error)
 
 	VerifyWebhookSignature(
 		ctx context.Context,
@@ -26,5 +26,6 @@ type Gateway interface {
 	RefundPayment(
 		ctx context.Context,
 		paymentID string,
+		amount int64,
 	) (string, error)
 }

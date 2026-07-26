@@ -20,8 +20,14 @@ type Purchase struct {
 
 	Status enum.PurchaseStatus `gorm:"type:varchar(20);check:status IN ('PENDING','PAID','FAILED','CANCELED','REFUNDED')"`
 
+	// Payment provider information
 	PaymentProvider string
-	PaymentID       string
+
+	// PayPal Order ID
+	PaymentID string
+
+	// PayPal Capture ID (required for refunds)
+	PaymentCaptureID string
 
 	ExpiresAt time.Time
 
@@ -29,11 +35,10 @@ type Purchase struct {
 
 	Items []PurchaseItem `gorm:"foreignKey:PurchaseID"`
 
-	RefundID string
-
+	// Refund information
+	RefundID       string
 	RefundProvider string
-
-	RefundedAt *time.Time
+	RefundedAt     *time.Time
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

@@ -7,15 +7,12 @@ import (
 )
 
 type RefundPolicy struct {
-	ID uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 
-	TicketCategoryID uuid.UUID
-	TicketCategory   TicketCategory
+	TicketCategoryID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"`
 
-	// when this rule applies
 	Until time.Time
 
-	// percentage refunded
 	Percentage int
 
 	CreatedAt time.Time
