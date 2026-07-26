@@ -84,3 +84,14 @@ func (r *UserRepository) FindByID(
 	return &user, nil
 
 }
+
+func (r *UserRepository) Update(
+	ctx context.Context,
+	user *models.User,
+) error {
+
+	return r.executor.
+		WithContext(ctx).
+		Save(user).
+		Error()
+}

@@ -12,6 +12,8 @@ type User struct {
 
 	Email string `gorm:"uniqueIndex;not null"`
 
+	EmailVerified bool
+
 	Username string `gorm:"uniqueIndex"`
 
 	AvatarID *uuid.UUID

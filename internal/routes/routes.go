@@ -67,6 +67,11 @@ func Register(
 		authHandler.Register,
 	)
 
+	router.GET(
+		"/api/auth/verify-email",
+		authHandler.VerifyEmail,
+	)
+
 	router.POST(
 		"/api/auth/login",
 		authHandler.Login,

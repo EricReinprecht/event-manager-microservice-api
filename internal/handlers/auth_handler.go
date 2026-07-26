@@ -93,3 +93,31 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"token": token,
 	})
 }
+
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+
+	token := c.Query("token")
+
+	if token == "" {
+		c.JSON(400, gin.H{
+			"error": "missing token",
+		})
+		return
+	}
+
+	jwt, err := h.service.VerifyEmail(
+		c.Request.Context(),
+		token,
+	)
+
+	if err != nil {
+		c.JSON(400, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"token": jwt,
+	})
+}

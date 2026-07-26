@@ -162,3 +162,53 @@ func (s *AuthService) ValidateUser(
 		userID,
 	)
 }
+
+func (s *AuthService) VerifyEmail(
+	ctx context.Context,
+	token string,
+) (string, error) {
+
+	verification, err := s.verifications.FindByToken(
+		token,
+	)
+
+	if err != nil {
+		return "", errors.New("invalid verification token")
+	}
+
+	if verification.ExpiresAt.Before(time.Now()) {
+		return "", errors.New("verification expired")
+	}
+
+	user, err := s.users.FindByID(
+		ctx,
+		verification.UserID,
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	user.EmailVerified = true
+
+	err = s.users.Update(
+		ctx,
+		user,
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	err = s.verifications.Delete(
+		verification.ID,
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	return s.jwt.Generate(
+		user.ID.String(),
+	)
+}
