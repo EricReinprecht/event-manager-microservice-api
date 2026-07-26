@@ -163,6 +163,7 @@ func main() {
 
 	if err := server.Start(
 		":"+cfg.Port,
+		cfg.CORSAllowedOrigins,
 		authService,
 		partyService,
 		categoryService,

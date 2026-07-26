@@ -29,10 +29,9 @@ func NewAuthService(
 }
 
 type RegisterRequest struct {
-	Email     string
-	Password  string
-	FirstName string
-	LastName  string
+	Email    string
+	Password string
+	Username string
 }
 
 func (s *AuthService) Register(
@@ -61,8 +60,7 @@ func (s *AuthService) Register(
 	user := &models.User{
 		Email:        req.Email,
 		PasswordHash: string(hash),
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
+		Username:     req.Username,
 	}
 
 	err = s.users.Create(ctx, user)

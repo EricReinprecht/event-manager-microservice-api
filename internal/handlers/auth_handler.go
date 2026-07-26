@@ -22,10 +22,9 @@ func NewAuthHandler(
 }
 
 type registerRequest struct {
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=6"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
 }
 
 type loginRequest struct {
@@ -47,10 +46,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user, err := h.service.Register(
 		c.Request.Context(),
 		service.RegisterRequest{
-			Email:     req.Email,
-			Password:  req.Password,
-			FirstName: req.FirstName,
-			LastName:  req.LastName,
+			Email:    req.Email,
+			Password: req.Password,
+			Username: req.Username,
 		},
 	)
 

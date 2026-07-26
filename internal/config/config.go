@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -29,6 +30,8 @@ type Config struct {
 
 	PayPalReturnURL string
 	PayPalCancelURL string
+
+	CORSAllowedOrigins []string
 }
 
 func Load() *Config {
@@ -114,6 +117,13 @@ func Load() *Config {
 			"PAYPAL_CANCEL_URL",
 			"",
 		),
+
+		CORSAllowedOrigins: getEnvList(
+			"CORS_ALLOWED_ORIGINS",
+			[]string{
+				"http://localhost:5173",
+			},
+		),
 	}
 }
 
@@ -142,6 +152,43 @@ func getEnvInt(
 	result, err := strconv.Atoi(value)
 
 	if err != nil {
+		return fallback
+	}
+
+	return result
+}
+
+func getEnvList(
+	key string,
+	fallback []string,
+) []string {
+
+	value := os.Getenv(key)
+
+	if value == "" {
+		return fallback
+	}
+
+	parts := strings.Split(
+		value,
+		",",
+	)
+
+	result := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+
+		origin := strings.TrimSpace(part)
+
+		if origin != "" {
+			result = append(
+				result,
+				origin,
+			)
+		}
+	}
+
+	if len(result) == 0 {
 		return fallback
 	}
 
