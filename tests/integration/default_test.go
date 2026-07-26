@@ -14,6 +14,8 @@ import (
 
 func TestUnauthenticatedRequestBlockedByAuthMiddleware(t *testing.T) {
 
+	gin.SetMode(gin.TestMode)
+
 	db, err := helpers.TestDatabaseSilent()
 
 	if err != nil {
