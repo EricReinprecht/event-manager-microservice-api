@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/google/uuid"
+
 	"github.com/reinp/event-platform/backend/internal/auth"
-	"github.com/reinp/event-platform/backend/internal/mail"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
 )
@@ -16,22 +17,22 @@ import (
 type AuthService struct {
 	users         *repository.UserRepository
 	jwt           *auth.JWT
-	mailer        *mail.Mailer
 	verifications *repository.EmailVerificationRepository
+	emailService  *EmailService
 }
 
 func NewAuthService(
 	users *repository.UserRepository,
 	jwt *auth.JWT,
-	mailer *mail.Mailer,
 	verifications *repository.EmailVerificationRepository,
+	emailService *EmailService,
 ) *AuthService {
 
 	return &AuthService{
 		users:         users,
 		jwt:           jwt,
-		mailer:        mailer,
 		verifications: verifications,
+		emailService:  emailService,
 	}
 }
 
@@ -70,7 +71,40 @@ func (s *AuthService) Register(
 		Username:     req.Username,
 	}
 
-	err = s.users.Create(ctx, user)
+	err = s.users.Create(
+		ctx,
+		user,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	token := auth.GenerateToken()
+
+	verification := &models.EmailVerification{
+		UserID: user.ID,
+
+		Token: token,
+
+		ExpiresAt: time.Now().Add(
+			24 * time.Hour,
+		),
+	}
+
+	err = s.verifications.Create(
+		verification,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.emailService.SendVerificationEmail(
+		user.Email,
+		user.Username,
+		token,
+	)
 
 	if err != nil {
 		return nil, err

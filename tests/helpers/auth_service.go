@@ -41,10 +41,15 @@ func NewAuthService(
 		"test@example.com",
 	)
 
+	emailService := service.NewEmailService(
+		mailer,
+		"http://localhost:5173",
+	)
+
 	return service.NewAuthService(
 		userRepository,
 		jwt,
-		mailer,
 		emailVerificationRepository,
+		emailService,
 	)
 }

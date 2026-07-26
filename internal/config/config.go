@@ -13,6 +13,8 @@ type Config struct {
 	Port string
 	Env  string
 
+	FrontendURL string
+
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -55,6 +57,11 @@ func Load() *Config {
 		Env: getEnv(
 			"APP_ENV",
 			"development",
+		),
+
+		FrontendURL: getEnv(
+			"FRONTEND_URL",
+			"http://localhost:5173",
 		),
 
 		DBHost: getEnv(

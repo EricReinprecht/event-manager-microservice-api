@@ -95,11 +95,16 @@ func main() {
 		cfg.SMTPFrom,
 	)
 
+	emailService := service.NewEmailService(
+		mailer,
+		cfg.FrontendURL,
+	)
+
 	authService := service.NewAuthService(
 		userRepository,
 		jwt,
-		mailer,
 		emailVerificationRepository,
+		emailService,
 	)
 
 	partyMemberService := service.NewPartyMemberService(
