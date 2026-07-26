@@ -2,6 +2,7 @@ package refund
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -586,6 +587,81 @@ func TestPurchaseNotFoundReturnsHTTP404(t *testing.T) {
 			"expected 404 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
+		)
+	}
+}
+
+func TestAlreadyRefundedPurchaseReturnsHTTP400(t *testing.T) {
+
+	gin.SetMode(gin.TestMode)
+
+	db, err := helpers.TestDatabaseSilent()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	helpers.CleanDatabase(db)
+
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
+
+	handler := handlers.NewPaymentHandler(
+		paymentService,
+	)
+
+	scenario := scenarios.CreateRefundScenario(
+		t,
+		db,
+		enum.RoleOrganizer,
+	)
+
+	// mark purchase already refunded
+	scenario.Purchase.Status =
+		enum.PurchaseStatusRefunded
+
+	if err := db.Save(
+		scenario.Purchase,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	router := testhttp.RefundRouter(
+		handler,
+		scenario.Actor.ID,
+	)
+
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
+	)
+
+	if recorder.Code != http.StatusBadRequest {
+
+		t.Fatalf(
+			"expected 400 got %d body=%s",
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+
+	if !strings.Contains(
+		recorder.Body.String(),
+		"already refunded",
+	) {
+
+		t.Fatalf(
+			"expected already refunded error got %s",
+			recorder.Body.String(),
+		)
+	}
+
+	if fakeGateway.RefundCalled {
+
+		t.Fatal(
+			"gateway should not be called twice",
 		)
 	}
 }

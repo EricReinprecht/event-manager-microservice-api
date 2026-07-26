@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
@@ -470,13 +469,28 @@ func (h *PaymentHandler) Refund(c *gin.Context) {
 
 		if errors.Is(
 			err,
-			gorm.ErrRecordNotFound,
+			appErrors.ErrPurchaseAlreadyRefunded,
+		) {
+
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{
+					"error": err.Error(),
+				},
+			)
+
+			return
+		}
+
+		if errors.Is(
+			err,
+			appErrors.ErrPurchaseNotFound,
 		) {
 
 			c.JSON(
 				http.StatusNotFound,
 				gin.H{
-					"error": "purchase not found",
+					"error": err.Error(),
 				},
 			)
 

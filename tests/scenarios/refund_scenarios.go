@@ -53,11 +53,18 @@ func CreateRefundScenario(
 
 	actor := fixtures.User()
 
-	if err := db.Create(
-		&actor,
-	).Error; err != nil {
+	if role == enum.RoleOrganizer {
+		actor = organizer
+	}
 
-		t.Fatal(err)
+	if role != enum.RoleOrganizer {
+
+		if err := db.Create(
+			&actor,
+		).Error; err != nil {
+
+			t.Fatal(err)
+		}
 	}
 
 	// -------------------------

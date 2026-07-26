@@ -23,4 +23,5 @@ var (
 	ErrTicketSoldOut              = errors.New("ticket category is sold out")
 	ErrPurchaseNotFound           = errors.New("purchase not found")
 	ErrUnknownPaymentOrder        = errors.New("unknown payment order")
+	ErrPurchaseAlreadyRefunded    = errors.New("purchase already refunded")
 )

@@ -13,6 +13,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/payment"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
+	"gorm.io/gorm"
 )
 
 type PaymentService struct {
@@ -237,6 +238,14 @@ func (s *PaymentService) RefundPayment(
 	)
 
 	if err != nil {
+
+		if errors.Is(
+			err,
+			gorm.ErrRecordNotFound,
+		) {
+			return appErrors.ErrPurchaseNotFound
+		}
+
 		return err
 	}
 
@@ -251,9 +260,7 @@ func (s *PaymentService) RefundPayment(
 
 	// prevent duplicate refunds
 	if purchase.Status == enum.PurchaseStatusRefunded {
-		return errors.New(
-			"purchase already refunded",
-		)
+		return appErrors.ErrPurchaseAlreadyRefunded
 	}
 
 	return s.purchaseRepository.Transaction(
@@ -266,14 +273,24 @@ func (s *PaymentService) RefundPayment(
 			)
 
 			if err != nil {
+
+				if errors.Is(
+					err,
+					gorm.ErrRecordNotFound,
+				) {
+					return appErrors.ErrPurchaseNotFound
+				}
+
+				return err
+			}
+
+			if err != nil {
 				return err
 			}
 
 			// protect against race condition:
 			if purchase.Status == enum.PurchaseStatusRefunded {
-				return errors.New(
-					"purchase already refunded",
-				)
+				return appErrors.ErrPurchaseAlreadyRefunded
 			}
 
 			refundID, err := s.paymentGateway.RefundPayment(
