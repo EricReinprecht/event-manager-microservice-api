@@ -2285,11 +2285,10 @@ func TestPaymentCaptureFailureRollback(t *testing.T) {
 	// Execute
 	// ----------------------------
 
-	err = paymentService.CapturePayment(
+	_, err = paymentService.CapturePayment(
 		context.Background(),
 		purchase.PaymentID,
 	)
-
 	if err == nil {
 		t.Fatal("expected capture to fail")
 	}

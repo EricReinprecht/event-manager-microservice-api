@@ -181,7 +181,7 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 
 	if payload.EventType == "CHECKOUT.ORDER.APPROVED" {
 
-		err := h.service.CapturePayment(
+		_, err := h.service.CapturePayment(
 			c.Request.Context(),
 			payload.Resource.ID,
 		)
