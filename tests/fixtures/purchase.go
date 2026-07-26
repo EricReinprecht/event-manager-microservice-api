@@ -20,7 +20,7 @@ func Purchase(
 
 		PartyID: partyID,
 
-		Status: enum.PruchaseStatusPending,
+		Status: enum.PurchaseStatusPending,
 
 		TotalPrice: 1000,
 	}

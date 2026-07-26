@@ -64,7 +64,7 @@ func TestPaymentCreateCheckoutSuccess(
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	// -----------------------
@@ -212,7 +212,7 @@ func TestPaymentCreateCheckoutSuccess(
 		)
 	}
 
-	if updated.Status != enum.PruchaseStatusPending {
+	if updated.Status != enum.PurchaseStatusPending {
 
 		t.Fatalf(
 			"expected pending status, got %s",
@@ -421,7 +421,7 @@ func TestPaymentCreateCheckoutCreatesPayPalOrder(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	// -----------------------
@@ -578,7 +578,7 @@ func TestPaymentCreateCheckoutSavesPaymentID(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	// -----------------------
@@ -663,7 +663,7 @@ func TestPaymentCreateCheckoutSavesPaymentID(t *testing.T) {
 		)
 	}
 
-	if updatedPurchase.Status != enum.PruchaseStatusPending {
+	if updatedPurchase.Status != enum.PurchaseStatusPending {
 
 		t.Fatalf(
 			"expected purchase to remain pending, got %s",
@@ -727,7 +727,7 @@ func TestPaymentConfirmPaymentSuccess(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	purchase.PaymentProvider = "paypal"
@@ -1063,7 +1063,7 @@ func TestPaymentConfirmPaymentGeneratesTickets(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	purchase.PaymentProvider = "paypal"
@@ -1226,7 +1226,7 @@ func TestPaymentConfirmPaymentDoesNotDuplicateTickets(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	purchase.PaymentProvider = "paypal"
@@ -1390,7 +1390,7 @@ func TestPurchase_StatusChangesPendingToPaid(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	paymentID := "PAYPAL-STATUS-" + uuid.New().String()
@@ -1404,7 +1404,7 @@ func TestPurchase_StatusChangesPendingToPaid(t *testing.T) {
 
 	// verify initial status
 
-	if purchase.Status != enum.PruchaseStatusPending {
+	if purchase.Status != enum.PurchaseStatusPending {
 
 		t.Fatalf(
 			"expected initial status PENDING, got %s",
@@ -1617,7 +1617,7 @@ func TestPayment_GeneratesCorrectNumberOfTickets(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	purchase.PaymentProvider = "paypal"
@@ -1751,7 +1751,7 @@ func TestPayment_DoesNotGenerateDuplicateTickets(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	purchase.PaymentProvider = "paypal"
@@ -1915,7 +1915,7 @@ func TestPaymentConfirmPaymentConcurrentCalls(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	ticketCategory := fixtures.TicketCategory(
@@ -2097,7 +2097,7 @@ func TestConcurrentConfirmPayment(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	ticketCategory := fixtures.TicketCategory(party.ID)
@@ -2243,7 +2243,7 @@ func TestPaymentCaptureFailureRollback(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	ticketCategory := fixtures.TicketCategory(party.ID)
@@ -2308,7 +2308,7 @@ func TestPaymentCaptureFailureRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if updated.Status != enum.PruchaseStatusPending {
+	if updated.Status != enum.PurchaseStatusPending {
 
 		t.Fatalf(
 			"expected purchase to remain PENDING, got %s",
@@ -2395,7 +2395,7 @@ func TestPaymentSupportsMultipleTicketCategories(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	vip := fixtures.TicketCategory(party.ID)

@@ -71,7 +71,7 @@ func TestPaymentCreateCheckoutPayPalUnavailable(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	_, err = paymentService.CreateCheckout(

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/tests/fixtures"
@@ -20,22 +19,18 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = helpers.CleanDatabase(db)
-
-	if err != nil {
+	if err := helpers.CleanDatabase(db); err != nil {
 		t.Fatal(err)
 	}
 
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
+	// --------------------------------
+	// PayPal service
+	// --------------------------------
 
 	paypalClient := helpers.NewPayPalClient()
 
-	paymentService := helpers.NewPaymentService(
-		database.NewGormExecutor(db),
-		purchaseService,
-		ticketService,
+	paymentService := helpers.SetupPaymentTestService(
+		db,
 		paypalClient,
 	)
 
@@ -69,7 +64,7 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	// --------------------------------
@@ -82,7 +77,10 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 
 	ticketCategory.Price = 1000
 
-	if err := db.Create(&ticketCategory).Error; err != nil {
+	if err := db.Create(
+		&ticketCategory,
+	).Error; err != nil {
+
 		t.Fatal(err)
 	}
 
@@ -99,25 +97,16 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 		UnitPrice: ticketCategory.Price,
 	}
 
-	if err := db.Create(&item).Error; err != nil {
+	if err := db.Create(
+		&item,
+	).Error; err != nil {
+
 		t.Fatal(err)
 	}
 
 	// --------------------------------
 	// Create PayPal checkout
 	// --------------------------------
-
-	var items []models.PurchaseItem
-
-	if err := db.
-		Where(
-			"purchase_id = ?",
-			purchase.ID,
-		).
-		Find(&items).
-		Error; err != nil {
-		t.Fatal(err)
-	}
 
 	approveURL, err := paymentService.CreateCheckout(
 		context.Background(),
@@ -136,7 +125,7 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	}
 
 	// --------------------------------
-	// Approve order with browser
+	// Approve order
 	// --------------------------------
 
 	err = helpers.ApprovePayPalOrder(
@@ -144,6 +133,7 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	)
 
 	if err != nil {
+
 		t.Fatalf(
 			"paypal approval failed: %v",
 			err,
@@ -151,20 +141,19 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	}
 
 	// --------------------------------
-	// Reload purchase to get PayPal order ID
+	// Reload purchase
 	// --------------------------------
 
 	var updatedPurchase models.Purchase
 
-	err = db.
+	if err := db.
 		First(
 			&updatedPurchase,
 			"id = ?",
 			purchase.ID,
 		).
-		Error
+		Error; err != nil {
 
-	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,12 +168,13 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	// Capture payment
 	// --------------------------------
 
-	err = paymentService.CapturePayment(
+	_, err = paymentService.CapturePayment(
 		context.Background(),
 		updatedPurchase.PaymentID,
 	)
 
 	if err != nil {
+
 		t.Fatalf(
 			"paypal capture failed for order %s: %v",
 			updatedPurchase.PaymentID,
@@ -193,7 +183,7 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	}
 
 	// --------------------------------
-	// Simulate completed webhook
+	// Confirm payment
 	// --------------------------------
 
 	_, err = paymentService.ConfirmPayment(
@@ -209,15 +199,14 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	// Verify purchase paid
 	// --------------------------------
 
-	err = db.
+	if err := db.
 		First(
 			&updatedPurchase,
 			"id = ?",
 			purchase.ID,
 		).
-		Error
+		Error; err != nil {
 
-	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -235,15 +224,14 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 
 	var tickets []models.Ticket
 
-	err = db.
+	if err := db.
 		Where(
 			"user_id = ?",
 			user.ID,
 		).
 		Find(&tickets).
-		Error
+		Error; err != nil {
 
-	if err != nil {
 		t.Fatal(err)
 	}
 

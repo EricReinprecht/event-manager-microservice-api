@@ -3,7 +3,7 @@ package enum
 type PurchaseStatus string
 
 const (
-	PruchaseStatusPending PurchaseStatus = "PENDING"
+	PurchaseStatusPending PurchaseStatus = "PENDING"
 
 	PurchaseStatusPaid PurchaseStatus = "PAID"
 

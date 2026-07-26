@@ -279,7 +279,7 @@ func TestPayPalWebhookCaptureCompletedConfirmsPayment(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	paymentID := "PAYPAL-ORDER-WEBHOOK-123"
@@ -502,7 +502,7 @@ func TestPayPalWebhookCaptureCompletedGeneratesTickets(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	paymentID := "PAYPAL-ORDER-TICKET-123"
@@ -707,7 +707,7 @@ func TestPayPalWebhookCaptureCompletedMarksEventProcessed(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	paymentID := "PAYPAL-ORDER-EVENT-PROCESSED-123"
@@ -912,7 +912,7 @@ func TestPayPalWebhookDuplicateEventDoesNotDuplicatePayment(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	paymentID := "PAYPAL-DUPLICATE-ORDER-123"
@@ -1141,7 +1141,7 @@ func TestPayPalWebhookUnprocessedEventRetrySucceeds(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	purchase.PaymentProvider = "paypal"
@@ -1448,7 +1448,7 @@ func TestPaymentEvent_CannotDuplicateWebhook(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	paymentID := "PAYPAL-DUPLICATE-" + uuid.New().String()
@@ -2081,7 +2081,7 @@ func TestPayPalWebhookReplayProtection(t *testing.T) {
 		db,
 		&user,
 		&party,
-		enum.PruchaseStatusPending,
+		enum.PurchaseStatusPending,
 	)
 
 	ticketCategory := fixtures.TicketCategory(

@@ -100,7 +100,7 @@ func TestUserCanCreatePendingPurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if purchase.Status != enum.PruchaseStatusPending {
+	if purchase.Status != enum.PurchaseStatusPending {
 
 		t.Fatalf(
 			"expected pending purchase got %s",
