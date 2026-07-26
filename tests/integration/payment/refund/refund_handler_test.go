@@ -1,30 +1,26 @@
 package refund
 
 import (
-	"bytes"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/handlers"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/routes"
 	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	testhttp "github.com/reinp/event-platform/backend/tests/helpers/http"
 	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
 
 func TestOrganizerReceivesHTTP200WhenRefunding(t *testing.T) {
 
-	gin.SetMode(
-		gin.TestMode,
-	)
+	gin.SetMode(gin.TestMode)
 
 	db, err := helpers.TestDatabaseSilent()
 
@@ -32,24 +28,10 @@ func TestOrganizerReceivesHTTP200WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := helpers.CleanDatabase(db); err != nil {
-		t.Fatal(err)
-	}
+	helpers.CleanDatabase(db)
 
-	executor := database.NewGormExecutor(db)
-
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
-	fakeGateway := &helpers.FakePaymentGateway{}
-
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
-		fakeGateway,
-	)
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
 
 	handler := handlers.NewPaymentHandler(
 		paymentService,
@@ -61,44 +43,21 @@ func TestOrganizerReceivesHTTP200WhenRefunding(t *testing.T) {
 		enum.RoleOrganizer,
 	)
 
-	router := gin.New()
-
-	router.POST(
-		"/api/purchases/:id/refund",
-		func(c *gin.Context) {
-
-			// temporary auth simulation
-			c.Set(
-				"userID",
-				scenario.Organizer.ID,
-			)
-
-			handler.Refund(c)
-		},
+	router := testhttp.RefundRouter(
+		handler,
+		scenario.Organizer.ID,
 	)
 
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+scenario.Purchase.ID.String()+"/refund",
-		bytes.NewBuffer(nil),
-	)
-
-	req.Header.Set(
-		"Content-Type",
-		"application/json",
-	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
 	)
 
 	if recorder.Code != http.StatusOK {
 
 		t.Fatalf(
-			"expected status 200 got %d body=%s",
+			"expected 200 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
 		)
@@ -107,12 +66,14 @@ func TestOrganizerReceivesHTTP200WhenRefunding(t *testing.T) {
 	if !fakeGateway.RefundCalled {
 
 		t.Fatal(
-			"expected refund gateway to be called",
+			"expected refund gateway call",
 		)
 	}
 }
 
 func TestAdminReceivesHTTP200WhenRefunding(t *testing.T) {
+
+	gin.SetMode(gin.TestMode)
 
 	db, err := helpers.TestDatabaseSilent()
 
@@ -124,28 +85,12 @@ func TestAdminReceivesHTTP200WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
 
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
-	fakeGateway := &helpers.FakePaymentGateway{}
-
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
-		fakeGateway,
-	)
-
-	paymentHandler := handlers.NewPaymentHandler(
+	handler := handlers.NewPaymentHandler(
 		paymentService,
 	)
-
-	// -------------------------
-	// Scenario
-	// -------------------------
 
 	scenario := scenarios.CreateRefundScenario(
 		t,
@@ -153,54 +98,25 @@ func TestAdminReceivesHTTP200WhenRefunding(t *testing.T) {
 		enum.RoleAdmin,
 	)
 
-	router := gin.New()
-
-	router.POST(
-		"/api/purchases/:id/refund",
-		func(c *gin.Context) {
-
-			c.Set(
-				"userID",
-				scenario.Actor.ID,
-			)
-
-			paymentHandler.Refund(c)
-		},
+	router := testhttp.RefundRouter(
+		handler,
+		scenario.Actor.ID,
 	)
 
-	// -------------------------
-	// Execute HTTP request
-	// -------------------------
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+scenario.Purchase.ID.String()+"/refund",
-		nil,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
 	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
-	)
-
-	// -------------------------
-	// Verify response
-	// -------------------------
 
 	if recorder.Code != http.StatusOK {
 
 		t.Fatalf(
-			"expected HTTP 200 got %d body=%s",
+			"expected 200 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
 		)
 	}
-
-	// -------------------------
-	// Verify gateway
-	// -------------------------
 
 	if !fakeGateway.RefundCalled {
 
@@ -208,10 +124,6 @@ func TestAdminReceivesHTTP200WhenRefunding(t *testing.T) {
 			"expected refund gateway to be called",
 		)
 	}
-
-	// -------------------------
-	// Verify purchase
-	// -------------------------
 
 	var updated models.Purchase
 
@@ -235,6 +147,8 @@ func TestAdminReceivesHTTP200WhenRefunding(t *testing.T) {
 
 func TestRefunderReceivesHTTP200WhenRefunding(t *testing.T) {
 
+	gin.SetMode(gin.TestMode)
+
 	db, err := helpers.TestDatabaseSilent()
 
 	if err != nil {
@@ -245,28 +159,12 @@ func TestRefunderReceivesHTTP200WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
 
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
-	fakeGateway := &helpers.FakePaymentGateway{}
-
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
-		fakeGateway,
-	)
-
-	paymentHandler := handlers.NewPaymentHandler(
+	handler := handlers.NewPaymentHandler(
 		paymentService,
 	)
-
-	// -------------------------
-	// Scenario
-	// -------------------------
 
 	scenario := scenarios.CreateRefundScenario(
 		t,
@@ -274,58 +172,25 @@ func TestRefunderReceivesHTTP200WhenRefunding(t *testing.T) {
 		enum.RoleRefunder,
 	)
 
-	// -------------------------
-	// Router
-	// -------------------------
-
-	router := gin.New()
-
-	router.POST(
-		"/api/purchases/:id/refund",
-		func(c *gin.Context) {
-
-			c.Set(
-				"userID",
-				scenario.Actor.ID,
-			)
-
-			paymentHandler.Refund(c)
-		},
+	router := testhttp.RefundRouter(
+		handler,
+		scenario.Actor.ID,
 	)
 
-	// -------------------------
-	// Execute request
-	// -------------------------
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+scenario.Purchase.ID.String()+"/refund",
-		nil,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
 	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
-	)
-
-	// -------------------------
-	// Verify HTTP
-	// -------------------------
 
 	if recorder.Code != http.StatusOK {
 
 		t.Fatalf(
-			"expected HTTP 200 got %d body=%s",
+			"expected 200 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
 		)
 	}
-
-	// -------------------------
-	// Verify gateway
-	// -------------------------
 
 	if !fakeGateway.RefundCalled {
 
@@ -333,10 +198,6 @@ func TestRefunderReceivesHTTP200WhenRefunding(t *testing.T) {
 			"expected refund gateway to be called",
 		)
 	}
-
-	// -------------------------
-	// Verify purchase
-	// -------------------------
 
 	var updated models.Purchase
 
@@ -360,6 +221,8 @@ func TestRefunderReceivesHTTP200WhenRefunding(t *testing.T) {
 
 func TestStaffReceivesHTTP403WhenRefunding(t *testing.T) {
 
+	gin.SetMode(gin.TestMode)
+
 	db, err := helpers.TestDatabaseSilent()
 
 	if err != nil {
@@ -370,28 +233,12 @@ func TestStaffReceivesHTTP403WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
 
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
-	fakeGateway := &helpers.FakePaymentGateway{}
-
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
-		fakeGateway,
-	)
-
-	paymentHandler := handlers.NewPaymentHandler(
+	handler := handlers.NewPaymentHandler(
 		paymentService,
 	)
-
-	// -------------------------
-	// Scenario
-	// -------------------------
 
 	scenario := scenarios.CreateRefundScenario(
 		t,
@@ -399,58 +246,25 @@ func TestStaffReceivesHTTP403WhenRefunding(t *testing.T) {
 		enum.RoleStaff,
 	)
 
-	// -------------------------
-	// Router
-	// -------------------------
-
-	router := gin.New()
-
-	router.POST(
-		"/api/purchases/:id/refund",
-		func(c *gin.Context) {
-
-			c.Set(
-				"userID",
-				scenario.Actor.ID,
-			)
-
-			paymentHandler.Refund(c)
-		},
+	router := testhttp.RefundRouter(
+		handler,
+		scenario.Actor.ID,
 	)
 
-	// -------------------------
-	// Execute request
-	// -------------------------
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+scenario.Purchase.ID.String()+"/refund",
-		nil,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
 	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
-	)
-
-	// -------------------------
-	// Verify HTTP 403
-	// -------------------------
 
 	if recorder.Code != http.StatusForbidden {
 
 		t.Fatalf(
-			"expected HTTP 403 got %d body=%s",
+			"expected 403 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
 		)
 	}
-
-	// -------------------------
-	// Verify gateway untouched
-	// -------------------------
 
 	if fakeGateway.RefundCalled {
 
@@ -458,10 +272,6 @@ func TestStaffReceivesHTTP403WhenRefunding(t *testing.T) {
 			"staff should not reach refund gateway",
 		)
 	}
-
-	// -------------------------
-	// Verify purchase unchanged
-	// -------------------------
 
 	var updated models.Purchase
 
@@ -485,6 +295,8 @@ func TestStaffReceivesHTTP403WhenRefunding(t *testing.T) {
 
 func TestAttendeeReceivesHTTP403WhenRefunding(t *testing.T) {
 
+	gin.SetMode(gin.TestMode)
+
 	db, err := helpers.TestDatabaseSilent()
 
 	if err != nil {
@@ -495,28 +307,12 @@ func TestAttendeeReceivesHTTP403WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
 
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
-	fakeGateway := &helpers.FakePaymentGateway{}
-
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
-		fakeGateway,
-	)
-
-	paymentHandler := handlers.NewPaymentHandler(
+	handler := handlers.NewPaymentHandler(
 		paymentService,
 	)
-
-	// -------------------------
-	// Scenario
-	// -------------------------
 
 	scenario := scenarios.CreateRefundScenario(
 		t,
@@ -524,58 +320,25 @@ func TestAttendeeReceivesHTTP403WhenRefunding(t *testing.T) {
 		enum.RoleAttendee,
 	)
 
-	// -------------------------
-	// Router
-	// -------------------------
-
-	router := gin.New()
-
-	router.POST(
-		"/api/purchases/:id/refund",
-		func(c *gin.Context) {
-
-			c.Set(
-				"userID",
-				scenario.Actor.ID,
-			)
-
-			paymentHandler.Refund(c)
-		},
+	router := testhttp.RefundRouter(
+		handler,
+		scenario.Actor.ID,
 	)
 
-	// -------------------------
-	// Execute request
-	// -------------------------
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+scenario.Purchase.ID.String()+"/refund",
-		nil,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
 	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
-	)
-
-	// -------------------------
-	// Verify HTTP 403
-	// -------------------------
 
 	if recorder.Code != http.StatusForbidden {
 
 		t.Fatalf(
-			"expected HTTP 403 got %d body=%s",
+			"expected 403 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
 		)
 	}
-
-	// -------------------------
-	// Verify gateway untouched
-	// -------------------------
 
 	if fakeGateway.RefundCalled {
 
@@ -583,10 +346,6 @@ func TestAttendeeReceivesHTTP403WhenRefunding(t *testing.T) {
 			"attendee should not reach refund gateway",
 		)
 	}
-
-	// -------------------------
-	// Verify purchase unchanged
-	// -------------------------
 
 	var updated models.Purchase
 
@@ -610,6 +369,8 @@ func TestAttendeeReceivesHTTP403WhenRefunding(t *testing.T) {
 
 func TestNonMemberReceivesHTTP403WhenRefunding(t *testing.T) {
 
+	gin.SetMode(gin.TestMode)
+
 	db, err := helpers.TestDatabaseSilent()
 
 	if err != nil {
@@ -620,38 +381,18 @@ func TestNonMemberReceivesHTTP403WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
 
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
-	fakeGateway := &helpers.FakePaymentGateway{}
-
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
-		fakeGateway,
-	)
-
-	paymentHandler := handlers.NewPaymentHandler(
+	handler := handlers.NewPaymentHandler(
 		paymentService,
 	)
-
-	// -------------------------
-	// Create valid refund target
-	// -------------------------
 
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
 		enum.RoleAttendee,
 	)
-
-	// -------------------------
-	// Create outsider user
-	// -------------------------
 
 	outsider := fixtures.User()
 
@@ -662,58 +403,25 @@ func TestNonMemberReceivesHTTP403WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// -------------------------
-	// Router
-	// -------------------------
-
-	router := gin.New()
-
-	router.POST(
-		"/api/purchases/:id/refund",
-		func(c *gin.Context) {
-
-			c.Set(
-				"userID",
-				outsider.ID,
-			)
-
-			paymentHandler.Refund(c)
-		},
+	router := testhttp.RefundRouter(
+		handler,
+		outsider.ID,
 	)
 
-	// -------------------------
-	// Execute request
-	// -------------------------
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+scenario.Purchase.ID.String()+"/refund",
-		nil,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
 	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
-	)
-
-	// -------------------------
-	// Verify HTTP 403
-	// -------------------------
 
 	if recorder.Code != http.StatusForbidden {
 
 		t.Fatalf(
-			"expected HTTP 403 got %d body=%s",
+			"expected 403 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
 		)
 	}
-
-	// -------------------------
-	// Verify gateway untouched
-	// -------------------------
 
 	if fakeGateway.RefundCalled {
 
@@ -721,10 +429,6 @@ func TestNonMemberReceivesHTTP403WhenRefunding(t *testing.T) {
 			"non-member should not reach refund gateway",
 		)
 	}
-
-	// -------------------------
-	// Verify purchase unchanged
-	// -------------------------
 
 	var updated models.Purchase
 
@@ -748,6 +452,8 @@ func TestNonMemberReceivesHTTP403WhenRefunding(t *testing.T) {
 
 func TestUnauthenticatedUserReceivesHTTP401WhenRefunding(t *testing.T) {
 
+	gin.SetMode(gin.TestMode)
+
 	db, err := helpers.TestDatabaseSilent()
 
 	if err != nil {
@@ -758,28 +464,12 @@ func TestUnauthenticatedUserReceivesHTTP401WhenRefunding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
+	paymentService, fakeGateway :=
+		helpers.SetupPaymentService(db)
 
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
-	fakeGateway := &helpers.FakePaymentGateway{}
-
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
-		fakeGateway,
-	)
-
-	paymentHandler := handlers.NewPaymentHandler(
+	handler := handlers.NewPaymentHandler(
 		paymentService,
 	)
-
-	// -------------------------
-	// Scenario
-	// -------------------------
 
 	scenario := scenarios.CreateRefundScenario(
 		t,
@@ -787,50 +477,27 @@ func TestUnauthenticatedUserReceivesHTTP401WhenRefunding(t *testing.T) {
 		enum.RoleOrganizer,
 	)
 
-	// -------------------------
-	// Router
-	// -------------------------
-
 	router := gin.New()
 
 	router.POST(
 		"/api/purchases/:id/refund",
-		paymentHandler.Refund,
+		handler.Refund,
 	)
 
-	// -------------------------
-	// Execute request
-	// -------------------------
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+scenario.Purchase.ID.String()+"/refund",
-		nil,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		scenario.Purchase.ID,
+		"",
 	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
-	)
-
-	// -------------------------
-	// Verify HTTP 401
-	// -------------------------
 
 	if recorder.Code != http.StatusUnauthorized {
 
 		t.Fatalf(
-			"expected HTTP 401 got %d body=%s",
+			"expected 401 got %d body=%s",
 			recorder.Code,
 			recorder.Body.String(),
 		)
 	}
-
-	// -------------------------
-	// Verify gateway untouched
-	// -------------------------
 
 	if fakeGateway.RefundCalled {
 
@@ -838,10 +505,6 @@ func TestUnauthenticatedUserReceivesHTTP401WhenRefunding(t *testing.T) {
 			"unauthenticated user should not reach refund gateway",
 		)
 	}
-
-	// -------------------------
-	// Verify purchase unchanged
-	// -------------------------
 
 	var updated models.Purchase
 
@@ -862,44 +525,9 @@ func TestUnauthenticatedUserReceivesHTTP401WhenRefunding(t *testing.T) {
 		)
 	}
 }
-
-func TestInvalidPurchaseIDReturnsHTTP400(t *testing.T) {
-
-	router := gin.New()
-
-	paymentHandler := handlers.NewPaymentHandler(
-		nil,
-	)
-
-	router.POST(
-		"/api/purchases/:id/refund",
-		paymentHandler.Refund,
-	)
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/not-a-valid-uuid/refund",
-		nil,
-	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
-	)
-
-	if recorder.Code != http.StatusBadRequest {
-
-		t.Fatalf(
-			"expected 400 got %d body=%s",
-			recorder.Code,
-			recorder.Body.String(),
-		)
-	}
-}
-
 func TestPurchaseNotFoundReturnsHTTP404(t *testing.T) {
+
+	gin.SetMode(gin.TestMode)
 
 	db, err := helpers.TestDatabaseSilent()
 
@@ -907,16 +535,14 @@ func TestPurchaseNotFoundReturnsHTTP404(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	helpers.CleanDatabase(db)
+
 	authService := helpers.NewAuthService(
 		db,
 	)
 
-	paymentService := helpers.NewPaymentService(
-		database.NewGormExecutor(db),
-		helpers.NewPurchaseService(db),
-		helpers.NewTicketService(db),
-		&helpers.FakePaymentGateway{},
-	)
+	paymentService, _ :=
+		helpers.SetupPaymentService(db)
 
 	router := gin.New()
 
@@ -935,7 +561,10 @@ func TestPurchaseNotFoundReturnsHTTP404(t *testing.T) {
 
 	user := fixtures.User()
 
-	if err := db.Create(&user).Error; err != nil {
+	if err := db.Create(
+		&user,
+	).Error; err != nil {
+
 		t.Fatal(err)
 	}
 
@@ -943,28 +572,12 @@ func TestPurchaseNotFoundReturnsHTTP404(t *testing.T) {
 		user.ID,
 	)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	missingPurchaseID := uuid.New()
 
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/purchases/"+missingPurchaseID.String()+"/refund",
-		nil,
-	)
-
-	req.Header.Set(
-		"Authorization",
-		"Bearer "+token,
-	)
-
-	recorder := httptest.NewRecorder()
-
-	router.ServeHTTP(
-		recorder,
-		req,
+	recorder := testhttp.ExecuteRefundRequest(
+		router,
+		missingPurchaseID,
+		token,
 	)
 
 	if recorder.Code != http.StatusNotFound {
