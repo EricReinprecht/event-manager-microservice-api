@@ -269,7 +269,7 @@ func TestPayPalCaptureOrderSuccess(t *testing.T) {
 
 	// Capture payment
 
-	err = client.CaptureOrder(
+	captureID, err := client.CaptureOrder(
 		ctx,
 		order.ID,
 	)
@@ -280,6 +280,13 @@ func TestPayPalCaptureOrderSuccess(t *testing.T) {
 			"capture failed for order %s: %v",
 			order.ID,
 			err,
+		)
+	}
+
+	if captureID == "" {
+
+		t.Fatal(
+			"paypal capture id is empty",
 		)
 	}
 }

@@ -34,7 +34,7 @@ func TestPaymentCapturePaymentFailed(t *testing.T) {
 		fakeGateway,
 	)
 
-	err = paymentService.CapturePayment(
+	_, err = paymentService.CapturePayment(
 		context.Background(),
 		"FAILED_ORDER_ID",
 	)
@@ -62,17 +62,15 @@ func TestPayPalCaptureOrderAlreadyCaptured(t *testing.T) {
 						"application/json",
 					)
 
-					w.WriteHeader(
-						http.StatusOK,
-					)
+					w.WriteHeader(http.StatusOK)
 
 					w.Write([]byte(`
-				{
-					"access_token": "test-token",
-					"token_type": "Bearer",
-					"expires_in": 3600
-				}
-				`))
+					{
+						"access_token": "test-token",
+						"token_type": "Bearer",
+						"expires_in": 3600
+					}
+					`))
 
 				case "/v2/checkout/orders/ORDER123/capture":
 
@@ -86,18 +84,17 @@ func TestPayPalCaptureOrderAlreadyCaptured(t *testing.T) {
 					)
 
 					w.Write([]byte(`
-				{
-					"name": "UNPROCESSABLE_ENTITY",
-					"details": [
-						{
-							"issue": "ORDER_ALREADY_CAPTURED"
-						}
-					]
-				}
-				`))
+					{
+						"name": "UNPROCESSABLE_ENTITY",
+						"details": [
+							{
+								"issue": "ORDER_ALREADY_CAPTURED"
+							}
+						]
+					}
+					`))
 
 				default:
-
 					t.Fatalf(
 						"unexpected path: %s",
 						r.URL.Path,
@@ -118,7 +115,7 @@ func TestPayPalCaptureOrderAlreadyCaptured(t *testing.T) {
 		"webhook",
 	)
 
-	err := client.CaptureOrder(
+	_, err := client.CaptureOrder(
 		context.Background(),
 		"ORDER123",
 	)
@@ -146,9 +143,7 @@ func TestPayPalCaptureOrderInvalidOrderID(t *testing.T) {
 						"application/json",
 					)
 
-					w.WriteHeader(
-						http.StatusOK,
-					)
+					w.WriteHeader(http.StatusOK)
 
 					w.Write([]byte(`
 					{
@@ -177,7 +172,6 @@ func TestPayPalCaptureOrderInvalidOrderID(t *testing.T) {
 					`))
 
 				default:
-
 					t.Fatalf(
 						"unexpected path: %s",
 						r.URL.Path,
@@ -198,7 +192,7 @@ func TestPayPalCaptureOrderInvalidOrderID(t *testing.T) {
 		"webhook",
 	)
 
-	err := client.CaptureOrder(
+	_, err := client.CaptureOrder(
 		context.Background(),
 		"INVALID",
 	)
@@ -226,9 +220,7 @@ func TestPayPalCaptureOrderAPIError(t *testing.T) {
 						"application/json",
 					)
 
-					w.WriteHeader(
-						http.StatusOK,
-					)
+					w.WriteHeader(http.StatusOK)
 
 					w.Write([]byte(`
 					{
@@ -257,7 +249,6 @@ func TestPayPalCaptureOrderAPIError(t *testing.T) {
 					`))
 
 				default:
-
 					t.Fatalf(
 						"unexpected path: %s",
 						r.URL.Path,
@@ -278,7 +269,7 @@ func TestPayPalCaptureOrderAPIError(t *testing.T) {
 		"webhook",
 	)
 
-	err := client.CaptureOrder(
+	_, err := client.CaptureOrder(
 		context.Background(),
 		"ORDER123",
 	)

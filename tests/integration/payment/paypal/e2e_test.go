@@ -168,7 +168,7 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 	// Capture payment
 	// --------------------------------
 
-	_, err = paymentService.CapturePayment(
+	captureID, err := paymentService.CapturePayment(
 		context.Background(),
 		updatedPurchase.PaymentID,
 	)
@@ -179,6 +179,13 @@ func TestE2E_PayPalSandbox_PaymentFlow(t *testing.T) {
 			"paypal capture failed for order %s: %v",
 			updatedPurchase.PaymentID,
 			err,
+		)
+	}
+
+	if captureID == "" {
+
+		t.Fatal(
+			"paypal capture id missing",
 		)
 	}
 
