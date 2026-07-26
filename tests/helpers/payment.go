@@ -40,6 +40,8 @@ func NewPaymentService(
 		roleRepository,
 	)
 
+	refundService := service.NewRefundService()
+
 	return service.NewPaymentService(
 		purchaseService,
 		ticketService,
@@ -47,5 +49,6 @@ func NewPaymentService(
 		paymentGateway,
 		paymentEventRepository,
 		purchaseRepository,
+		refundService,
 	)
 }

@@ -39,27 +39,19 @@ func (f *FakePaymentGateway) CreateOrder(
 func (f *FakePaymentGateway) CaptureOrder(
 	ctx context.Context,
 	orderID string,
-) error {
+) (string, error) {
 
-	f.CaptureOrderCalled = true
-
-	f.CapturedOrderID = orderID
-
-	return nil
+	return "FAKE-CAPTURE-ID", nil
 }
 
 func (f *FakePaymentGateway) RefundPayment(
 	ctx context.Context,
 	paymentID string,
+	amount int64,
 ) (string, error) {
 
-	f.RefundCalled = true
-
-	f.RefundedPaymentID = paymentID
-
-	return "REFUND-123", nil
+	return "FAKE-REFUND-ID", nil
 }
-
 func (f *FakePaymentGateway) VerifyWebhookSignature(
 	ctx context.Context,
 	headers paypal.WebhookHeaders,
