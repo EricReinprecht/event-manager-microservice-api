@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"github.com/reinp/event-platform/backend/tests/fixtures"
 	"github.com/reinp/event-platform/backend/tests/helpers"
+	"github.com/reinp/event-platform/backend/tests/scenarios"
 )
 
 func TestPaymentRefundSuccess(t *testing.T) {
@@ -24,68 +23,40 @@ func TestPaymentRefundSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
-
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
 	fakeGateway := &helpers.FakePaymentGateway{}
 
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
+	paymentService := helpers.SetupPaymentTestService(
+		db,
 		fakeGateway,
 	)
+	// -------------------------
+	// Scenario
+	// -------------------------
 
-	user := fixtures.User()
-
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	party := fixtures.PartyWithOrganizer(
-		user.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	purchase := helpers.CreatePurchase(
+	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		&user,
-		&party,
-		enum.PurchaseStatusPaid,
+		enum.RoleOrganizer,
 	)
 
-	purchase.PaymentProvider = "paypal"
+	// -------------------------
+	// Execute refund
+	// -------------------------
 
-	purchase.PaymentID = "PAYPAL-PAYMENT-123"
-
-	if err := db.Save(&purchase).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	paymentService.RefundPayment(
+	err = paymentService.RefundPayment(
 		context.Background(),
-		purchase.ID,
-		user.ID,
+		scenario.Purchase.ID,
+		scenario.Actor.ID,
 	)
 
 	if err != nil {
+
 		t.Fatal(err)
 	}
+
+	// -------------------------
+	// Gateway assertions
+	// -------------------------
 
 	if !fakeGateway.RefundCalled {
 
@@ -94,22 +65,28 @@ func TestPaymentRefundSuccess(t *testing.T) {
 		)
 	}
 
-	if fakeGateway.RefundedPaymentID != purchase.PaymentID {
+	if fakeGateway.RefundedPaymentID != scenario.Purchase.PaymentID {
 
 		t.Fatalf(
 			"expected refund payment id %s got %s",
-			purchase.PaymentID,
+			scenario.Purchase.PaymentID,
 			fakeGateway.RefundedPaymentID,
 		)
 	}
 
+	// -------------------------
+	// Database assertions
+	// -------------------------
+
 	var updated models.Purchase
 
-	if err := db.First(
-		&updated,
-		"id = ?",
-		purchase.ID,
-	).Error; err != nil {
+	if err := db.
+		First(
+			&updated,
+			"id = ?",
+			scenario.Purchase.ID,
+		).
+		Error; err != nil {
 
 		t.Fatal(err)
 	}
@@ -149,87 +126,23 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
-
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
 	failingGateway := &helpers.FailingPaymentGateway{}
 
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
+	paymentService := helpers.SetupPaymentTestService(
+		db,
 		failingGateway,
 	)
 
-	// ----------------------------
-	// USER
-	// ----------------------------
-
-	user := fixtures.User()
-
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ----------------------------
-	// CATEGORY
-	// ----------------------------
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ----------------------------
-	// PARTY
-	// ----------------------------
-
-	party := fixtures.PartyWithOrganizer(
-		user.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ----------------------------
-	// PURCHASE
-	// ----------------------------
-
-	purchase := helpers.CreatePurchase(
+	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		&user,
-		&party,
-		enum.PurchaseStatusPaid,
+		enum.RoleOrganizer,
 	)
-
-	// IMPORTANT:
-	// ensure purchase belongs to this party
-	purchase.PartyID = party.ID
-	purchase.UserID = user.ID
-
-	purchase.PaymentProvider = "paypal"
-	purchase.PaymentID = "PAYPAL-FAIL-REFUND"
-
-	if err := db.Save(&purchase).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ----------------------------
-	// EXECUTE REFUND
-	// ----------------------------
 
 	err = paymentService.RefundPayment(
 		context.Background(),
-		purchase.ID,
-		user.ID,
+		scenario.Purchase.ID,
+		scenario.Actor.ID,
 	)
 
 	if err == nil {
@@ -238,12 +151,6 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 		)
 	}
 
-	// ----------------------------
-	// VERIFY GATEWAY WAS CALLED
-	// ----------------------------
-
-	// The failing gateway does not expose a flag,
-	// but the error proves it was reached.
 	if err.Error() != "refund failed" {
 
 		t.Fatalf(
@@ -252,17 +159,13 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 		)
 	}
 
-	// ----------------------------
-	// VERIFY PURCHASE UNCHANGED
-	// ----------------------------
-
 	var updated models.Purchase
 
 	if err := db.
 		First(
 			&updated,
 			"id = ?",
-			purchase.ID,
+			scenario.Purchase.ID,
 		).
 		Error; err != nil {
 
@@ -305,83 +208,48 @@ func TestCannotRefundAlreadyRefundedPurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executor := database.NewGormExecutor(db)
-
-	purchaseService := helpers.NewPurchaseService(db)
-
-	ticketService := helpers.NewTicketService(db)
-
 	fakeGateway := &helpers.FakePaymentGateway{}
 
-	paymentService := helpers.NewPaymentService(
-		executor,
-		purchaseService,
-		ticketService,
+	paymentService := helpers.SetupPaymentTestService(
+		db,
 		fakeGateway,
 	)
 
-	// USER
+	// ----------------------------
+	// Scenario
+	// ----------------------------
 
-	user := fixtures.User()
-
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// CATEGORY
-
-	category := fixtures.Category()
-
-	if err := db.Create(&category).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// PARTY
-
-	party := fixtures.PartyWithOrganizer(
-		user.ID,
-	)
-
-	party.CategoryID = category.ID
-
-	if err := db.Create(&party).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	// ALREADY REFUNDED PURCHASE
-
-	purchase := helpers.CreatePurchase(
+	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		&user,
-		&party,
-		enum.PurchaseStatusPaid,
+		enum.RoleOrganizer,
 	)
 
-	purchase.PaymentProvider = "paypal"
-
-	purchase.PaymentID = "PAYPAL-ALREADY-REFUNDED"
+	purchase := scenario.Purchase
 
 	purchase.Status = enum.PurchaseStatusRefunded
-
 	purchase.RefundID = "REFUND-123"
-
 	purchase.RefundProvider = "paypal"
 
 	now := time.Now().UTC()
 
 	purchase.RefundedAt = &now
 
-	if err := db.Save(&purchase).Error; err != nil {
+	if err := db.Save(
+		purchase,
+	).Error; err != nil {
+
 		t.Fatal(err)
 	}
 
-	// TRY REFUND AGAIN
+	// ----------------------------
+	// Execute refund again
+	// ----------------------------
 
 	err = paymentService.RefundPayment(
 		context.Background(),
 		purchase.ID,
-		user.ID,
+		scenario.Actor.ID,
 	)
 
 	if err == nil {
@@ -391,10 +259,47 @@ func TestCannotRefundAlreadyRefundedPurchase(t *testing.T) {
 		)
 	}
 
+	// ----------------------------
+	// Gateway must not be touched
+	// ----------------------------
+
 	if fakeGateway.RefundCalled {
 
 		t.Fatal(
 			"refund gateway should not be called twice",
+		)
+	}
+
+	// ----------------------------
+	// Verify unchanged
+	// ----------------------------
+
+	var updated models.Purchase
+
+	if err := db.
+		First(
+			&updated,
+			"id = ?",
+			purchase.ID,
+		).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	if updated.Status != enum.PurchaseStatusRefunded {
+
+		t.Fatalf(
+			"expected REFUNDED status, got %s",
+			updated.Status,
+		)
+	}
+
+	if updated.RefundID != "REFUND-123" {
+
+		t.Fatalf(
+			"expected existing refund id to remain, got %s",
+			updated.RefundID,
 		)
 	}
 }

@@ -41,6 +41,10 @@ func (f *FakePaymentGateway) CaptureOrder(
 	orderID string,
 ) (string, error) {
 
+	f.CaptureOrderCalled = true
+
+	f.CapturedOrderID = orderID
+
 	return "FAKE-CAPTURE-ID", nil
 }
 
@@ -50,8 +54,13 @@ func (f *FakePaymentGateway) RefundPayment(
 	amount int64,
 ) (string, error) {
 
+	f.RefundCalled = true
+
+	f.RefundedPaymentID = paymentID
+
 	return "FAKE-REFUND-ID", nil
 }
+
 func (f *FakePaymentGateway) VerifyWebhookSignature(
 	ctx context.Context,
 	headers paypal.WebhookHeaders,
@@ -71,20 +80,25 @@ func (f *FailingPaymentGateway) CreateOrder(
 	amount int64,
 ) (*paypal.Order, error) {
 
-	return nil, errors.New("create order failed")
+	return nil, errors.New(
+		"create order failed",
+	)
 }
 
 func (f *FailingPaymentGateway) CaptureOrder(
 	ctx context.Context,
 	orderID string,
-) error {
+) (string, error) {
 
-	return errors.New("capture failed")
+	return "", errors.New(
+		"capture failed",
+	)
 }
 
 func (f *FailingPaymentGateway) RefundPayment(
 	ctx context.Context,
 	paymentID string,
+	amount int64,
 ) (string, error) {
 
 	return "", errors.New(
@@ -111,23 +125,30 @@ func (f *InvalidSignaturePaymentGateway) CreateOrder(
 	amount int64,
 ) (*paypal.Order, error) {
 
-	return nil, errors.New("not implemented")
+	return nil, errors.New(
+		"not implemented",
+	)
 }
 
 func (f *InvalidSignaturePaymentGateway) CaptureOrder(
 	ctx context.Context,
 	orderID string,
-) error {
+) (string, error) {
 
-	return errors.New("not implemented")
+	return "", errors.New(
+		"not implemented",
+	)
 }
 
 func (f *InvalidSignaturePaymentGateway) RefundPayment(
 	ctx context.Context,
 	paymentID string,
+	amount int64,
 ) (string, error) {
 
-	return "", errors.New("not implemented")
+	return "", errors.New(
+		"not implemented",
+	)
 }
 
 func (f *InvalidSignaturePaymentGateway) VerifyWebhookSignature(
@@ -136,7 +157,9 @@ func (f *InvalidSignaturePaymentGateway) VerifyWebhookSignature(
 	body []byte,
 ) error {
 
-	return errors.New("invalid paypal signature")
+	return errors.New(
+		"invalid paypal signature",
+	)
 }
 
 type FailingTicketRepository struct {

@@ -5,6 +5,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/payment"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/service"
+	"gorm.io/gorm"
 )
 
 func NewPaymentService(
@@ -50,5 +51,20 @@ func NewPaymentService(
 		paymentEventRepository,
 		purchaseRepository,
 		refundService,
+	)
+}
+
+func SetupPaymentTestService(
+	db *gorm.DB,
+	gateway payment.Gateway,
+) *service.PaymentService {
+
+	executor := database.NewGormExecutor(db)
+
+	return NewPaymentService(
+		executor,
+		NewPurchaseService(db),
+		NewTicketService(db),
+		gateway,
 	)
 }

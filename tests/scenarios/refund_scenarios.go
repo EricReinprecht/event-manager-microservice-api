@@ -3,6 +3,7 @@ package scenarios
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -24,6 +25,10 @@ type RefundScenario struct {
 	Party models.Party
 
 	Purchase *models.Purchase
+
+	TicketCategory models.TicketCategory
+
+	RefundPolicy models.RefundPolicy
 
 	Role enum.PartyRole
 }
@@ -99,19 +104,14 @@ func CreateRefundScenario(
 
 	// -------------------------
 	// Add role if needed
-	// Organizer is already handled
-	// by HasRole()
 	// -------------------------
 
 	if role != enum.RoleOrganizer {
 
 		member := models.PartyMember{
-
-			ID: uuid.New(),
-
+			ID:      uuid.New(),
 			PartyID: party.ID,
-
-			UserID: actor.ID,
+			UserID:  actor.ID,
 		}
 
 		if err := db.Create(
@@ -122,12 +122,9 @@ func CreateRefundScenario(
 		}
 
 		memberRole := models.PartyMemberRole{
-
-			ID: uuid.New(),
-
+			ID:            uuid.New(),
 			PartyMemberID: member.ID,
-
-			Role: role,
+			Role:          role,
 		}
 
 		if err := db.Create(
@@ -136,6 +133,86 @@ func CreateRefundScenario(
 
 			t.Fatal(err)
 		}
+	}
+
+	// -------------------------
+	// Ticket Category
+	// -------------------------
+
+	ticketCategory := fixtures.TicketCategory(
+		party.ID,
+	)
+
+	ticketCategory.Price = 1000
+
+	if err := db.Create(
+		&ticketCategory,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// -------------------------
+	// Refund Policy
+	// -------------------------
+
+	refundPolicy := models.RefundPolicy{
+
+		ID: uuid.New(),
+
+		TicketCategoryID: ticketCategory.ID,
+
+		Until: time.Now().AddDate(
+			0,
+			0,
+			30,
+		),
+
+		Percentage: 100,
+	}
+
+	if err := db.Create(
+		&refundPolicy,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// reload ticket category with refund policy
+	if err := db.
+		Preload("RefundPolicy").
+		First(
+			&ticketCategory,
+			ticketCategory.ID,
+		).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// -------------------------
+	// Attach Refund Policy
+	// -------------------------
+
+	ticketCategory.RefundPolicyID = &refundPolicy.ID
+
+	if err := db.Save(
+		&ticketCategory,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// reload ticket category with policy
+	if err := db.
+		Preload("RefundPolicy").
+		First(
+			&ticketCategory,
+			ticketCategory.ID,
+		).
+		Error; err != nil {
+
+		t.Fatal(err)
 	}
 
 	// -------------------------
@@ -161,6 +238,42 @@ func CreateRefundScenario(
 		t.Fatal(err)
 	}
 
+	// -------------------------
+	// Purchase Item
+	// -------------------------
+
+	item := models.PurchaseItem{
+
+		ID: uuid.New(),
+
+		PurchaseID: purchase.ID,
+
+		TicketCategoryID: ticketCategory.ID,
+
+		Quantity: 1,
+
+		UnitPrice: ticketCategory.Price,
+	}
+
+	if err := db.Create(
+		&item,
+	).Error; err != nil {
+
+		t.Fatal(err)
+	}
+
+	// reload purchase with relations
+	if err := db.
+		Preload("Items.TicketCategory.RefundPolicy").
+		First(
+			&purchase,
+			purchase.ID,
+		).
+		Error; err != nil {
+
+		t.Fatal(err)
+	}
+
 	return RefundScenario{
 
 		Organizer: organizer,
@@ -172,6 +285,10 @@ func CreateRefundScenario(
 		Party: party,
 
 		Purchase: purchase,
+
+		TicketCategory: ticketCategory,
+
+		RefundPolicy: refundPolicy,
 
 		Role: role,
 	}
