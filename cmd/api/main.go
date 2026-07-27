@@ -111,6 +111,10 @@ func main() {
 		passwordValidator,
 	)
 
+	userService := service.NewUserService(
+		userRepository,
+	)
+
 	partyMemberService := service.NewPartyMemberService(
 		partyMemberRepository,
 		partyRepository,
@@ -187,6 +191,7 @@ func main() {
 		":"+cfg.Port,
 		cfg.CORSAllowedOrigins,
 		authService,
+		userService,
 		partyService,
 		categoryService,
 		mediaService,

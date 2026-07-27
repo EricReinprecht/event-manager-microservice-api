@@ -11,6 +11,7 @@ import (
 func Register(
 	router *gin.Engine,
 	authService *service.AuthService,
+	userService *service.UserService,
 	partyService *service.PartyService,
 	categoryService *service.CategoryService,
 	mediaService *service.MediaService,
@@ -22,6 +23,10 @@ func Register(
 ) {
 
 	authHandler := handlers.NewAuthHandler(authService)
+
+	userHandler := handlers.NewUserHandler(
+		userService,
+	)
 
 	partyHandler := handlers.NewPartyHandler(
 		partyService,
@@ -88,7 +93,7 @@ func Register(
 
 	protected.GET(
 		"/users/me",
-		handlers.Me,
+		userHandler.Me,
 	)
 
 	// * Parties * //

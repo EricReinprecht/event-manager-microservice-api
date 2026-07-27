@@ -13,6 +13,7 @@ func Start(
 	port string,
 	corsOrigins []string,
 	authService *service.AuthService,
+	userService *service.UserService,
 	partyService *service.PartyService,
 	categoryService *service.CategoryService,
 	mediaService *service.MediaService,
@@ -36,6 +37,7 @@ func Start(
 	routes.Register(
 		router,
 		authService,
+		userService,
 		partyService,
 		categoryService,
 		mediaService,
