@@ -99,25 +99,38 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	token := c.Query("token")
 
 	if token == "" {
-		c.JSON(400, gin.H{
-			"error": "missing token",
-		})
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "missing token",
+			},
+		)
+
 		return
 	}
 
-	jwt, err := h.service.VerifyEmail(
+	jwtToken, err := h.service.VerifyEmail(
 		c.Request.Context(),
 		token,
 	)
 
 	if err != nil {
-		c.JSON(400, gin.H{
-			"error": err.Error(),
-		})
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"token": jwt,
-	})
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"token": jwtToken,
+		},
+	)
 }

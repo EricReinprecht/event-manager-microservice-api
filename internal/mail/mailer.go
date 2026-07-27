@@ -38,27 +38,35 @@ func (m *Mailer) Send(
 	body string,
 ) error {
 
-	auth := smtp.PlainAuth(
-		"",
-		m.username,
-		m.password,
+	addr := fmt.Sprintf(
+		"%s:%d",
 		m.host,
+		m.port,
 	)
 
-	message := []byte(
-		fmt.Sprintf(
-			"Subject: %s\r\n\r\n%s",
-			subject,
-			body,
-		),
+	message := fmt.Appendf(
+		nil,
+		"Subject: %s\r\n"+
+			"MIME-Version: 1.0\r\n"+
+			"Content-Type: text/html; charset=UTF-8\r\n\r\n"+
+			"%s",
+		subject,
+		body,
 	)
+
+	var auth smtp.Auth
+
+	if m.username != "" {
+		auth = smtp.PlainAuth(
+			"",
+			m.username,
+			m.password,
+			m.host,
+		)
+	}
 
 	return smtp.SendMail(
-		fmt.Sprintf(
-			"%s:%d",
-			m.host,
-			m.port,
-		),
+		addr,
 		auth,
 		m.from,
 		[]string{to},

@@ -95,3 +95,28 @@ func (r *UserRepository) Update(
 		Save(user).
 		Error()
 }
+
+func (r *UserRepository) FindByUsername(
+	ctx context.Context,
+	username string,
+) (*models.User, error) {
+
+	var user models.User
+
+	err := r.executor.
+		WithContext(ctx).
+		Where(
+			"username = ?",
+			username,
+		).
+		First(
+			&user,
+		).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}

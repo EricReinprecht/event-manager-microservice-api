@@ -7,15 +7,17 @@ import (
 )
 
 type EmailVerification struct {
-	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
+	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
 
-	UserID uuid.UUID `gorm:"type:uuid;not null"`
+	UserID uuid.UUID
+	User   User
 
 	Token string `gorm:"uniqueIndex;not null"`
 
 	ExpiresAt time.Time
 
-	CreatedAt time.Time
+	VerifiedAt *time.Time
 
-	User User `gorm:"foreignKey:UserID"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

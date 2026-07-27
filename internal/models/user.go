@@ -12,13 +12,12 @@ type User struct {
 
 	Email string `gorm:"uniqueIndex;not null"`
 
-	EmailVerified bool
+	VerifiedAt *time.Time
 
 	Username string `gorm:"uniqueIndex"`
 
 	AvatarID *uuid.UUID
-
-	Avatar *Media
+	Avatar   *Media
 
 	PasswordHash string `gorm:"not null"`
 

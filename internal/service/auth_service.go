@@ -12,13 +12,15 @@ import (
 	"github.com/reinp/event-platform/backend/internal/auth"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
+	"github.com/reinp/event-platform/backend/internal/security"
 )
 
 type AuthService struct {
-	users         *repository.UserRepository
-	jwt           *auth.JWT
-	verifications *repository.EmailVerificationRepository
-	emailService  *EmailService
+	users             *repository.UserRepository
+	jwt               *auth.JWT
+	verifications     *repository.EmailVerificationRepository
+	emailService      *EmailService
+	passwordValidator *security.PasswordValidator
 }
 
 func NewAuthService(
@@ -26,13 +28,15 @@ func NewAuthService(
 	jwt *auth.JWT,
 	verifications *repository.EmailVerificationRepository,
 	emailService *EmailService,
+	passwordValidator *security.PasswordValidator,
 ) *AuthService {
 
 	return &AuthService{
-		users:         users,
-		jwt:           jwt,
-		verifications: verifications,
-		emailService:  emailService,
+		users:             users,
+		jwt:               jwt,
+		verifications:     verifications,
+		emailService:      emailService,
+		passwordValidator: passwordValidator,
 	}
 }
 
@@ -56,6 +60,24 @@ func (s *AuthService) Register(
 		return nil, errors.New("email already exists")
 	}
 
+	_, err = s.users.FindByUsername(
+		ctx,
+		req.Username,
+	)
+
+	if err == nil {
+		return nil, errors.New("username already exists")
+	}
+
+	err = s.passwordValidator.Validate(
+		req.Password,
+		req.Username,
+		req.Email,
+	)
+
+	if err != nil {
+		return nil, err
+	}
 	hash, err := bcrypt.GenerateFromPassword(
 		[]byte(req.Password),
 		bcrypt.DefaultCost,
@@ -189,7 +211,17 @@ func (s *AuthService) VerifyEmail(
 		return "", err
 	}
 
-	user.EmailVerified = true
+	// already verified
+	if user.VerifiedAt != nil {
+
+		return s.jwt.Generate(
+			user.ID.String(),
+		)
+	}
+
+	now := time.Now()
+
+	user.VerifiedAt = &now
 
 	err = s.users.Update(
 		ctx,
@@ -200,6 +232,7 @@ func (s *AuthService) VerifyEmail(
 		return "", err
 	}
 
+	// remove used verification token
 	err = s.verifications.Delete(
 		verification.ID,
 	)

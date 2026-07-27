@@ -11,6 +11,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
+	"github.com/reinp/event-platform/backend/internal/security"
 	"github.com/reinp/event-platform/backend/internal/server"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -100,11 +101,14 @@ func main() {
 		cfg.FrontendURL,
 	)
 
+	passwordValidator := security.NewPasswordValidator()
+
 	authService := service.NewAuthService(
 		userRepository,
 		jwt,
 		emailVerificationRepository,
 		emailService,
+		passwordValidator,
 	)
 
 	partyMemberService := service.NewPartyMemberService(

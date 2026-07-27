@@ -78,9 +78,23 @@ func (r *EmailVerificationRepository) Delete(
 ) error {
 
 	return r.executor.
+		Where(
+			"id = ?",
+			id,
+		).
 		Delete(
 			&models.EmailVerification{},
 		).
 		Error()
+}
 
+func (r *EmailVerificationRepository) Update(
+	verification *models.EmailVerification,
+) error {
+
+	return r.executor.
+		Save(
+			verification,
+		).
+		Error()
 }
