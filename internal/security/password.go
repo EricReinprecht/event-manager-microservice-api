@@ -269,6 +269,7 @@ func (p *PasswordValidator) Validate(
 	if len(validationErrors) > 0 {
 
 		return &PasswordValidationError{
+			Field:  "password",
 			Errors: validationErrors,
 		}
 	}
@@ -277,6 +278,7 @@ func (p *PasswordValidator) Validate(
 }
 
 type PasswordValidationError struct {
+	Field  string
 	Errors []string
 }
 
