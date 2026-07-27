@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/reinp/event-platform/backend/internal/security"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
@@ -33,7 +35,6 @@ type loginRequest struct {
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
-
 	var req registerRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,6 +54,36 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	)
 
 	if err != nil {
+
+		// password validation
+		var passwordErr *security.PasswordValidationError
+		if errors.As(err, &passwordErr) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"field":  "password",
+				"errors": passwordErr.Errors,
+			})
+			return
+		}
+
+		// duplicate email
+		if err.Error() == "email already exists" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"field": "email",
+				"error": err.Error(),
+			})
+			return
+		}
+
+		// duplicate username
+		if err.Error() == "username already exists" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"field": "username",
+				"error": err.Error(),
+			})
+			return
+		}
+
+		// fallback
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
