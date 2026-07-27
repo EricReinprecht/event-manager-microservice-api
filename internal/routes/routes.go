@@ -91,10 +91,17 @@ func Register(
 		),
 	)
 
+	// * User * //
 	protected.GET(
 		"/users/me",
 		userHandler.Me,
 	)
+
+	protected.PUT(
+		"/users/me/profile",
+		userHandler.CompleteProfile,
+	)
+	// * User * //
 
 	// * Parties * //
 	protected.POST(

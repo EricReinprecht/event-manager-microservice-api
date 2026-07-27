@@ -32,3 +32,34 @@ func (s *UserService) GetByID(
 		id,
 	)
 }
+
+func (s *UserService) CompleteProfile(
+	ctx context.Context,
+	userID uuid.UUID,
+	firstName string,
+	lastName string,
+) (*models.User, error) {
+
+	user, err := s.userRepository.FindByID(
+		ctx,
+		userID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	user.FirstName = firstName
+	user.LastName = lastName
+
+	err = s.userRepository.Update(
+		ctx,
+		user,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}

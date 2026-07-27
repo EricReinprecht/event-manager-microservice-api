@@ -109,7 +109,7 @@ func Auth(
 		}
 
 		c.Set(
-			"user_id",
+			"userID",
 			user.ID,
 		)
 
