@@ -12,15 +12,16 @@ func CreateAuthToken(
 	userID uuid.UUID,
 ) string {
 
-	jwt := auth.NewJWT(
+	jwtService := auth.NewJWT(
 		"test-secret",
 		NewFakeClock(
 			time.Now().UTC(),
 		),
 	)
 
-	token, err := jwt.Generate(
+	token, err := jwtService.Generate(
 		userID.String(),
+		uuid.New().String(),
 	)
 
 	if err != nil {

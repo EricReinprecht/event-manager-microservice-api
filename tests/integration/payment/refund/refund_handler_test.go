@@ -547,6 +547,7 @@ func TestPurchaseNotFoundReturnsHTTP404(t *testing.T) {
 
 	router := gin.New()
 
+	// TODO
 	routes.Register(
 		router,
 		authService,

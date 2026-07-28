@@ -69,9 +69,19 @@ func testDatabase(silent bool) (*gorm.DB, error) {
 	}
 
 	err = db.AutoMigrate(
+		// auth
 		&models.User{},
+		&models.RefreshToken{},
+		&models.EmailVerification{},
+		&models.PasswordResetToken{},
+
+		// media
+		&models.Media{},
+
+		// domain
 		&models.Party{},
 		&models.PartyMember{},
+		&models.PartyMemberRole{},
 		&models.TicketCategory{},
 		&models.TicketAccessWindow{},
 		&models.Ticket{},
@@ -79,7 +89,6 @@ func testDatabase(silent bool) (*gorm.DB, error) {
 		&models.Purchase{},
 		&models.PurchaseItem{},
 		&models.PaymentEvent{},
-		&models.PartyMemberRole{},
 		&models.RefundPolicy{},
 	)
 
