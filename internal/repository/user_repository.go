@@ -35,30 +35,15 @@ func (r *UserRepository) Create(
 
 }
 
-func (r *UserRepository) FindByEmail(
+func (r *UserRepository) Update(
 	ctx context.Context,
-	email string,
-) (*models.User, error) {
+	user *models.User,
+) error {
 
-	var user models.User
-
-	err := r.executor.
+	return r.executor.
 		WithContext(ctx).
-		Where(
-			"email = ?",
-			email,
-		).
-		First(
-			&user,
-		).
+		Save(user).
 		Error()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
-
 }
 
 func (r *UserRepository) FindByID(
@@ -85,15 +70,30 @@ func (r *UserRepository) FindByID(
 
 }
 
-func (r *UserRepository) Update(
+func (r *UserRepository) FindByEmail(
 	ctx context.Context,
-	user *models.User,
-) error {
+	email string,
+) (*models.User, error) {
 
-	return r.executor.
+	var user models.User
+
+	err := r.executor.
 		WithContext(ctx).
-		Save(user).
+		Where(
+			"email = ?",
+			email,
+		).
+		First(
+			&user,
+		).
 		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+
 }
 
 func (r *UserRepository) FindByUsername(
@@ -112,6 +112,30 @@ func (r *UserRepository) FindByUsername(
 		First(
 			&user,
 		).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) FindByIdentifier(
+	ctx context.Context,
+	identifier string,
+) (*models.User, error) {
+
+	var user models.User
+
+	err := r.executor.
+		WithContext(ctx).
+		Where(
+			"email = ? OR username = ?",
+			identifier,
+			identifier,
+		).
+		First(&user).
 		Error()
 
 	if err != nil {

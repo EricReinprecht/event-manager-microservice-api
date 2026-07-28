@@ -137,13 +137,13 @@ func (s *AuthService) Register(
 
 func (s *AuthService) Login(
 	ctx context.Context,
-	email string,
+	identifier string,
 	password string,
 ) (string, error) {
 
-	user, err := s.users.FindByEmail(
+	user, err := s.users.FindByIdentifier(
 		ctx,
-		email,
+		identifier,
 	)
 
 	if err != nil {

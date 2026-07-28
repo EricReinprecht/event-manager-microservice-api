@@ -30,8 +30,8 @@ type registerRequest struct {
 }
 
 type loginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Identifier string `json:"identifier" binding:"required"`
+	Password   string `json:"password" binding:"required"`
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -109,7 +109,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	token, err := h.service.Login(
 		c.Request.Context(),
-		req.Email,
+		req.Identifier,
 		req.Password,
 	)
 
