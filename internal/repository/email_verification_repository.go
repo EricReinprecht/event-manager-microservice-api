@@ -123,15 +123,7 @@ func (r *EmailVerificationRepository) InvalidateForUser(
 
 	return r.executor.
 		WithContext(ctx).
-		Model(&models.EmailVerification{}).
-		Where(
-			"user_id = ? AND used_at IS NULL",
-			userID,
-		).
-		Updates(
-			map[string]interface{}{
-				"used_at": time.Now(),
-			},
-		).
+		Where("user_id = ?", userID).
+		Delete(&models.EmailVerification{}).
 		Error()
 }
