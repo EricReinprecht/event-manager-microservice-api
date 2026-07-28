@@ -140,3 +140,31 @@ func (r *PasswordResetTokenRepository) InvalidateForUser(
 		).
 		Error()
 }
+
+func (r *PasswordResetTokenRepository) FindLatestByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+) (*models.PasswordResetToken, error) {
+
+	var token models.PasswordResetToken
+
+	err := r.db.
+		WithContext(ctx).
+		Where(
+			"user_id = ?",
+			userID,
+		).
+		Order(
+			"created_at DESC",
+		).
+		First(
+			&token,
+		).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &token, nil
+}

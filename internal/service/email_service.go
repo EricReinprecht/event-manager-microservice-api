@@ -83,7 +83,11 @@ func (s *EmailService) SendPasswordResetEmail(
 	token string,
 ) error {
 
-	resetURL := "http://localhost:3000/reset-password?token=" + token
+	resetURL := fmt.Sprintf(
+		"%s/reset-password?token=%s",
+		s.frontendURL,
+		token,
+	)
 
 	subject := "Reset your password"
 

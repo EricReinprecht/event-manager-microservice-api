@@ -689,6 +689,23 @@ func (s *AuthService) ForgotPassword(
 	}
 
 	// invalidate previous reset tokens
+	// cooldown check
+	latest, err := s.passwordResets.FindLatestByUser(
+		ctx,
+		user.ID,
+	)
+
+	const passwordResetCooldown = 5 * time.Minute
+
+	if err == nil {
+
+		if time.Since(latest.CreatedAt) < passwordResetCooldown {
+			// silently ignore to prevent email spam
+			return nil
+		}
+	}
+
+	// invalidate previous reset tokens
 	err = s.passwordResets.InvalidateForUser(
 		ctx,
 		user.ID,
