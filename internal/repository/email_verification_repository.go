@@ -121,9 +121,47 @@ func (r *EmailVerificationRepository) InvalidateForUser(
 	userID uuid.UUID,
 ) error {
 
+	now := time.Now()
+
 	return r.executor.
 		WithContext(ctx).
-		Where("user_id = ?", userID).
-		Delete(&models.EmailVerification{}).
+		Model(&models.EmailVerification{}).
+		Where(
+			"user_id = ? AND used_at IS NULL",
+			userID,
+		).
+		Updates(
+			map[string]interface{}{
+				"used_at": &now,
+			},
+		).
 		Error()
+}
+
+func (r *EmailVerificationRepository) FindLatestByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+) (*models.EmailVerification, error) {
+
+	var verification models.EmailVerification
+
+	err := r.executor.
+		WithContext(ctx).
+		Where(
+			"user_id = ?",
+			userID,
+		).
+		Order(
+			"created_at DESC",
+		).
+		First(
+			&verification,
+		).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &verification, nil
 }

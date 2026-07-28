@@ -18,6 +18,8 @@ type EmailVerification struct {
 
 	VerifiedAt *time.Time
 
+	UsedAt *time.Time
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

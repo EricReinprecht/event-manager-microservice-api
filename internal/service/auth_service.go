@@ -871,6 +871,25 @@ func (s *AuthService) ResendVerificationEmail(
 		)
 	}
 
+	// prevent email spam
+	lastVerification, err := s.verifications.FindLatestByUser(
+		ctx,
+		user.ID,
+	)
+
+	if err == nil {
+
+		cooldown := 5 * time.Minute
+
+		if lastVerification.CreatedAt.After(
+			time.Now().Add(-cooldown),
+		) {
+			return errors.New(
+				"please wait before requesting another verification email",
+			)
+		}
+	}
+
 	// invalidate previous verification tokens
 
 	err = s.verifications.InvalidateForUser(
