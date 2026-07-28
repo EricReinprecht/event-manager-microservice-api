@@ -116,6 +116,7 @@ func main() {
 		emailService,
 		passwordValidator,
 		cfg.RefreshTokenDuration,
+		cfg.PasswordResetCooldown,
 	)
 
 	userService := service.NewUserService(

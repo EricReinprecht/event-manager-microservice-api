@@ -21,8 +21,9 @@ type Config struct {
 	DBPassword string
 	DBName     string
 
-	JWTSecret            string
-	RefreshTokenDuration time.Duration
+	JWTSecret             string
+	RefreshTokenDuration  time.Duration
+	PasswordResetCooldown time.Duration
 
 	TicketVerificationTTL time.Duration
 
@@ -98,6 +99,11 @@ func Load() *Config {
 		RefreshTokenDuration: getEnvDuration(
 			"REFRESH_TOKEN_DURATION",
 			30*24*time.Hour,
+		),
+
+		PasswordResetCooldown: getEnvDuration(
+			"PASSWORD_RESET_COOLDOWN",
+			5*time.Minute,
 		),
 
 		TicketVerificationTTL: time.Duration(

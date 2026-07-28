@@ -28,7 +28,8 @@ type AuthService struct {
 	emailService      EmailSender
 	passwordValidator *security.PasswordValidator
 
-	refreshTokenDuration time.Duration
+	refreshTokenDuration  time.Duration
+	passwordResetCooldown time.Duration
 }
 
 func NewAuthService(
@@ -40,6 +41,7 @@ func NewAuthService(
 	emailService EmailSender,
 	passwordValidator *security.PasswordValidator,
 	refreshTokenDuration time.Duration,
+	passwordResetCooldown time.Duration,
 ) *AuthService {
 
 	log.Printf("AUTH USERS REPOSITORY: %#v", users)
@@ -49,14 +51,15 @@ func NewAuthService(
 	}
 
 	return &AuthService{
-		users:                users,
-		verifications:        verifications,
-		refreshTokens:        refreshTokens,
-		passwordResets:       passwordResets,
-		jwt:                  jwt,
-		emailService:         emailService,
-		passwordValidator:    passwordValidator,
-		refreshTokenDuration: refreshTokenDuration,
+		users:                 users,
+		verifications:         verifications,
+		refreshTokens:         refreshTokens,
+		passwordResets:        passwordResets,
+		jwt:                   jwt,
+		emailService:          emailService,
+		passwordValidator:     passwordValidator,
+		refreshTokenDuration:  refreshTokenDuration,
+		passwordResetCooldown: passwordResetCooldown,
 	}
 }
 
@@ -695,11 +698,9 @@ func (s *AuthService) ForgotPassword(
 		user.ID,
 	)
 
-	const passwordResetCooldown = 5 * time.Minute
-
 	if err == nil {
 
-		if time.Since(latest.CreatedAt) < passwordResetCooldown {
+		if time.Since(latest.CreatedAt) < s.passwordResetCooldown {
 			// silently ignore to prevent email spam
 			return nil
 		}
