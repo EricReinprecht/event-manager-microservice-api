@@ -62,3 +62,40 @@ This link expires in 24 hours.
 		body,
 	)
 }
+
+func (s *EmailService) SendPasswordResetEmail(
+	email string,
+	username string,
+	token string,
+) error {
+
+	resetURL := "http://localhost:3000/reset-password?token=" + token
+
+	subject := "Reset your password"
+
+	body := fmt.Sprintf(`
+Hello %s,
+
+You requested a password reset.
+
+Click the link below to reset your password:
+
+%s
+
+This link expires in 15 minutes.
+
+If you did not request this, ignore this email.
+
+Regards
+Event Platform
+`,
+		username,
+		resetURL,
+	)
+
+	return s.mailer.Send(
+		email,
+		subject,
+		body,
+	)
+}

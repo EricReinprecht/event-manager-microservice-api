@@ -22,6 +22,7 @@ type AuthService struct {
 	users             *repository.UserRepository
 	verifications     *repository.EmailVerificationRepository
 	refreshTokens     *repository.RefreshTokenRepository
+	passwordResets    *repository.PasswordResetTokenRepository
 	jwt               *auth.JWT
 	emailService      *EmailService
 	passwordValidator *security.PasswordValidator
@@ -33,6 +34,7 @@ func NewAuthService(
 	users *repository.UserRepository,
 	verifications *repository.EmailVerificationRepository,
 	refreshTokens *repository.RefreshTokenRepository,
+	passwordResets *repository.PasswordResetTokenRepository,
 	jwt *auth.JWT,
 	emailService *EmailService,
 	passwordValidator *security.PasswordValidator,
@@ -43,6 +45,7 @@ func NewAuthService(
 		users:                users,
 		verifications:        verifications,
 		refreshTokens:        refreshTokens,
+		passwordResets:       passwordResets,
 		jwt:                  jwt,
 		emailService:         emailService,
 		passwordValidator:    passwordValidator,
@@ -67,6 +70,15 @@ type SessionResponse struct {
 	IP        string    `json:"ip"`
 	CreatedAt time.Time `json:"createdAt"`
 	Current   bool      `json:"current"`
+}
+
+type ForgotPasswordRequest struct {
+	Identifier string
+}
+
+type ResetPasswordRequest struct {
+	Token       string
+	NewPassword string
 }
 
 func (s *AuthService) Register(
@@ -640,4 +652,173 @@ func (s *AuthService) LogoutAll(
 		ctx,
 		userID,
 	)
+}
+
+func (s *AuthService) ForgotPassword(
+	ctx context.Context,
+	identifier string,
+) error {
+
+	user, err := s.users.FindByIdentifier(
+		ctx,
+		identifier,
+	)
+
+	if err != nil {
+
+		// do not reveal if user exists
+		return nil
+	}
+
+	// invalidate previous reset tokens
+	err = s.passwordResets.InvalidateForUser(
+		ctx,
+		user.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	rawToken := auth.GenerateToken()
+
+	reset := &models.PasswordResetToken{
+		UserID: user.ID,
+
+		TokenHash: auth.HashToken(
+			rawToken,
+		),
+
+		ExpiresAt: time.Now().Add(
+			15 * time.Minute,
+		),
+	}
+
+	err = s.passwordResets.Create(
+		ctx,
+		reset,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	err = s.emailService.SendPasswordResetEmail(
+		user.Email,
+		user.Username,
+		rawToken,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *AuthService) ResetPassword(
+	ctx context.Context,
+	token string,
+	newPassword string,
+) error {
+
+	hash := auth.HashToken(
+		token,
+	)
+
+	resetToken, err := s.passwordResets.FindByHash(
+		ctx,
+		hash,
+	)
+
+	if err != nil {
+
+		return errors.New(
+			"invalid reset token",
+		)
+	}
+
+	if resetToken.InvalidatedAt != nil {
+
+		return errors.New(
+			"reset token invalidated",
+		)
+	}
+
+	if resetToken.UsedAt != nil {
+
+		return errors.New(
+			"reset token already used",
+		)
+	}
+
+	if resetToken.ExpiresAt.Before(
+		time.Now(),
+	) {
+
+		return errors.New(
+			"reset token expired",
+		)
+	}
+
+	user, err := s.users.FindByID(
+		ctx,
+		resetToken.UserID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// validate password rules
+	if err := s.passwordValidator.Validate(
+		newPassword,
+		user.Username,
+		user.Email,
+	); err != nil {
+
+		return err
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword(
+		[]byte(newPassword),
+		bcrypt.DefaultCost,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	user.PasswordHash = string(passwordHash)
+
+	err = s.users.Update(
+		ctx,
+		user,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// mark reset token as used
+	err = s.passwordResets.MarkUsed(
+		ctx,
+		resetToken.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// logout all devices
+	err = s.refreshTokens.RevokeAllByUser(
+		ctx,
+		user.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

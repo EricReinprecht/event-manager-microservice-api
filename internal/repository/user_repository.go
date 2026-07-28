@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -126,12 +127,16 @@ func (r *UserRepository) FindByIdentifier(
 	identifier string,
 ) (*models.User, error) {
 
+	identifier = strings.TrimSpace(
+		strings.ToLower(identifier),
+	)
+
 	var user models.User
 
 	err := r.executor.
 		WithContext(ctx).
 		Where(
-			"email = ? OR username = ?",
+			"LOWER(email) = ? OR LOWER(username) = ?",
 			identifier,
 			identifier,
 		).

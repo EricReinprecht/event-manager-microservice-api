@@ -103,6 +103,18 @@ func Register(
 		authHandler.Logout,
 	)
 
+	router.POST(
+		"/api/auth/forgot-password",
+		refreshLimiter.Middleware(),
+		authHandler.ForgotPassword,
+	)
+
+	router.POST(
+		"/api/auth/reset-password",
+		authLimiter.Middleware(),
+		authHandler.ResetPassword,
+	)
+
 	// Protected routes
 	protected := router.Group("/api")
 

@@ -38,6 +38,15 @@ type logoutRequest struct {
 	RefreshToken string `json:"refreshToken" binding:"required"`
 }
 
+type ForgotPasswordRequest struct {
+	Identifier string `json:"identifier" binding:"required"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required"`
+}
+
 func (h *AuthHandler) Register(c *gin.Context) {
 
 	var req registerRequest
@@ -307,6 +316,94 @@ func (h *AuthHandler) Logout(
 		http.StatusOK,
 		gin.H{
 			"message": "logged out successfully",
+		},
+	)
+}
+
+func (h *AuthHandler) ForgotPassword(
+	c *gin.Context,
+) {
+
+	var req ForgotPasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	err := h.service.ForgotPassword(
+		c.Request.Context(),
+		req.Identifier,
+	)
+
+	// Always return success to prevent email enumeration
+	if err != nil {
+
+		c.JSON(
+			http.StatusOK,
+			gin.H{
+				"message": "if this email exists, a reset link was sent",
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"message": "if this email exists, a reset link was sent",
+		},
+	)
+}
+
+func (h *AuthHandler) ResetPassword(
+	c *gin.Context,
+) {
+
+	var req ResetPasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	err := h.service.ResetPassword(
+		c.Request.Context(),
+		req.Token,
+		req.NewPassword,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"message": "password reset successful",
 		},
 	)
 }
