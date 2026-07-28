@@ -20,8 +20,13 @@ func ValidateUsername(
 
 	username = strings.TrimSpace(username)
 
-	if !usernameRegex.MatchString(username) {
+	// length validation
+	if len(username) < 3 || len(username) > 30 {
+		return ErrInvalidUsername
+	}
 
+	// allowed characters
+	if !usernameRegex.MatchString(username) {
 		return ErrInvalidUsername
 	}
 

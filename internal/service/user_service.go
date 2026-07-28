@@ -13,21 +13,27 @@ import (
 )
 
 type UserService struct {
-	userRepository          *repository.UserRepository
-	refreshTokensRepository *repository.RefreshTokenRepository
-	passwordValidator       *security.PasswordValidator
+	users             *repository.UserRepository
+	refreshTokens     *repository.RefreshTokenRepository
+	passwordValidator *security.PasswordValidator
+	passwordResets    *repository.PasswordResetTokenRepository
+	verifications     *repository.EmailVerificationRepository
 }
 
 func NewUserService(
-	userRepository *repository.UserRepository,
-	refreshTokensRepository *repository.RefreshTokenRepository,
+	users *repository.UserRepository,
+	refreshTokens *repository.RefreshTokenRepository,
 	passwordValidator *security.PasswordValidator,
+	passwordResets *repository.PasswordResetTokenRepository,
+	verifications *repository.EmailVerificationRepository,
 ) *UserService {
 
 	return &UserService{
-		userRepository:          userRepository,
-		refreshTokensRepository: refreshTokensRepository,
-		passwordValidator:       passwordValidator,
+		users:             users,
+		refreshTokens:     refreshTokens,
+		passwordValidator: passwordValidator,
+		passwordResets:    passwordResets,
+		verifications:     verifications,
 	}
 }
 
@@ -36,7 +42,7 @@ func (s *UserService) GetByID(
 	id uuid.UUID,
 ) (*models.User, error) {
 
-	return s.userRepository.FindByID(
+	return s.users.FindByID(
 		ctx,
 		id,
 	)
@@ -49,7 +55,7 @@ func (s *UserService) CompleteProfile(
 	lastName string,
 ) (*models.User, error) {
 
-	user, err := s.userRepository.FindByID(
+	user, err := s.users.FindByID(
 		ctx,
 		userID,
 	)
@@ -61,7 +67,7 @@ func (s *UserService) CompleteProfile(
 	user.FirstName = firstName
 	user.LastName = lastName
 
-	err = s.userRepository.Update(
+	err = s.users.Update(
 		ctx,
 		user,
 	)
@@ -80,7 +86,7 @@ func (s *UserService) ChangePassword(
 	newPassword string,
 ) error {
 
-	user, err := s.userRepository.FindByID(
+	user, err := s.users.FindByID(
 		ctx,
 		userID,
 	)
@@ -130,7 +136,7 @@ func (s *UserService) ChangePassword(
 
 	// update password
 
-	if err := s.userRepository.Update(
+	if err := s.users.Update(
 		ctx,
 		user,
 	); err != nil {
@@ -140,11 +146,68 @@ func (s *UserService) ChangePassword(
 
 	// logout everywhere
 
-	if err := s.refreshTokensRepository.RevokeAllByUser(
+	if err := s.refreshTokens.RevokeAllByUser(
 		ctx,
 		user.ID,
 	); err != nil {
 
+		return err
+	}
+
+	return nil
+}
+
+func (s *UserService) Delete(
+	ctx context.Context,
+	userID uuid.UUID,
+) error {
+
+	// find user first
+	user, err := s.users.FindByID(
+		ctx,
+		userID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// revoke all active sessions
+	err = s.refreshTokens.RevokeAllByUser(
+		ctx,
+		userID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// invalidate password reset tokens
+	err = s.passwordResets.InvalidateForUser(
+		ctx,
+		userID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// optionally remove email verification tokens
+	err = s.verifications.DeleteByUser(
+		userID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// soft delete user
+	err = s.users.Delete(
+		ctx,
+		user,
+	)
+
+	if err != nil {
 		return err
 	}
 

@@ -8,14 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/service"
 
 	"github.com/reinp/event-platform/backend/tests/helpers"
 )
 
-func TestRegisterSuccess(
-	t *testing.T,
-) {
+func TestRegisterSuccess(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -72,9 +71,7 @@ func TestRegisterSuccess(
 	)
 }
 
-func TestRegisterDuplicateEmail(
-	t *testing.T,
-) {
+func TestRegisterDuplicateEmail(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -123,9 +120,7 @@ func TestRegisterDuplicateEmail(
 	)
 }
 
-func TestRegisterDuplicateUsername(
-	t *testing.T,
-) {
+func TestRegisterDuplicateUsername(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -174,9 +169,7 @@ func TestRegisterDuplicateUsername(
 	)
 }
 
-func TestRegisterWeakPassword(
-	t *testing.T,
-) {
+func TestRegisterWeakPassword(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -203,9 +196,7 @@ func TestRegisterWeakPassword(
 	)
 }
 
-func TestRegisterCreatesUnverifiedUser(
-	t *testing.T,
-) {
+func TestRegisterCreatesUnverifiedUser(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -260,5 +251,295 @@ func TestRegisterCreatesUnverifiedUser(
 		t,
 		int64(1),
 		count,
+	)
+}
+
+func TestRegisterFailsWhenMailFails(t *testing.T) {
+
+	ctx := context.Background()
+
+	db := setupAuthTest(t)
+
+	authService := helpers.NewAuthServiceWithEmailService(
+		db,
+		&helpers.FailingEmailService{},
+	)
+
+	_, err := authService.Register(
+		ctx,
+		service.RegisterRequest{
+			Email: "mailfail@example.com",
+
+			Username: "mailfailuser",
+
+			Password: "C4ctus!River#829Lamp",
+		},
+	)
+
+	require.Error(
+		t,
+		err,
+	)
+
+	assert.Contains(
+		t,
+		err.Error(),
+		"mail",
+	)
+
+	// user should not remain created
+
+	var count int64
+
+	err = db.
+		Table("users").
+		Where(
+			"email = ?",
+			"mailfail@example.com",
+		).
+		Count(
+			&count,
+		).
+		Error
+
+	require.NoError(
+		t,
+		err,
+	)
+
+	assert.Equal(
+		t,
+		int64(0),
+		count,
+	)
+}
+
+func TestRegisterInvalidEmail(t *testing.T) {
+
+	ctx := context.Background()
+
+	db := setupAuthTest(t)
+
+	authService := helpers.NewAuthService(
+		db,
+	)
+
+	email := "invalid-email"
+
+	username := "invalidemailuser"
+
+	_, err := authService.Register(
+		ctx,
+		service.RegisterRequest{
+			Email: email,
+
+			Username: username,
+
+			Password: "C4ctus!River#829Lamp",
+		},
+	)
+
+	require.Error(
+		t,
+		err,
+	)
+
+	// make sure user was not created
+
+	var userCount int64
+
+	err = db.
+		Table("users").
+		Where(
+			"email = ?",
+			email,
+		).
+		Count(
+			&userCount,
+		).
+		Error
+
+	require.NoError(
+		t,
+		err,
+	)
+
+	assert.Equal(
+		t,
+		int64(0),
+		userCount,
+	)
+}
+
+func TestRegisterInvalidUsername(t *testing.T) {
+
+	ctx := context.Background()
+
+	db := setupAuthTest(t)
+
+	authService := helpers.NewAuthService(
+		db,
+	)
+
+	email := "invalid-username-" + uuid.NewString() + "@example.com"
+
+	username := "ab" // less than minimum 3 chars
+
+	_, err := authService.Register(
+		ctx,
+		service.RegisterRequest{
+			Email: email,
+
+			Username: username,
+
+			Password: "C4ctus!River#829Lamp",
+		},
+	)
+
+	require.Error(
+		t,
+		err,
+	)
+
+	assert.Contains(
+		t,
+		err.Error(),
+		"username",
+	)
+
+	// ensure user was not created
+
+	var count int64
+
+	err = db.
+		Table("users").
+		Where(
+			"email = ?",
+			email,
+		).
+		Count(
+			&count,
+		).
+		Error
+
+	require.NoError(
+		t,
+		err,
+	)
+
+	assert.Equal(
+		t,
+		int64(0),
+		count,
+	)
+}
+
+func TestRegisterEmailNormalization(t *testing.T) {
+
+	ctx := context.Background()
+
+	db := setupAuthTest(t)
+
+	authService := helpers.NewAuthService(
+		db,
+	)
+
+	email := "  TestUser@Example.COM  "
+
+	user, err := authService.Register(
+		ctx,
+		service.RegisterRequest{
+			Email: email,
+
+			Username: "emailnormaluser" + uuid.NewString()[:8],
+
+			Password: "C4ctus!River#829Lamp",
+		},
+	)
+
+	require.NoError(
+		t,
+		err,
+	)
+
+	require.NotNil(
+		t,
+		user,
+	)
+
+	// reload from database
+
+	var stored models.User
+
+	err = db.First(
+		&stored,
+		"id = ?",
+		user.ID,
+	).Error
+
+	require.NoError(
+		t,
+		err,
+	)
+
+	assert.Equal(
+		t,
+		"testuser@example.com",
+		stored.Email,
+	)
+}
+
+func TestRegisterUsernameNormalization(t *testing.T) {
+
+	ctx := context.Background()
+
+	db := setupAuthTest(t)
+
+	authService := helpers.NewAuthService(
+		db,
+	)
+
+	username := "  normalized_user  "
+
+	user, err := authService.Register(
+		ctx,
+		service.RegisterRequest{
+			Email: "username-normalize-" + uuid.NewString() + "@example.com",
+
+			Username: username,
+
+			Password: "C4ctus!River#829Lamp",
+		},
+	)
+
+	require.NoError(
+		t,
+		err,
+	)
+
+	require.NotNil(
+		t,
+		user,
+	)
+
+	// reload from database
+
+	var stored models.User
+
+	err = db.First(
+		&stored,
+		"id = ?",
+		user.ID,
+	).Error
+
+	require.NoError(
+		t,
+		err,
+	)
+
+	assert.Equal(
+		t,
+		"normalized_user",
+		stored.Username,
 	)
 }

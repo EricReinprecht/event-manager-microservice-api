@@ -93,3 +93,62 @@ func NewAuthService(
 		24*time.Hour*30,
 	)
 }
+
+func NewAuthServiceWithEmailService(
+	db *gorm.DB,
+	emailService service.EmailSender,
+) *service.AuthService {
+
+	executor := database.NewGormExecutor(db)
+
+	userRepository :=
+		repository.NewUserRepository(
+			executor,
+		)
+
+	emailVerificationRepository :=
+		repository.NewEmailVerificationRepository(
+			executor,
+		)
+
+	refreshTokenRepository :=
+		repository.NewRefreshTokenRepository(
+			executor,
+		)
+
+	passwordResetRepository :=
+		repository.NewPasswordResetTokenRepository(
+			executor,
+		)
+
+	jwtService :=
+		auth.NewJWT(
+			"test-secret",
+			NewFakeClock(time.Now()),
+		)
+
+	passwordValidator :=
+		security.NewPasswordValidator()
+
+	return service.NewAuthService(
+		userRepository,
+		emailVerificationRepository,
+		refreshTokenRepository,
+		passwordResetRepository,
+		jwtService,
+		emailService,
+		passwordValidator,
+		24*time.Hour*30,
+	)
+}
+
+func NewAuthServiceWithCapturingEmail(
+	db *gorm.DB,
+	emailService *CapturingEmailService,
+) *service.AuthService {
+
+	return NewAuthServiceWithEmailService(
+		db,
+		emailService,
+	)
+}

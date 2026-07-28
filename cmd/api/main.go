@@ -122,6 +122,8 @@ func main() {
 		userRepository,
 		refreshTokenRepository,
 		passwordValidator,
+		passwordResetRepository,
+		emailVerificationRepository,
 	)
 
 	partyMemberService := service.NewPartyMemberService(

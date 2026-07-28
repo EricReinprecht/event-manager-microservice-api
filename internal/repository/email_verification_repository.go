@@ -100,3 +100,18 @@ func (r *EmailVerificationRepository) Update(
 		).
 		Error()
 }
+
+func (r *EmailVerificationRepository) DeleteByUser(
+	userID uuid.UUID,
+) error {
+
+	return r.executor.
+		Where(
+			"user_id = ?",
+			userID,
+		).
+		Delete(
+			&models.EmailVerification{},
+		).
+		Error()
+}

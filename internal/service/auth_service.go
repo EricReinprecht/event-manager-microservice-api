@@ -24,7 +24,7 @@ type AuthService struct {
 	refreshTokens     *repository.RefreshTokenRepository
 	passwordResets    *repository.PasswordResetTokenRepository
 	jwt               *auth.JWT
-	emailService      *EmailService
+	emailService      EmailSender
 	passwordValidator *security.PasswordValidator
 
 	refreshTokenDuration time.Duration
@@ -36,7 +36,7 @@ func NewAuthService(
 	refreshTokens *repository.RefreshTokenRepository,
 	passwordResets *repository.PasswordResetTokenRepository,
 	jwt *auth.JWT,
-	emailService *EmailService,
+	emailService EmailSender,
 	passwordValidator *security.PasswordValidator,
 	refreshTokenDuration time.Duration,
 ) *AuthService {
@@ -96,58 +96,48 @@ func (s *AuthService) Register(
 	)
 
 	// validate username
-
 	if err := security.ValidateUsername(
 		req.Username,
 	); err != nil {
-
 		return nil, err
 	}
 
 	// check email duplicate
-
 	_, err := s.users.FindByEmail(
 		ctx,
 		req.Email,
 	)
 
 	if err == nil {
-
 		return nil, appErrors.ErrEmailAlreadyExists
 	}
 
 	// check username duplicate
-
 	_, err = s.users.FindByUsername(
 		ctx,
 		req.Username,
 	)
 
 	if err == nil {
-
 		return nil, appErrors.ErrUsernameAlreadyExists
 	}
 
 	// validate password
-
 	if err := s.passwordValidator.Validate(
 		req.Password,
 		req.Username,
 		req.Email,
 	); err != nil {
-
 		return nil, err
 	}
 
 	// hash password
-
 	hash, err := bcrypt.GenerateFromPassword(
 		[]byte(req.Password),
 		bcrypt.DefaultCost,
 	)
 
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -157,39 +147,57 @@ func (s *AuthService) Register(
 		Username:     req.Username,
 	}
 
-	if err := s.users.Create(
-		ctx,
-		user,
-	); err != nil {
-
-		return nil, err
-	}
-
-	// create verification token
-
 	token := auth.GenerateToken()
 
-	verification := &models.EmailVerification{
-		UserID: user.ID,
-		Token:  auth.HashToken(token),
-		ExpiresAt: time.Now().Add(
-			s.refreshTokenDuration,
-		),
-	}
+	err = s.users.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
 
-	if err := s.verifications.Create(
-		verification,
-	); err != nil {
+			userRepo :=
+				repository.NewUserRepository(tx)
 
-		return nil, err
-	}
+			verificationRepo :=
+				repository.NewEmailVerificationRepository(tx)
 
-	if err := s.emailService.SendVerificationEmail(
-		user.Email,
-		user.Username,
-		token,
-	); err != nil {
+			// create user
+			if err := userRepo.Create(
+				ctx,
+				user,
+			); err != nil {
+				return err
+			}
 
+			// create verification token
+			verification := &models.EmailVerification{
+				UserID: user.ID,
+				Token: auth.HashToken(
+					token,
+				),
+				ExpiresAt: time.Now().Add(
+					24 * time.Hour,
+				),
+			}
+
+			if err := verificationRepo.Create(
+				verification,
+			); err != nil {
+				return err
+			}
+
+			// email failure should rollback registration
+			if err := s.emailService.SendVerificationEmail(
+				user.Email,
+				user.Username,
+				token,
+			); err != nil {
+				return err
+			}
+
+			return nil
+		},
+	)
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -767,7 +775,9 @@ func (s *AuthService) ResetPassword(
 	)
 
 	if err != nil {
-		return err
+		return errors.New(
+			"cannot reset password for deleted user",
+		)
 	}
 
 	// validate password rules

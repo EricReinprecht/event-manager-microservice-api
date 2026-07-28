@@ -4,6 +4,20 @@ import (
 	"fmt"
 )
 
+type EmailSender interface {
+	SendVerificationEmail(
+		email string,
+		username string,
+		token string,
+	) error
+
+	SendPasswordResetEmail(
+		email string,
+		username string,
+		token string,
+	) error
+}
+
 type EmailService struct {
 	mailer      MailSender
 	frontendURL string
@@ -73,7 +87,8 @@ func (s *EmailService) SendPasswordResetEmail(
 
 	subject := "Reset your password"
 
-	body := fmt.Sprintf(`
+	body := fmt.Sprintf(
+		`
 Hello %s,
 
 You requested a password reset.

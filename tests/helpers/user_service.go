@@ -25,11 +25,21 @@ func NewUserService(
 		executor,
 	)
 
+	passwordResetRepository := repository.NewPasswordResetTokenRepository(
+		executor,
+	)
+
+	emailVerificationRepository := repository.NewEmailVerificationRepository(
+		executor,
+	)
+
 	passwordValidator := security.NewPasswordValidator()
 
 	return service.NewUserService(
 		userRepository,
 		refreshTokenRepository,
 		passwordValidator,
+		passwordResetRepository,
+		emailVerificationRepository,
 	)
 }

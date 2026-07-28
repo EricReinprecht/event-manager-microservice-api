@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/requests"
 	"github.com/reinp/event-platform/backend/internal/security"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -18,38 +19,12 @@ func NewAuthHandler(
 	service *service.AuthService,
 ) *AuthHandler {
 
-	return &AuthHandler{
-		service: service,
-	}
-}
-
-type registerRequest struct {
-	Username string `json:"username" binding:"required,min=3,max=30"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=12,max=128"`
-}
-
-type loginRequest struct {
-	Identifier string `json:"identifier" binding:"required"`
-	Password   string `json:"password" binding:"required"`
-}
-
-type logoutRequest struct {
-	RefreshToken string `json:"refreshToken" binding:"required"`
-}
-
-type ForgotPasswordRequest struct {
-	Identifier string `json:"identifier" binding:"required"`
-}
-
-type ResetPasswordRequest struct {
-	Token       string `json:"token" binding:"required"`
-	NewPassword string `json:"newPassword" binding:"required"`
+	return &AuthHandler{}
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
 
-	var req registerRequest
+	var req requests.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
@@ -148,7 +123,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 func (h *AuthHandler) Login(c *gin.Context) {
 
-	var req loginRequest
+	var req requests.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
@@ -281,7 +256,7 @@ func (h *AuthHandler) Logout(
 	c *gin.Context,
 ) {
 
-	var req logoutRequest
+	var req requests.LogoutRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
@@ -324,7 +299,7 @@ func (h *AuthHandler) ForgotPassword(
 	c *gin.Context,
 ) {
 
-	var req ForgotPasswordRequest
+	var req requests.ForgotPasswordRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
@@ -368,7 +343,7 @@ func (h *AuthHandler) ResetPassword(
 	c *gin.Context,
 ) {
 
-	var req ResetPasswordRequest
+	var req requests.ResetPasswordRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 

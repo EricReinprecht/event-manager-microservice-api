@@ -11,15 +11,15 @@ import (
 )
 
 type UserRepository struct {
-	executor database.DBExecutor
+	db database.DBExecutor
 }
 
 func NewUserRepository(
-	executor database.DBExecutor,
+	db database.DBExecutor,
 ) *UserRepository {
 
 	return &UserRepository{
-		executor: executor,
+		db: db,
 	}
 
 }
@@ -29,7 +29,7 @@ func (r *UserRepository) Create(
 	user *models.User,
 ) error {
 
-	return r.executor.
+	return r.db.
 		WithContext(ctx).
 		Create(user).
 		Error()
@@ -41,7 +41,7 @@ func (r *UserRepository) Update(
 	user *models.User,
 ) error {
 
-	return r.executor.
+	return r.db.
 		WithContext(ctx).
 		Save(user).
 		Error()
@@ -54,7 +54,7 @@ func (r *UserRepository) FindByID(
 
 	var user models.User
 
-	err := r.executor.
+	err := r.db.
 		WithContext(ctx).
 		First(
 			&user,
@@ -78,7 +78,7 @@ func (r *UserRepository) FindByEmail(
 
 	var user models.User
 
-	err := r.executor.
+	err := r.db.
 		WithContext(ctx).
 		Where(
 			"email = ?",
@@ -104,7 +104,7 @@ func (r *UserRepository) FindByUsername(
 
 	var user models.User
 
-	err := r.executor.
+	err := r.db.
 		WithContext(ctx).
 		Where(
 			"username = ?",
@@ -133,7 +133,7 @@ func (r *UserRepository) FindByIdentifier(
 
 	var user models.User
 
-	err := r.executor.
+	err := r.db.
 		WithContext(ctx).
 		Where(
 			"LOWER(email) = ? OR LOWER(username) = ?",
@@ -148,4 +148,38 @@ func (r *UserRepository) FindByIdentifier(
 	}
 
 	return &user, nil
+}
+
+func (r *UserRepository) Transaction(
+	ctx context.Context,
+	fn func(tx database.DBExecutor) error,
+) error {
+
+	tx := r.db.
+		WithContext(ctx).
+		Begin()
+
+	if err := tx.Error(); err != nil {
+		return err
+	}
+
+	if err := fn(tx); err != nil {
+
+		_ = tx.Rollback()
+
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *UserRepository) Delete(
+	ctx context.Context,
+	user *models.User,
+) error {
+
+	return r.db.
+		WithContext(ctx).
+		Delete(user).
+		Error()
 }
