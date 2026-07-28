@@ -24,18 +24,31 @@ func Start(
 	partyMemberService *service.PartyMemberService,
 ) error {
 
+	globalLimiter := middleware.NewIPRateLimiter(
+		20,
+		50,
+	)
+
+	authLimiter := middleware.NewIPRateLimiter(
+		1.0/12,
+		5,
+	)
+
 	router := gin.Default()
 
 	router.Use(
 		cors.New(
-			middleware.CORS(
-				corsOrigins,
-			),
+			middleware.CORS(corsOrigins),
 		),
+	)
+
+	router.Use(
+		globalLimiter.Middleware(),
 	)
 
 	routes.Register(
 		router,
+		authLimiter,
 		authService,
 		userService,
 		partyService,

@@ -10,6 +10,7 @@ import (
 
 func Register(
 	router *gin.Engine,
+	authLimiter *middleware.IPRateLimiter,
 	authService *service.AuthService,
 	userService *service.UserService,
 	partyService *service.PartyService,
@@ -69,16 +70,19 @@ func Register(
 
 	router.POST(
 		"/api/auth/register",
+		authLimiter.Middleware(),
 		authHandler.Register,
 	)
 
 	router.GET(
 		"/api/auth/verify-email",
+		authLimiter.Middleware(),
 		authHandler.VerifyEmail,
 	)
 
 	router.POST(
 		"/api/auth/login",
+		authLimiter.Middleware(),
 		authHandler.Login,
 	)
 
