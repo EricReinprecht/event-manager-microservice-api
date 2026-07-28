@@ -137,6 +137,12 @@ func Register(
 		"/users/me/profile",
 		userHandler.CompleteProfile,
 	)
+
+	protected.PUT(
+		"/users/me/password",
+		userHandler.ChangePassword,
+	)
+
 	// * User * //
 
 	// * Parties * //

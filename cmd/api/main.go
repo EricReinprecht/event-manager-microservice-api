@@ -117,6 +117,8 @@ func main() {
 
 	userService := service.NewUserService(
 		userRepository,
+		refreshTokenRepository,
+		passwordValidator,
 	)
 
 	partyMemberService := service.NewPartyMemberService(

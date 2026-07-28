@@ -27,6 +27,11 @@ type CompleteProfileRequest struct {
 	LastName  string `json:"lastName" binding:"required"`
 }
 
+type ChangePasswordRequest struct {
+	OldPassword string `json:"oldPassword" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required"`
+}
+
 func (h *UserHandler) Me(
 	c *gin.Context,
 ) {
@@ -148,4 +153,55 @@ func (h *UserHandler) CompleteProfile(
 
 		"profile_completed": true,
 	})
+}
+
+func (h *UserHandler) ChangePassword(
+	c *gin.Context,
+) {
+
+	userID := c.MustGet(
+		"userID",
+	).(uuid.UUID)
+
+	var req ChangePasswordRequest
+
+	if err := c.ShouldBindJSON(
+		&req,
+	); err != nil {
+
+		c.JSON(
+			400,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	err := h.service.ChangePassword(
+		c.Request.Context(),
+		userID,
+		req.OldPassword,
+		req.NewPassword,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			400,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		200,
+		gin.H{
+			"message": "password changed",
+		},
+	)
 }
