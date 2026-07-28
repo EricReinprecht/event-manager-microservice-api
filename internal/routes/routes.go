@@ -11,6 +11,7 @@ import (
 func Register(
 	router *gin.Engine,
 	authLimiter *middleware.IPRateLimiter,
+	refreshLimiter *middleware.IPRateLimiter,
 	authService *service.AuthService,
 	userService *service.UserService,
 	partyService *service.PartyService,
@@ -27,6 +28,10 @@ func Register(
 
 	userHandler := handlers.NewUserHandler(
 		userService,
+	)
+
+	sessionHandler := handlers.NewSessionHandler(
+		authService,
 	)
 
 	partyHandler := handlers.NewPartyHandler(
@@ -86,6 +91,18 @@ func Register(
 		authHandler.Login,
 	)
 
+	router.POST(
+		"/api/auth/refresh",
+		refreshLimiter.Middleware(),
+		authHandler.Refresh,
+	)
+
+	router.POST(
+		"/api/auth/logout",
+		authLimiter.Middleware(),
+		authHandler.Logout,
+	)
+
 	// Protected routes
 	protected := router.Group("/api")
 
@@ -93,6 +110,21 @@ func Register(
 		middleware.Auth(
 			authService,
 		),
+	)
+
+	protected.GET(
+		"/auth/sessions",
+		sessionHandler.GetSessions,
+	)
+
+	protected.DELETE(
+		"/auth/sessions/:familyID",
+		sessionHandler.DeleteSession,
+	)
+
+	protected.DELETE(
+		"/auth/sessions",
+		sessionHandler.LogoutAll,
 	)
 
 	// * User * //

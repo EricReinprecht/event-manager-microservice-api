@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/security"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -24,9 +24,9 @@ func NewAuthHandler(
 }
 
 type registerRequest struct {
-	Username string `json:"username" binding:"required,min=3,max=50"`
+	Username string `json:"username" binding:"required,min=3,max=30"`
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
+	Password string `json:"password" binding:"required,min=12,max=128"`
 }
 
 type loginRequest struct {
@@ -34,13 +34,23 @@ type loginRequest struct {
 	Password   string `json:"password" binding:"required"`
 }
 
+type logoutRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
 func (h *AuthHandler) Register(c *gin.Context) {
+
 	var req registerRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": security.ErrorMessage(err),
+			},
+		)
+
 		return
 	}
 
@@ -55,45 +65,76 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	if err != nil {
 
-		// password validation
-		var passwordErr *security.PasswordValidationError
-		if errors.As(err, &passwordErr) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"field":  "password",
-				"errors": passwordErr.Errors,
-			})
+		// Password validation
+		if passwordErr, ok := errors.AsType[*security.PasswordValidationError](err); ok {
+
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{
+					"field":  "password",
+					"errors": passwordErr.Errors,
+				},
+			)
+
 			return
 		}
 
-		// duplicate email
-		if err.Error() == "email already exists" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"field": "email",
-				"error": err.Error(),
-			})
+		// Username already exists
+		// Safe to expose because usernames are public identifiers
+
+		if errors.Is(
+			err,
+			appErrors.ErrUsernameAlreadyExists,
+		) {
+
+			c.JSON(
+				http.StatusConflict,
+				gin.H{
+					"field": "username",
+					"error": "username already exists",
+				},
+			)
+
 			return
 		}
 
-		// duplicate username
-		if err.Error() == "username already exists" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"field": "username",
-				"error": err.Error(),
-			})
+		// Email already exists
+		// Do NOT reveal account existence
+
+		if errors.Is(
+			err,
+			appErrors.ErrEmailAlreadyExists,
+		) {
+
+			c.JSON(
+				http.StatusCreated,
+				gin.H{
+					"message": "Please check your email to complete registration.",
+				},
+			)
+
 			return
 		}
 
 		// fallback
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":    user.ID,
-		"email": user.Email,
-	})
+	c.JSON(
+		http.StatusCreated,
+		gin.H{
+			"message": "Please check your email to complete registration.",
+			"id":      user.ID,
+		},
+	)
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -101,28 +142,43 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
 		return
 	}
 
-	token, err := h.service.Login(
+	response, err := h.service.Login(
 		c.Request.Context(),
 		req.Identifier,
 		req.Password,
+		c.Request.UserAgent(),
+		c.ClientIP(),
 	)
-
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": err.Error(),
-		})
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-	})
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"accessToken":  response.AccessToken,
+			"refreshToken": response.RefreshToken,
+		},
+	)
 }
 
 func (h *AuthHandler) VerifyEmail(c *gin.Context) {
@@ -162,6 +218,95 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 		http.StatusOK,
 		gin.H{
 			"token": jwtToken,
+		},
+	)
+}
+
+func (h *AuthHandler) Refresh(
+	c *gin.Context,
+) {
+
+	var req struct {
+		RefreshToken string `json:"refreshToken" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": "invalid request",
+			},
+		)
+
+		return
+	}
+
+	response, err := h.service.Refresh(
+		c.Request.Context(),
+		req.RefreshToken,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"accessToken":  response.AccessToken,
+			"refreshToken": response.RefreshToken,
+		},
+	)
+}
+
+func (h *AuthHandler) Logout(
+	c *gin.Context,
+) {
+
+	var req logoutRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	err := h.service.Logout(
+		c.Request.Context(),
+		req.RefreshToken,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"error": "invalid refresh token",
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"message": "logged out successfully",
 		},
 	)
 }

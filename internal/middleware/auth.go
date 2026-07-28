@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -17,7 +18,9 @@ func Auth(
 
 	return func(c *gin.Context) {
 
-		header := c.GetHeader("Authorization")
+		header := c.GetHeader(
+			"Authorization",
+		)
 
 		if header == "" {
 
@@ -32,16 +35,40 @@ func Auth(
 			return
 		}
 
-		tokenString := strings.TrimPrefix(
+		parts := strings.Split(
 			header,
-			"Bearer ",
+			" ",
 		)
+
+		if len(parts) != 2 || parts[0] != "Bearer" {
+
+			c.JSON(
+				http.StatusUnauthorized,
+				gin.H{
+					"error": "invalid authorization header",
+				},
+			)
+
+			c.Abort()
+			return
+		}
+
+		tokenString := parts[1]
 
 		token, err := jwt.Parse(
 			tokenString,
 			func(token *jwt.Token) (interface{}, error) {
 
-				return []byte(authService.Secret()), nil
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+
+					return nil, errors.New(
+						"unexpected signing method",
+					)
+				}
+
+				return []byte(
+					authService.Secret(),
+				), nil
 			},
 		)
 
@@ -58,16 +85,14 @@ func Auth(
 			return
 		}
 
-		claims := token.Claims.(jwt.MapClaims)
-
-		userID, ok := claims["user_id"].(string)
+		claims, ok := token.Claims.(jwt.MapClaims)
 
 		if !ok {
 
 			c.JSON(
 				http.StatusUnauthorized,
 				gin.H{
-					"error": "invalid user id",
+					"error": "invalid claims",
 				},
 			)
 
@@ -75,7 +100,28 @@ func Auth(
 			return
 		}
 
-		userUUID, err := uuid.Parse(userID)
+		// ======================
+		// USER ID
+		// ======================
+
+		userIDString, ok := claims["user_id"].(string)
+
+		if !ok {
+
+			c.JSON(
+				http.StatusUnauthorized,
+				gin.H{
+					"error": "missing user id",
+				},
+			)
+
+			c.Abort()
+			return
+		}
+
+		userUUID, err := uuid.Parse(
+			userIDString,
+		)
 
 		if err != nil {
 
@@ -89,6 +135,46 @@ func Auth(
 			c.Abort()
 			return
 		}
+
+		// ======================
+		// FAMILY ID
+		// ======================
+
+		familyIDString, ok := claims["family_id"].(string)
+
+		if !ok {
+
+			c.JSON(
+				http.StatusUnauthorized,
+				gin.H{
+					"error": "missing family id",
+				},
+			)
+
+			c.Abort()
+			return
+		}
+
+		familyUUID, err := uuid.Parse(
+			familyIDString,
+		)
+
+		if err != nil {
+
+			c.JSON(
+				http.StatusUnauthorized,
+				gin.H{
+					"error": "invalid family id",
+				},
+			)
+
+			c.Abort()
+			return
+		}
+
+		// ======================
+		// USER EXISTS
+		// ======================
 
 		user, err := authService.ValidateUser(
 			c.Request.Context(),
@@ -108,9 +194,18 @@ func Auth(
 			return
 		}
 
+		// ======================
+		// CONTEXT
+		// ======================
+
 		c.Set(
 			"userID",
 			user.ID,
+		)
+
+		c.Set(
+			"familyID",
+			familyUUID,
 		)
 
 		c.Set(

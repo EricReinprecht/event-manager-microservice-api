@@ -21,7 +21,8 @@ type Config struct {
 	DBPassword string
 	DBName     string
 
-	JWTSecret string
+	JWTSecret            string
+	RefreshTokenDuration time.Duration
 
 	TicketVerificationTTL time.Duration
 
@@ -92,6 +93,11 @@ func Load() *Config {
 		JWTSecret: getEnv(
 			"JWT_SECRET",
 			"development-secret-change-me",
+		),
+
+		RefreshTokenDuration: getEnvDuration(
+			"REFRESH_TOKEN_DURATION",
+			30*24*time.Hour,
 		),
 
 		TicketVerificationTTL: time.Duration(
@@ -231,4 +237,24 @@ func getEnvList(
 	}
 
 	return result
+}
+
+func getEnvDuration(
+	key string,
+	fallback time.Duration,
+) time.Duration {
+
+	value := os.Getenv(key)
+
+	if value == "" {
+		return fallback
+	}
+
+	duration, err := time.ParseDuration(value)
+
+	if err != nil {
+		return fallback
+	}
+
+	return duration
 }

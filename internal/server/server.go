@@ -34,7 +34,16 @@ func Start(
 		5,
 	)
 
+	refreshLimiter := middleware.NewIPRateLimiter(
+		0.5,
+		20,
+	)
+
 	router := gin.Default()
+
+	router.Use(
+		middleware.SecurityHeaders(),
+	)
 
 	router.Use(
 		cors.New(
@@ -49,6 +58,7 @@ func Start(
 	routes.Register(
 		router,
 		authLimiter,
+		refreshLimiter,
 		authService,
 		userService,
 		partyService,

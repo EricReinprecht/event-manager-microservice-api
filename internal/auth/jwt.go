@@ -23,16 +23,17 @@ func NewJWT(
 	}
 }
 
-func (j *JWT) Generate(userID string) (string, error) {
-
-	now := j.Clock.Now()
+func (j *JWT) Generate(
+	userID string,
+	familyID string,
+) (string, error) {
 
 	claims := jwt.MapClaims{
-		"user_id": userID,
-
-		"exp": now.
-			Add(24 * time.Hour).
-			Unix(),
+		"user_id":   userID,
+		"family_id": familyID,
+		"exp": time.Now().Add(
+			15 * time.Minute,
+		).Unix(),
 	}
 
 	token := jwt.NewWithClaims(

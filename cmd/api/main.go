@@ -29,6 +29,7 @@ func main() {
 
 	if err := db.AutoMigrate(
 		&models.User{},
+		&models.RefreshToken{},
 		&models.EmailVerification{},
 		&models.Category{},
 		&models.Party{},
@@ -71,6 +72,7 @@ func main() {
 
 	userRepository := repository.NewUserRepository(executor)
 	emailVerificationRepository := repository.NewEmailVerificationRepository(executor)
+	refreshTokenRepository := repository.NewRefreshTokenRepository(executor)
 	partyRepository := repository.NewPartyRepository(executor)
 	categoryRepository := repository.NewCategoryRepository(db)
 	mediaRepository := repository.NewMediaRepository(db)
@@ -105,10 +107,12 @@ func main() {
 
 	authService := service.NewAuthService(
 		userRepository,
-		jwt,
 		emailVerificationRepository,
+		refreshTokenRepository,
+		jwt,
 		emailService,
 		passwordValidator,
+		cfg.RefreshTokenDuration,
 	)
 
 	userService := service.NewUserService(

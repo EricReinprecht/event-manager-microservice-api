@@ -3,13 +3,16 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/google/uuid"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/auth"
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/security"
@@ -17,26 +20,33 @@ import (
 
 type AuthService struct {
 	users             *repository.UserRepository
-	jwt               *auth.JWT
 	verifications     *repository.EmailVerificationRepository
+	refreshTokens     *repository.RefreshTokenRepository
+	jwt               *auth.JWT
 	emailService      *EmailService
 	passwordValidator *security.PasswordValidator
+
+	refreshTokenDuration time.Duration
 }
 
 func NewAuthService(
 	users *repository.UserRepository,
-	jwt *auth.JWT,
 	verifications *repository.EmailVerificationRepository,
+	refreshTokens *repository.RefreshTokenRepository,
+	jwt *auth.JWT,
 	emailService *EmailService,
 	passwordValidator *security.PasswordValidator,
+	refreshTokenDuration time.Duration,
 ) *AuthService {
 
 	return &AuthService{
-		users:             users,
-		jwt:               jwt,
-		verifications:     verifications,
-		emailService:      emailService,
-		passwordValidator: passwordValidator,
+		users:                users,
+		verifications:        verifications,
+		refreshTokens:        refreshTokens,
+		jwt:                  jwt,
+		emailService:         emailService,
+		passwordValidator:    passwordValidator,
+		refreshTokenDuration: refreshTokenDuration,
 	}
 }
 
@@ -46,10 +56,43 @@ type RegisterRequest struct {
 	Username string
 }
 
+type TokenResponse struct {
+	AccessToken  string
+	RefreshToken string
+}
+
+type SessionResponse struct {
+	FamilyID  uuid.UUID `json:"familyId"`
+	Device    string    `json:"device"`
+	IP        string    `json:"ip"`
+	CreatedAt time.Time `json:"createdAt"`
+	Current   bool      `json:"current"`
+}
+
 func (s *AuthService) Register(
 	ctx context.Context,
 	req RegisterRequest,
 ) (*models.User, error) {
+
+	// normalize input
+	req.Email = strings.TrimSpace(
+		strings.ToLower(req.Email),
+	)
+
+	req.Username = strings.TrimSpace(
+		req.Username,
+	)
+
+	// validate username
+
+	if err := security.ValidateUsername(
+		req.Username,
+	); err != nil {
+
+		return nil, err
+	}
+
+	// check email duplicate
 
 	_, err := s.users.FindByEmail(
 		ctx,
@@ -57,8 +100,11 @@ func (s *AuthService) Register(
 	)
 
 	if err == nil {
-		return nil, errors.New("email already exists")
+
+		return nil, appErrors.ErrEmailAlreadyExists
 	}
+
+	// check username duplicate
 
 	_, err = s.users.FindByUsername(
 		ctx,
@@ -66,24 +112,30 @@ func (s *AuthService) Register(
 	)
 
 	if err == nil {
-		return nil, errors.New("username already exists")
+
+		return nil, appErrors.ErrUsernameAlreadyExists
 	}
 
-	err = s.passwordValidator.Validate(
+	// validate password
+
+	if err := s.passwordValidator.Validate(
 		req.Password,
 		req.Username,
 		req.Email,
-	)
+	); err != nil {
 
-	if err != nil {
 		return nil, err
 	}
+
+	// hash password
+
 	hash, err := bcrypt.GenerateFromPassword(
 		[]byte(req.Password),
 		bcrypt.DefaultCost,
 	)
 
 	if err != nil {
+
 		return nil, err
 	}
 
@@ -93,42 +145,39 @@ func (s *AuthService) Register(
 		Username:     req.Username,
 	}
 
-	err = s.users.Create(
+	if err := s.users.Create(
 		ctx,
 		user,
-	)
+	); err != nil {
 
-	if err != nil {
 		return nil, err
 	}
+
+	// create verification token
 
 	token := auth.GenerateToken()
 
 	verification := &models.EmailVerification{
 		UserID: user.ID,
-
-		Token: token,
-
+		Token:  auth.HashToken(token),
 		ExpiresAt: time.Now().Add(
-			24 * time.Hour,
+			s.refreshTokenDuration,
 		),
 	}
 
-	err = s.verifications.Create(
+	if err := s.verifications.Create(
 		verification,
-	)
+	); err != nil {
 
-	if err != nil {
 		return nil, err
 	}
 
-	err = s.emailService.SendVerificationEmail(
+	if err := s.emailService.SendVerificationEmail(
 		user.Email,
 		user.Username,
 		token,
-	)
+	); err != nil {
 
-	if err != nil {
 		return nil, err
 	}
 
@@ -139,7 +188,9 @@ func (s *AuthService) Login(
 	ctx context.Context,
 	identifier string,
 	password string,
-) (string, error) {
+	userAgent string,
+	ip string,
+) (*TokenResponse, error) {
 
 	user, err := s.users.FindByIdentifier(
 		ctx,
@@ -147,7 +198,7 @@ func (s *AuthService) Login(
 	)
 
 	if err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
 	err = bcrypt.CompareHashAndPassword(
@@ -156,18 +207,64 @@ func (s *AuthService) Login(
 	)
 
 	if err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
-	token, err := s.jwt.Generate(
+	if user.VerifiedAt == nil {
+		return nil, errors.New(
+			"email not verified",
+		)
+	}
+
+	// create refresh token family
+	familyID := uuid.New()
+
+	// create access token with family information
+	accessToken, err := s.jwt.Generate(
 		user.ID.String(),
+		familyID.String(),
 	)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return token, nil
+	// create refresh token
+	refreshToken := auth.GenerateToken()
+
+	refresh := &models.RefreshToken{
+
+		UserID: user.ID,
+
+		TokenHash: auth.HashToken(
+			refreshToken,
+		),
+
+		FamilyID: familyID,
+
+		UserAgent: userAgent,
+
+		IPAddress: ip,
+
+		DeviceName: "Unknown",
+
+		ExpiresAt: time.Now().Add(
+			s.refreshTokenDuration,
+		),
+	}
+
+	err = s.refreshTokens.Create(
+		refresh,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 func (s *AuthService) Secret() string {
@@ -190,16 +287,25 @@ func (s *AuthService) VerifyEmail(
 	token string,
 ) (string, error) {
 
-	verification, err := s.verifications.FindByToken(
+	hashedToken := auth.HashToken(
 		token,
 	)
 
+	verification, err := s.verifications.FindByToken(
+		ctx,
+		hashedToken,
+	)
+
 	if err != nil {
-		return "", errors.New("invalid verification token")
+		return "", errors.New(
+			"invalid verification token",
+		)
 	}
 
 	if verification.ExpiresAt.Before(time.Now()) {
-		return "", errors.New("verification expired")
+		return "", errors.New(
+			"verification expired",
+		)
 	}
 
 	user, err := s.users.FindByID(
@@ -214,8 +320,11 @@ func (s *AuthService) VerifyEmail(
 	// already verified
 	if user.VerifiedAt != nil {
 
+		familyID := uuid.New()
+
 		return s.jwt.Generate(
 			user.ID.String(),
+			familyID.String(),
 		)
 	}
 
@@ -232,7 +341,6 @@ func (s *AuthService) VerifyEmail(
 		return "", err
 	}
 
-	// remove used verification token
 	err = s.verifications.Delete(
 		verification.ID,
 	)
@@ -241,7 +349,295 @@ func (s *AuthService) VerifyEmail(
 		return "", err
 	}
 
+	familyID := uuid.New()
+
 	return s.jwt.Generate(
 		user.ID.String(),
+		familyID.String(),
+	)
+}
+
+func (s *AuthService) Refresh(
+	ctx context.Context,
+	refreshToken string,
+) (*TokenResponse, error) {
+
+	hash := auth.HashToken(
+		refreshToken,
+	)
+
+	storedToken, err := s.refreshTokens.FindByHash(
+		ctx,
+		hash,
+	)
+
+	if err != nil {
+		return nil, errors.New(
+			"invalid refresh token",
+		)
+	}
+
+	if storedToken.RevokedAt != nil {
+
+		// refresh token replay detected
+		_ = s.refreshTokens.RevokeFamily(
+			ctx,
+			storedToken.FamilyID,
+		)
+
+		return nil, errors.New(
+			"refresh token replay detected",
+		)
+	}
+
+	if storedToken.ExpiresAt.Before(time.Now()) {
+		return nil, errors.New(
+			"refresh token expired",
+		)
+	}
+
+	user, err := s.users.FindByID(
+		ctx,
+		storedToken.UserID,
+	)
+
+	if err != nil {
+		return nil, errors.New(
+			"invalid user",
+		)
+	}
+
+	newRefreshToken := auth.GenerateToken()
+
+	refresh := &models.RefreshToken{
+
+		UserID: user.ID,
+
+		TokenHash: auth.HashToken(
+			newRefreshToken,
+		),
+
+		// keep same device/session
+		FamilyID: storedToken.FamilyID,
+
+		UserAgent: storedToken.UserAgent,
+
+		IPAddress: storedToken.IPAddress,
+
+		DeviceName: storedToken.DeviceName,
+
+		ExpiresAt: time.Now().Add(
+			s.refreshTokenDuration,
+		),
+	}
+
+	err = s.refreshTokens.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			repo := repository.NewRefreshTokenRepository(tx)
+
+			if err := repo.Revoke(
+				storedToken.ID,
+			); err != nil {
+				return err
+			}
+
+			return repo.Create(
+				refresh,
+			)
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	accessToken, err := s.jwt.Generate(
+		user.ID.String(),
+		storedToken.FamilyID.String(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: newRefreshToken,
+	}, nil
+}
+
+func (s *AuthService) Logout(
+	ctx context.Context,
+	refreshToken string,
+) error {
+
+	hash := auth.HashToken(
+		refreshToken,
+	)
+
+	token, err := s.refreshTokens.FindByHash(
+		ctx,
+		hash,
+	)
+
+	if err != nil {
+		return errors.New(
+			"invalid refresh token",
+		)
+	}
+
+	return s.refreshTokens.Revoke(
+		token.ID,
+	)
+}
+
+func (s *AuthService) Sessions(
+	ctx context.Context,
+	userID uuid.UUID,
+	currentFamily uuid.UUID,
+) ([]SessionResponse, error) {
+
+	tokens, err := s.refreshTokens.FindSessionsByUser(
+		ctx,
+		userID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sessions := make(
+		[]SessionResponse,
+		0,
+		len(tokens),
+	)
+
+	seen := make(
+		map[uuid.UUID]bool,
+	)
+
+	for _, token := range tokens {
+
+		// one session = one family
+		if seen[token.FamilyID] {
+			continue
+		}
+
+		seen[token.FamilyID] = true
+
+		sessions = append(
+			sessions,
+			SessionResponse{
+				FamilyID:  token.FamilyID,
+				Device:    token.UserAgent,
+				IP:        token.IPAddress,
+				CreatedAt: token.CreatedAt,
+				Current:   token.FamilyID == currentFamily,
+			},
+		)
+	}
+
+	return sessions, nil
+}
+
+func (s *AuthService) RevokeSession(
+	ctx context.Context,
+	userID uuid.UUID,
+	familyID uuid.UUID,
+) error {
+
+	// security check:
+	// only allow deleting own sessions
+
+	tokens, err := s.refreshTokens.FindSessionsByUser(
+		ctx,
+		userID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	found := false
+
+	for _, token := range tokens {
+
+		if token.FamilyID == familyID {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errors.New(
+			"session not found",
+		)
+	}
+
+	return s.refreshTokens.RevokeFamily(
+		ctx,
+		familyID,
+	)
+}
+
+func (s *AuthService) CreateSession(
+	user *models.User,
+	userAgent string,
+	ip string,
+) (*TokenResponse, error) {
+
+	familyID := uuid.New()
+
+	accessToken, err := s.jwt.Generate(
+		user.ID.String(),
+		familyID.String(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken := auth.GenerateToken()
+
+	refresh := &models.RefreshToken{
+		UserID: user.ID,
+
+		TokenHash: auth.HashToken(
+			refreshToken,
+		),
+
+		FamilyID: familyID,
+
+		UserAgent: userAgent,
+
+		IPAddress: ip,
+
+		DeviceName: "Unknown",
+
+		ExpiresAt: time.Now().Add(
+			s.refreshTokenDuration,
+		),
+	}
+
+	if err := s.refreshTokens.Create(refresh); err != nil {
+		return nil, err
+	}
+
+	return &TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (s *AuthService) LogoutAll(
+	ctx context.Context,
+	userID uuid.UUID,
+) error {
+
+	return s.refreshTokens.RevokeAllByUser(
+		ctx,
+		userID,
 	)
 }

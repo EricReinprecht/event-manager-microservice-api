@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,12 +37,14 @@ func (r *EmailVerificationRepository) Create(
 }
 
 func (r *EmailVerificationRepository) FindByToken(
+	ctx context.Context,
 	token string,
 ) (*models.EmailVerification, error) {
 
 	var verification models.EmailVerification
 
 	err := r.executor.
+		WithContext(ctx).
 		Where(
 			"token = ?",
 			token,
@@ -56,7 +59,6 @@ func (r *EmailVerificationRepository) FindByToken(
 	}
 
 	return &verification, nil
-
 }
 
 func (r *EmailVerificationRepository) DeleteExpired() error {

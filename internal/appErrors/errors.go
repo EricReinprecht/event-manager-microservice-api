@@ -24,4 +24,6 @@ var (
 	ErrPurchaseNotFound           = errors.New("purchase not found")
 	ErrUnknownPaymentOrder        = errors.New("unknown payment order")
 	ErrPurchaseAlreadyRefunded    = errors.New("purchase already refunded")
+	ErrEmailAlreadyExists         = errors.New("email already exists")
+	ErrUsernameAlreadyExists      = errors.New("username already exists")
 )
