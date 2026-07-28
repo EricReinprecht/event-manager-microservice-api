@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -40,6 +41,12 @@ func NewAuthService(
 	passwordValidator *security.PasswordValidator,
 	refreshTokenDuration time.Duration,
 ) *AuthService {
+
+	log.Printf("AUTH USERS REPOSITORY: %#v", users)
+
+	if users == nil {
+		panic("AUTH SERVICE CREATED WITH NIL USERS REPOSITORY")
+	}
 
 	return &AuthService{
 		users:                users,
@@ -211,6 +218,9 @@ func (s *AuthService) Login(
 	userAgent string,
 	ip string,
 ) (*TokenResponse, error) {
+
+	log.Printf("AUTH SERVICE POINTER: %p", s)
+	log.Printf("USERS REPO POINTER: %p", s.users)
 
 	user, err := s.users.FindByIdentifier(
 		ctx,
@@ -831,4 +841,76 @@ func (s *AuthService) ResetPassword(
 	}
 
 	return nil
+}
+
+func (s *AuthService) ResendVerificationEmail(
+	ctx context.Context,
+	email string,
+) error {
+
+	email = strings.TrimSpace(
+		strings.ToLower(email),
+	)
+
+	user, err := s.users.FindByEmail(
+		ctx,
+		email,
+	)
+
+	if err != nil {
+		return errors.New("invalid request")
+	}
+
+	if user.DeletedAt.Valid {
+		return errors.New("invalid request")
+	}
+
+	if user.VerifiedAt != nil {
+		return errors.New(
+			"email already verified",
+		)
+	}
+
+	// invalidate previous verification tokens
+
+	err = s.verifications.InvalidateForUser(
+		ctx,
+		user.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// create new raw token
+
+	rawToken := auth.GenerateToken()
+
+	verification := &models.EmailVerification{
+
+		UserID: user.ID,
+
+		// store hash only
+		Token: auth.HashToken(
+			rawToken,
+		),
+
+		ExpiresAt: time.Now().Add(
+			24 * time.Hour,
+		),
+	}
+
+	err = s.verifications.Create(
+		verification,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return s.emailService.SendVerificationEmail(
+		user.Email,
+		user.Username,
+		rawToken,
+	)
 }

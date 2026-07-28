@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/reinp/event-platform/backend/internal/handlers"
@@ -23,6 +25,8 @@ func Register(
 	paymentService *service.PaymentService,
 	partyMemberService *service.PartyMemberService,
 ) {
+
+	log.Printf("ROUTES AUTH SERVICE POINTER: %p", authService)
 
 	authHandler := handlers.NewAuthHandler(authService)
 
@@ -113,6 +117,12 @@ func Register(
 		"/api/auth/reset-password",
 		authLimiter.Middleware(),
 		authHandler.ResetPassword,
+	)
+
+	router.POST(
+		"/api/auth/resend-verification",
+		authLimiter.Middleware(),
+		authHandler.ResendVerificationEmail,
 	)
 
 	// Protected routes

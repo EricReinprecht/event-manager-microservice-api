@@ -115,3 +115,23 @@ func (r *EmailVerificationRepository) DeleteByUser(
 		).
 		Error()
 }
+
+func (r *EmailVerificationRepository) InvalidateForUser(
+	ctx context.Context,
+	userID uuid.UUID,
+) error {
+
+	return r.executor.
+		WithContext(ctx).
+		Model(&models.EmailVerification{}).
+		Where(
+			"user_id = ? AND used_at IS NULL",
+			userID,
+		).
+		Updates(
+			map[string]interface{}{
+				"used_at": time.Now(),
+			},
+		).
+		Error()
+}

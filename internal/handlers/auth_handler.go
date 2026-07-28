@@ -16,10 +16,12 @@ type AuthHandler struct {
 }
 
 func NewAuthHandler(
-	service *service.AuthService,
+	authService *service.AuthService,
 ) *AuthHandler {
 
-	return &AuthHandler{}
+	return &AuthHandler{
+		service: authService,
+	}
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -379,6 +381,49 @@ func (h *AuthHandler) ResetPassword(
 		http.StatusOK,
 		gin.H{
 			"message": "password reset successful",
+		},
+	)
+}
+
+func (h *AuthHandler) ResendVerificationEmail(
+	c *gin.Context,
+) {
+
+	var req requests.ResendVerificationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	err := h.service.ResendVerificationEmail(
+		c.Request.Context(),
+		req.Email,
+	)
+
+	if err != nil {
+
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
+
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"message": "verification email sent",
 		},
 	)
 }

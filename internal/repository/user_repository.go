@@ -21,7 +21,6 @@ func NewUserRepository(
 	return &UserRepository{
 		db: db,
 	}
-
 }
 
 func (r *UserRepository) Create(
