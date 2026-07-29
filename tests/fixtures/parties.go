@@ -25,8 +25,6 @@ func Party() models.Party {
 
 		Location: "Test Location",
 
-		CategoryID: uuid.Nil,
-
 		OrganizerID: uuid.New(),
 	}
 }

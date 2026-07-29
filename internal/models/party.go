@@ -8,33 +8,35 @@ import (
 )
 
 type Party struct {
-	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
-	Title string
+	Title string `json:"title"`
 
-	Description string
+	Description string `json:"description"`
 
-	StartAt time.Time
-	EndAt   time.Time
+	StartAt time.Time `json:"startAt"`
 
-	Location string
+	EndAt time.Time `json:"endAt"`
 
-	ThumbnailID *uuid.UUID
+	Location string `json:"location"`
 
-	Thumbnail *Media `gorm:"foreignKey:ThumbnailID"`
+	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 
-	Images []Media `gorm:"many2many:party_media;"`
+	Thumbnail *Media `gorm:"foreignKey:ThumbnailID" json:"thumbnail"`
 
-	TicketCategories []TicketCategory
+	Images []Media `gorm:"many2many:party_media;" json:"images"`
 
-	Categories []Category `gorm:"many2many:party_categories;"`
+	TicketCategories []TicketCategory `json:"ticketCategories"`
 
-	OrganizerID uuid.UUID
+	Categories []Category `gorm:"many2many:party_categories;" json:"categories"`
 
-	Organizer User `gorm:"foreignKey:OrganizerID"`
+	OrganizerID uuid.UUID `json:"organizerId"`
 
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Organizer User `gorm:"foreignKey:OrganizerID" json:"organizer"`
 
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	UpdatedAt time.Time `json:"updatedAt"`
+
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt"`
 }
