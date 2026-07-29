@@ -11,7 +11,13 @@ type CreatePartyRequest struct {
 
 	Description string `json:"description"`
 
-	Location string `json:"location"`
+	LocationName string `json:"locationName"`
+
+	Latitude float64 `json:"latitude"`
+
+	Longitude float64 `json:"longitude"`
+
+	Timezone string `json:"timezone"`
 
 	StartAt time.Time `json:"startAt" binding:"required"`
 
@@ -29,7 +35,13 @@ type UpdatePartyRequest struct {
 
 	Description string `json:"description"`
 
-	Location string `json:"location"`
+	LocationName string `json:"locationName"`
+
+	Latitude float64 `json:"latitude"`
+
+	Longitude float64 `json:"longitude"`
+
+	Timezone string `json:"timezone"`
 
 	StartAt time.Time `json:"startAt" binding:"required"`
 

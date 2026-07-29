@@ -90,7 +90,13 @@ func (r *PartyRepository) Update(
 
 			"description": party.Description,
 
-			"location": party.Location,
+			"location_name": party.LocationName,
+
+			"latitude": party.Latitude,
+
+			"longitude": party.Longitude,
+
+			"timezone": party.Timezone,
 
 			"thumbnail_id": party.ThumbnailID,
 

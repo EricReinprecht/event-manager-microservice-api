@@ -51,6 +51,19 @@ func (s *PartyCRUDService) Create(
 	imageIDs []uuid.UUID,
 ) error {
 
+	// Validate location
+	if party.LocationName == "" {
+		return errors.New("location name is required")
+	}
+
+	if party.Latitude == 0 || party.Longitude == 0 {
+		return errors.New("location coordinates are required")
+	}
+
+	if party.Timezone == "" {
+		return errors.New("timezone is required")
+	}
+
 	// Validate categories
 	for _, category := range party.Categories {
 
@@ -148,7 +161,8 @@ func (s *PartyCRUDService) Create(
 
 			return s.roles.Create(
 				tx,
-				role)
+				role,
+			)
 		},
 	)
 }

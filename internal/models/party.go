@@ -18,7 +18,13 @@ type Party struct {
 
 	EndAt time.Time `json:"endAt"`
 
-	Location string `json:"location"`
+	LocationName string
+
+	Latitude float64
+
+	Longitude float64
+
+	Timezone string
 
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 

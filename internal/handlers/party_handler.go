@@ -87,6 +87,32 @@ func (h *PartyHandler) Create(
 		return
 	}
 
+	if req.Latitude == 0 || req.Longitude == 0 {
+
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New(
+				"location coordinates are required",
+			),
+		)
+
+		return
+	}
+
+	if req.Timezone == "" {
+
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New(
+				"timezone is required",
+			),
+		)
+
+		return
+	}
+
 	userID, ok := getUserID(c)
 
 	if !ok {
@@ -108,7 +134,13 @@ func (h *PartyHandler) Create(
 
 		Description: req.Description,
 
-		Location: req.Location,
+		LocationName: req.LocationName,
+
+		Latitude: req.Latitude,
+
+		Longitude: req.Longitude,
+
+		Timezone: req.Timezone,
 
 		StartAt: req.StartAt,
 
@@ -335,11 +367,48 @@ func (h *PartyHandler) Update(
 		return
 	}
 
+	if req.Latitude == 0 || req.Longitude == 0 {
+
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New(
+				"location coordinates are required",
+			),
+		)
+
+		return
+	}
+
+	if req.Timezone == "" {
+
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New(
+				"timezone is required",
+			),
+		)
+
+		return
+	}
+
 	party.Title = req.Title
+
 	party.Description = req.Description
-	party.Location = req.Location
+
+	party.LocationName = req.LocationName
+
+	party.Latitude = req.Latitude
+
+	party.Longitude = req.Longitude
+
+	party.Timezone = req.Timezone
+
 	party.ThumbnailID = req.ThumbnailID
+
 	party.StartAt = req.StartAt
+
 	party.EndAt = req.EndAt
 
 	if err := h.service.Update(
