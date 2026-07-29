@@ -186,14 +186,14 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 
 	if startAt != "" {
 		query = query.Where(
-			"DATE(parties.start_at) = ?",
+			"(parties.start_at AT TIME ZONE parties.timezone)::date = ?",
 			startAt,
 		)
 	}
 
 	if endAt != "" {
 		query = query.Where(
-			"DATE(parties.end_at) = ?",
+			"(parties.end_at AT TIME ZONE parties.timezone)::date = ?",
 			endAt,
 		)
 	}
