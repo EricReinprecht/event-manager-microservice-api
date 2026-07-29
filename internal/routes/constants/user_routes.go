@@ -10,4 +10,8 @@ const (
 	UserCompleteProfile = "/users/me/complete-profile"
 
 	UserPassword = "/users/me/password"
+
+	// Parties
+
+	UserParties = "/users/me/parties"
 )

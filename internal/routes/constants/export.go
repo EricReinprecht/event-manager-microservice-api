@@ -48,6 +48,8 @@ var Routes = map[string]string{
 
 	"UserPassword": UserPassword,
 
+	"UserParties": UserParties,
+
 	// * ---------------------------------------------------------------------
 	// * CATEGORIES
 	// * ---------------------------------------------------------------------

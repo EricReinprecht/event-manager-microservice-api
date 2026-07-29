@@ -77,49 +77,51 @@ func Register(
 		handlers.Health,
 	)
 
-	router.POST(
+	api := router.Group(constants.API)
+
+	api.POST(
 		constants.AuthRegister,
 		authLimiter.Middleware(),
 		authHandler.Register,
 	)
 
-	router.GET(
+	api.GET(
 		constants.AuthVerifyEmail,
 		authLimiter.Middleware(),
 		authHandler.VerifyEmail,
 	)
 
-	router.POST(
+	api.POST(
 		constants.AuthLogin,
 		authLimiter.Middleware(),
 		authHandler.Login,
 	)
 
-	router.POST(
+	api.POST(
 		constants.AuthRefresh,
 		refreshLimiter.Middleware(),
 		authHandler.Refresh,
 	)
 
-	router.POST(
+	api.POST(
 		constants.AuthLogout,
 		authLimiter.Middleware(),
 		authHandler.Logout,
 	)
 
-	router.POST(
+	api.POST(
 		constants.AuthForgotPassword,
 		refreshLimiter.Middleware(),
 		authHandler.ForgotPassword,
 	)
 
-	router.POST(
+	api.POST(
 		constants.AuthResetPassword,
 		authLimiter.Middleware(),
 		authHandler.ResetPassword,
 	)
 
-	router.POST(
+	api.POST(
 		constants.AuthResendVerification,
 		authLimiter.Middleware(),
 		authHandler.ResendVerificationEmail,
@@ -129,9 +131,7 @@ func Register(
 	// Protected
 	// =========================
 
-	protected := router.Group("/api")
-
-	protected.Use(
+	protected := api.Use(
 		middleware.Auth(
 			deps.AuthService,
 		),
@@ -167,6 +167,11 @@ func Register(
 	protected.PUT(
 		constants.UserPassword,
 		userHandler.ChangePassword,
+	)
+
+	protected.GET(
+		constants.UserParties,
+		partyHandler.GetMyParties,
 	)
 
 	// Parties
