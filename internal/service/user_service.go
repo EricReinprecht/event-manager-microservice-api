@@ -66,6 +66,7 @@ func (s *UserService) CompleteProfile(
 
 	user.FirstName = firstName
 	user.LastName = lastName
+	user.ProfileCompleted = true
 
 	err = s.users.Update(
 		ctx,

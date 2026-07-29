@@ -156,7 +156,7 @@ func Register(
 	)
 
 	protected.PUT(
-		"/users/me/profile",
+		"/users/me/complete-profile",
 		userHandler.CompleteProfile,
 	)
 

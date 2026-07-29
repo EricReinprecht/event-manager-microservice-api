@@ -80,11 +80,11 @@ func (h *UserHandler) Me(
 
 		"username": user.Username,
 
-		"first_name": user.FirstName,
+		"firstName": user.FirstName,
 
-		"last_name": user.LastName,
+		"lastName": user.LastName,
 
-		"profile_completed": user.ProfileCompleted,
+		"profileCompleted": user.ProfileCompleted,
 	})
 }
 
