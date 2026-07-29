@@ -44,6 +44,18 @@ func (g *GormExecutor) Clauses(
 	}
 }
 
+func (g *GormExecutor) Limit(limit int) DBExecutor {
+	return &GormExecutor{
+		db: g.db.Limit(limit),
+	}
+}
+
+func (g *GormExecutor) Offset(offset int) DBExecutor {
+	return &GormExecutor{
+		db: g.db.Offset(offset),
+	}
+}
+
 func (g *GormExecutor) Order(value interface{}) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Order(value),

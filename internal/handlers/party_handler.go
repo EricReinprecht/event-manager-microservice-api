@@ -3,13 +3,15 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
@@ -26,53 +28,47 @@ func NewPartyHandler(
 	}
 }
 
-type createPartyRequest struct {
-	Title string `json:"title"`
+func getUserID(
+	c *gin.Context,
+) (uuid.UUID, bool) {
 
-	Description string `json:"description"`
+	value, exists := c.Get("userID")
 
-	Location string `json:"location"`
+	if !exists {
+		return uuid.Nil, false
+	}
 
-	StartAt time.Time `json:"start_at" binding:"required"`
+	switch id := value.(type) {
 
-	EndAt time.Time `json:"end_at" binding:"required"`
+	case uuid.UUID:
+		return id, true
 
-	CategoryID uuid.UUID `json:"category_id"`
+	case string:
 
-	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
+		userID, err := uuid.Parse(id)
 
-	ImageIDs []uuid.UUID `json:"image_ids"`
+		if err != nil {
+			return uuid.Nil, false
+		}
+
+		return userID, true
+	}
+
+	return uuid.Nil, false
 }
 
-type updatePartyRequest struct {
-	Title string `json:"title"`
+func (h *PartyHandler) Create(
+	c *gin.Context,
+) {
 
-	Description string `json:"description"`
-
-	Location string `json:"location"`
-
-	StartAt time.Time `json:"start_at" binding:"required"`
-
-	EndAt time.Time `json:"end_at" binding:"required"`
-
-	CategoryID uuid.UUID `json:"category_id"`
-
-	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
-
-	ImageIDs []uuid.UUID `json:"image_ids"`
-}
-
-func (h *PartyHandler) Create(c *gin.Context) {
-
-	var req createPartyRequest
+	var req dto.CreatePartyRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(
+		responses.Error(
+			c,
 			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+			err,
 		)
 
 		return
@@ -80,41 +76,27 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 	if req.EndAt.Before(req.StartAt) {
 
-		c.JSON(
+		responses.Error(
+			c,
 			http.StatusBadRequest,
-			gin.H{
-				"error": "end date must be after start date",
-			},
+			errors.New(
+				"end date must be after start date",
+			),
 		)
 
 		return
 	}
 
-	userID, exists := c.Get("user_id")
+	userID, ok := getUserID(c)
 
-	if !exists {
+	if !ok {
 
-		c.JSON(
+		responses.Error(
+			c,
 			http.StatusUnauthorized,
-			gin.H{
-				"error": "not authenticated",
-			},
-		)
-
-		return
-	}
-
-	organizerID, err := uuid.Parse(
-		userID.(string),
-	)
-
-	if err != nil {
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": "invalid user id",
-			},
+			errors.New(
+				"not authenticated",
+			),
 		)
 
 		return
@@ -134,12 +116,12 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 		CategoryID: req.CategoryID,
 
-		OrganizerID: organizerID,
+		OrganizerID: userID,
 
 		ThumbnailID: req.ThumbnailID,
 	}
 
-	err = h.service.Create(
+	err := h.service.Create(
 		c.Request.Context(),
 		party,
 		req.ImageIDs,
@@ -154,11 +136,10 @@ func (h *PartyHandler) Create(c *gin.Context) {
 			appErrors.ErrCategoryNotFound,
 		):
 
-			c.JSON(
+			responses.Error(
+				c,
 				http.StatusBadRequest,
-				gin.H{
-					"error": err.Error(),
-				},
+				err,
 			)
 
 			return
@@ -168,22 +149,20 @@ func (h *PartyHandler) Create(c *gin.Context) {
 			appErrors.ErrMediaNotFound,
 		):
 
-			c.JSON(
+			responses.Error(
+				c,
 				http.StatusBadRequest,
-				gin.H{
-					"error": err.Error(),
-				},
+				err,
 			)
 
 			return
 
 		default:
 
-			c.JSON(
+			responses.Error(
+				c,
 				http.StatusInternalServerError,
-				gin.H{
-					"error": err.Error(),
-				},
+				err,
 			)
 
 			return
@@ -197,51 +176,64 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 	if err != nil {
 
-		c.JSON(
+		responses.Error(
+			c,
 			http.StatusInternalServerError,
-			gin.H{
-				"error": err.Error(),
-			},
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusCreated,
 		party,
 	)
 }
 
-func (h *PartyHandler) GetAll(c *gin.Context) {
+func (h *PartyHandler) GetAll(
+	c *gin.Context,
+) {
 
 	parties, err := h.service.FindAll(
 		c.Request.Context(),
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+
+		responses.Error(
+			c,
+			http.StatusInternalServerError,
+			err,
+		)
+
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		parties,
 	)
 }
 
-func (h *PartyHandler) GetByID(c *gin.Context) {
+func (h *PartyHandler) GetByID(
+	c *gin.Context,
+) {
 
 	id, err := uuid.Parse(
 		c.Param("id"),
 	)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid id",
-		})
+
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New("invalid id"),
+		)
+
 		return
 	}
 
@@ -251,39 +243,52 @@ func (h *PartyHandler) GetByID(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "party not found",
-		})
+
+		responses.Error(
+			c,
+			http.StatusNotFound,
+			errors.New("party not found"),
+		)
+
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		party,
 	)
 }
 
-func (h *PartyHandler) Update(c *gin.Context) {
+func (h *PartyHandler) Update(
+	c *gin.Context,
+) {
 
 	id, err := uuid.Parse(
 		c.Param("id"),
 	)
 
 	if err != nil {
-		c.JSON(400, gin.H{
-			"error": "invalid id",
-		})
+
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New("invalid id"),
+		)
+
 		return
 	}
 
-	userID, err := uuid.Parse(
-		c.MustGet("user_id").(string),
-	)
+	userID, ok := getUserID(c)
 
-	if err != nil {
-		c.JSON(401, gin.H{
-			"error": "invalid user",
-		})
+	if !ok {
+
+		responses.Error(
+			c,
+			http.StatusUnauthorized,
+			errors.New("invalid user"),
+		)
+
 		return
 	}
 
@@ -294,99 +299,115 @@ func (h *PartyHandler) Update(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(403, gin.H{
-			"error": "not allowed",
-		})
+
+		responses.Error(
+			c,
+			http.StatusForbidden,
+			errors.New("not allowed"),
+		)
+
 		return
 	}
 
-	var req updatePartyRequest
+	var req dto.UpdatePartyRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		if req.EndAt.Before(req.StartAt) {
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			err,
+		)
 
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "end date must be after start date",
-			})
+		return
+	}
 
-			return
-		}
+	if req.EndAt.Before(req.StartAt) {
 
-		c.JSON(400, gin.H{
-			"error": err.Error(),
-		})
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New(
+				"end date must be after start date",
+			),
+		)
 
 		return
 	}
 
 	party.Title = req.Title
-
 	party.Description = req.Description
-
 	party.Location = req.Location
-
 	party.CategoryID = req.CategoryID
-
 	party.ThumbnailID = req.ThumbnailID
-
 	party.StartAt = req.StartAt
-
 	party.EndAt = req.EndAt
 
-	err = h.service.Update(
+	if err := h.service.Update(
 		c.Request.Context(),
 		party,
-	)
+	); err != nil {
 
-	if err != nil {
-
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.Error(
+			c,
+			http.StatusInternalServerError,
+			err,
+		)
 
 		return
 	}
 
-	err = h.service.UpdateImages(
+	if err := h.service.UpdateImages(
 		c.Request.Context(),
-		party,
+		party.ID,
 		req.ImageIDs,
-	)
+	); err != nil {
 
-	if err != nil {
-
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.Error(
+			c,
+			http.StatusInternalServerError,
+			err,
+		)
 
 		return
 	}
 
-	c.JSON(200, party)
+	responses.Success(
+		c,
+		http.StatusOK,
+		party,
+	)
 }
 
-func (h *PartyHandler) Delete(c *gin.Context) {
+func (h *PartyHandler) Delete(
+	c *gin.Context,
+) {
 
 	id, err := uuid.Parse(
 		c.Param("id"),
 	)
 
 	if err != nil {
-		c.JSON(400, gin.H{
-			"error": "invalid id",
-		})
+
+		responses.Error(
+			c,
+			http.StatusBadRequest,
+			errors.New("invalid id"),
+		)
+
 		return
 	}
 
-	userID, err := uuid.Parse(
-		c.MustGet("user_id").(string),
-	)
+	userID, ok := getUserID(c)
 
-	if err != nil {
-		c.JSON(401, gin.H{
-			"error": "invalid user",
-		})
+	if !ok {
+
+		responses.Error(
+			c,
+			http.StatusUnauthorized,
+			errors.New("invalid user"),
+		)
+
 		return
 	}
 
@@ -397,27 +418,102 @@ func (h *PartyHandler) Delete(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(403, gin.H{
-			"error": "not allowed",
-		})
+
+		responses.Error(
+			c,
+			http.StatusForbidden,
+			errors.New("not allowed"),
+		)
+
 		return
 	}
 
-	err = h.service.Delete(
+	if err := h.service.Delete(
 		c.Request.Context(),
 		party,
+	); err != nil {
+
+		responses.Error(
+			c,
+			http.StatusInternalServerError,
+			err,
+		)
+
+		return
+	}
+
+	responses.Success(
+		c,
+		http.StatusOK,
+		gin.H{
+			"message": "party deleted",
+		},
+	)
+}
+
+func (h *PartyHandler) GetMyParties(
+	c *gin.Context,
+) {
+
+	userID, ok := getUserID(c)
+
+	if !ok {
+
+		responses.Error(
+			c,
+			http.StatusUnauthorized,
+			errors.New("not authenticated"),
+		)
+
+		return
+	}
+
+	name := c.Query("name")
+	startAt := c.Query("startAt")
+	endAt := c.Query("endAt")
+	role := c.Query("role")
+
+	page, _ := strconv.Atoi(
+		c.DefaultQuery(
+			"page",
+			"1",
+		),
+	)
+
+	limit, _ := strconv.Atoi(
+		c.DefaultQuery(
+			"limit",
+			"10",
+		),
+	)
+
+	parties, total, err := h.service.FindForUser(
+		c.Request.Context(),
+		userID,
+		name,
+		startAt,
+		endAt,
+		role,
+		page,
+		limit,
 	)
 
 	if err != nil {
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.Error(
+			c,
+			http.StatusInternalServerError,
+			err,
+		)
 
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"message": "party deleted",
-	})
+	responses.Paginated(
+		c,
+		parties,
+		page,
+		limit,
+		total,
+	)
 }

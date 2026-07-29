@@ -4,42 +4,26 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	"github.com/reinp/event-platform/backend/internal/config"
+	"github.com/reinp/event-platform/backend/internal/dependencies"
 	"github.com/reinp/event-platform/backend/internal/middleware"
-	"github.com/reinp/event-platform/backend/internal/routes"
-	"github.com/reinp/event-platform/backend/internal/service"
 )
 
-func Start(
-	port string,
-	corsOrigins []string,
-	authService *service.AuthService,
-	userService *service.UserService,
-	partyService *service.PartyService,
-	categoryService *service.CategoryService,
-	mediaService *service.MediaService,
-	ticketCategoryService *service.TicketCategoryService,
-	ticketService *service.TicketService,
-	purchaseService *service.PurchaseService,
-	paymentService *service.PaymentService,
-	partyMemberService *service.PartyMemberService,
-) error {
+type Server struct {
+	router *gin.Engine
+}
+
+func New(
+	cfg *config.Config,
+	deps *dependencies.Container,
+) *Server {
+
+	router := gin.Default()
 
 	globalLimiter := middleware.NewIPRateLimiter(
 		20,
 		50,
 	)
-
-	authLimiter := middleware.NewIPRateLimiter(
-		1.0/12,
-		5,
-	)
-
-	refreshLimiter := middleware.NewIPRateLimiter(
-		0.5,
-		20,
-	)
-
-	router := gin.Default()
 
 	router.Use(
 		middleware.SecurityHeaders(),
@@ -47,7 +31,9 @@ func Start(
 
 	router.Use(
 		cors.New(
-			middleware.CORS(corsOrigins),
+			middleware.CORS(
+				cfg.CORSAllowedOrigins,
+			),
 		),
 	)
 
@@ -55,21 +41,19 @@ func Start(
 		globalLimiter.Middleware(),
 	)
 
-	routes.Register(
+	Register(
 		router,
-		authLimiter,
-		refreshLimiter,
-		authService,
-		userService,
-		partyService,
-		categoryService,
-		mediaService,
-		ticketCategoryService,
-		ticketService,
-		purchaseService,
-		paymentService,
-		partyMemberService,
+		deps,
 	)
 
-	return router.Run(port)
+	return &Server{
+		router: router,
+	}
+}
+
+func (s *Server) Start(
+	address string,
+) error {
+
+	return s.router.Run(address)
 }

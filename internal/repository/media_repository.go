@@ -3,18 +3,18 @@ package repository
 import (
 	"context"
 
-	"gorm.io/gorm"
-
 	"github.com/google/uuid"
+
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
 type MediaRepository struct {
-	db *gorm.DB
+	db database.DBExecutor
 }
 
 func NewMediaRepository(
-	db *gorm.DB,
+	db database.DBExecutor,
 ) *MediaRepository {
 
 	return &MediaRepository{
@@ -30,7 +30,7 @@ func (r *MediaRepository) Create(
 	return r.db.
 		WithContext(ctx).
 		Create(media).
-		Error
+		Error()
 }
 
 func (r *MediaRepository) FindByIDs(
@@ -42,9 +42,12 @@ func (r *MediaRepository) FindByIDs(
 
 	err := r.db.
 		WithContext(ctx).
-		Where("id IN ?", ids).
+		Where(
+			"id IN ?",
+			ids,
+		).
 		Find(&media).
-		Error
+		Error()
 
 	return media, err
 }
@@ -56,12 +59,14 @@ func (r *MediaRepository) FindByID(
 
 	var media models.Media
 
-	err := r.db.WithContext(ctx).
+	err := r.db.
+		WithContext(ctx).
 		First(
 			&media,
 			"id = ?",
 			id,
-		).Error
+		).
+		Error()
 
 	if err != nil {
 		return nil, err

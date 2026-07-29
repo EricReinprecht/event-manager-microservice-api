@@ -15,6 +15,10 @@ type DBExecutor interface {
 
 	Clauses(conds ...clause.Expression) DBExecutor
 
+	Limit(limit int) DBExecutor
+
+	Offset(offset int) DBExecutor
+
 	Order(value interface{}) DBExecutor
 
 	First(dest interface{}, conds ...interface{}) DBExecutor

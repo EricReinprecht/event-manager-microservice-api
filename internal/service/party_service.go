@@ -2,39 +2,28 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 
-	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"github.com/reinp/event-platform/backend/internal/repository"
 )
 
 type PartyService struct {
-	parties            *repository.PartyRepository
-	memberRepository   *repository.PartyMemberRepository
-	categoryRepository *repository.CategoryRepository
-	mediaRepository    *repository.MediaRepository
-	roleRepository     *repository.PartyMemberRoleRepository
+	crud   *PartyCRUDService
+	query  *PartyQueryService
+	access *PartyAccessService
 }
 
 func NewPartyService(
-	parties *repository.PartyRepository,
-	memberRepository *repository.PartyMemberRepository,
-	categoryRepository *repository.CategoryRepository,
-	mediaRepository *repository.MediaRepository,
-	roleRepository *repository.PartyMemberRoleRepository,
+	crud *PartyCRUDService,
+	query *PartyQueryService,
+	access *PartyAccessService,
 ) *PartyService {
 
 	return &PartyService{
-		parties:            parties,
-		memberRepository:   memberRepository,
-		categoryRepository: categoryRepository,
-		mediaRepository:    mediaRepository,
-		roleRepository:     roleRepository,
+		crud:   crud,
+		query:  query,
+		access: access,
 	}
 }
 
@@ -44,97 +33,10 @@ func (s *PartyService) Create(
 	imageIDs []uuid.UUID,
 ) error {
 
-	// Check category
-	_, err := s.categoryRepository.FindByID(
+	return s.crud.Create(
 		ctx,
-		party.CategoryID,
-	)
-
-	if err != nil {
-		return appErrors.ErrCategoryNotFound
-	}
-
-	// Check thumbnail
-	if party.ThumbnailID != nil {
-
-		_, err = s.mediaRepository.FindByID(
-			ctx,
-			*party.ThumbnailID,
-		)
-
-		if err != nil {
-			return appErrors.ErrMediaNotFound
-		}
-	}
-
-	// Check images
-	for _, imageID := range imageIDs {
-
-		_, err = s.mediaRepository.FindByID(
-			ctx,
-			imageID,
-		)
-
-		if err != nil {
-			return appErrors.ErrMediaNotFound
-		}
-	}
-
-	return s.parties.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
-
-			// Create party + images
-			err := s.parties.Create(
-				tx,
-				party,
-				imageIDs,
-			)
-
-			if err != nil {
-				return err
-			}
-
-			// Create organizer membership
-			member := &models.PartyMember{
-
-				ID: uuid.New(),
-
-				UserID: party.OrganizerID,
-
-				PartyID: party.ID,
-			}
-
-			err = s.memberRepository.Create(
-				tx,
-				member,
-			)
-
-			if err != nil {
-				return err
-			}
-
-			// Create organizer role
-			role := &models.PartyMemberRole{
-
-				ID: uuid.New(),
-
-				PartyMemberID: member.ID,
-
-				Role: enum.RoleOrganizer,
-			}
-
-			err = s.roleRepository.Create(
-				tx,
-				role,
-			)
-
-			if err != nil {
-				return err
-			}
-
-			return nil
-		},
+		party,
+		imageIDs,
 	)
 }
 
@@ -142,7 +44,9 @@ func (s *PartyService) FindAll(
 	ctx context.Context,
 ) ([]models.Party, error) {
 
-	return s.parties.FindAll(ctx)
+	return s.query.FindAll(
+		ctx,
+	)
 }
 
 func (s *PartyService) FindByID(
@@ -150,7 +54,10 @@ func (s *PartyService) FindByID(
 	id uuid.UUID,
 ) (*models.Party, error) {
 
-	return s.parties.FindByID(ctx, id)
+	return s.query.FindByID(
+		ctx,
+		id,
+	)
 }
 
 func (s *PartyService) Update(
@@ -158,7 +65,7 @@ func (s *PartyService) Update(
 	party *models.Party,
 ) error {
 
-	return s.parties.Update(
+	return s.crud.Update(
 		ctx,
 		party,
 	)
@@ -169,7 +76,7 @@ func (s *PartyService) Delete(
 	party *models.Party,
 ) error {
 
-	return s.parties.Delete(
+	return s.crud.Delete(
 		ctx,
 		party,
 	)
@@ -177,13 +84,13 @@ func (s *PartyService) Delete(
 
 func (s *PartyService) UpdateImages(
 	ctx context.Context,
-	party *models.Party,
+	partyID uuid.UUID,
 	imageIDs []uuid.UUID,
 ) error {
 
-	return s.parties.UpdateImages(
+	return s.crud.UpdateImages(
 		ctx,
-		party,
+		partyID,
 		imageIDs,
 	)
 }
@@ -194,18 +101,32 @@ func (s *PartyService) FindOwnedParty(
 	userID uuid.UUID,
 ) (*models.Party, error) {
 
-	party, err := s.FindByID(
+	return s.access.FindOwnedParty(
 		ctx,
 		partyID,
+		userID,
 	)
+}
 
-	if err != nil {
-		return nil, err
-	}
+func (s *PartyService) FindForUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	name string,
+	startAt string,
+	endAt string,
+	role string,
+	page int,
+	limit int,
+) ([]models.Party, int64, error) {
 
-	if party.OrganizerID != userID {
-		return nil, errors.New("not allowed")
-	}
-
-	return party, nil
+	return s.query.FindForUser(
+		ctx,
+		userID,
+		name,
+		startAt,
+		endAt,
+		role,
+		page,
+		limit,
+	)
 }

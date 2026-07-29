@@ -4,16 +4,19 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
+	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
 type CategoryRepository struct {
-	db *gorm.DB
+	db database.DBExecutor
 }
 
-func NewCategoryRepository(db *gorm.DB) *CategoryRepository {
+func NewCategoryRepository(
+	db database.DBExecutor,
+) *CategoryRepository {
+
 	return &CategoryRepository{
 		db: db,
 	}
@@ -28,7 +31,7 @@ func (r *CategoryRepository) FindAll(
 	err := r.db.
 		WithContext(ctx).
 		Find(&categories).
-		Error
+		Error()
 
 	return categories, err
 }
@@ -42,8 +45,12 @@ func (r *CategoryRepository) FindByID(
 
 	err := r.db.
 		WithContext(ctx).
-		First(&category, "id = ?", id).
-		Error
+		First(
+			&category,
+			"id = ?",
+			id,
+		).
+		Error()
 
 	return &category, err
 }
@@ -56,7 +63,7 @@ func (r *CategoryRepository) Create(
 	return r.db.
 		WithContext(ctx).
 		Create(category).
-		Error
+		Error()
 }
 
 func (r *CategoryRepository) Update(
@@ -67,7 +74,7 @@ func (r *CategoryRepository) Update(
 	return r.db.
 		WithContext(ctx).
 		Save(category).
-		Error
+		Error()
 }
 
 func (r *CategoryRepository) Delete(
@@ -78,5 +85,5 @@ func (r *CategoryRepository) Delete(
 	return r.db.
 		WithContext(ctx).
 		Delete(category).
-		Error
+		Error()
 }

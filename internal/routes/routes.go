@@ -1,325 +1,327 @@
 package routes
 
 import (
-	"log"
-
 	"github.com/gin-gonic/gin"
-
+	"github.com/reinp/event-platform/backend/internal/dependencies"
 	"github.com/reinp/event-platform/backend/internal/handlers"
 	"github.com/reinp/event-platform/backend/internal/middleware"
-	"github.com/reinp/event-platform/backend/internal/service"
+	"github.com/reinp/event-platform/backend/internal/routes/constants"
 )
 
 func Register(
 	router *gin.Engine,
-	authLimiter *middleware.IPRateLimiter,
-	refreshLimiter *middleware.IPRateLimiter,
-	authService *service.AuthService,
-	userService *service.UserService,
-	partyService *service.PartyService,
-	categoryService *service.CategoryService,
-	mediaService *service.MediaService,
-	ticketCategoryService *service.TicketCategoryService,
-	ticketService *service.TicketService,
-	purchaseService *service.PurchaseService,
-	paymentService *service.PaymentService,
-	partyMemberService *service.PartyMemberService,
+	deps *dependencies.Container,
 ) {
 
-	log.Printf("ROUTES AUTH SERVICE POINTER: %p", authService)
-
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(
+		deps.AuthService,
+	)
 
 	userHandler := handlers.NewUserHandler(
-		userService,
+		deps.UserService,
 	)
 
 	sessionHandler := handlers.NewSessionHandler(
-		authService,
+		deps.AuthService,
 	)
 
 	partyHandler := handlers.NewPartyHandler(
-		partyService,
+		deps.PartyService,
 	)
 
 	categoryHandler := handlers.NewCategoryHandler(
-		categoryService,
+		deps.CategoryService,
 	)
 
 	mediaHandler := handlers.NewMediaHandler(
-		mediaService,
+		deps.MediaService,
 	)
 
 	ticketCategoryHandler := handlers.NewTicketCategoryHandler(
-		ticketCategoryService,
-		partyService,
+		deps.TicketCategoryService,
+		deps.PartyService,
 	)
 
 	ticketHandler := handlers.NewTicketHandler(
-		ticketService,
+		deps.TicketService,
 	)
 
 	purchaseHandler := handlers.NewPurchaseHandler(
-		purchaseService,
+		deps.PurchaseService,
 	)
 
 	paymentHandler := handlers.NewPaymentHandler(
-		paymentService,
+		deps.PaymentService,
 	)
 
 	partyMemberHandler := handlers.NewPartyMemberHandler(
-		partyMemberService,
+		deps.PartyMemberService,
 	)
 
-	// Public routes
+	authLimiter := middleware.NewIPRateLimiter(
+		1.0/12,
+		5,
+	)
+
+	refreshLimiter := middleware.NewIPRateLimiter(
+		0.5,
+		20,
+	)
+
+	// =========================
+	// Public
+	// =========================
+
 	router.GET(
 		"/health",
 		handlers.Health,
 	)
 
 	router.POST(
-		"/api/auth/register",
+		constants.AuthRegister,
 		authLimiter.Middleware(),
 		authHandler.Register,
 	)
 
 	router.GET(
-		"/api/auth/verify-email",
+		constants.AuthVerifyEmail,
 		authLimiter.Middleware(),
 		authHandler.VerifyEmail,
 	)
 
 	router.POST(
-		"/api/auth/login",
+		constants.AuthLogin,
 		authLimiter.Middleware(),
 		authHandler.Login,
 	)
 
 	router.POST(
-		"/api/auth/refresh",
+		constants.AuthRefresh,
 		refreshLimiter.Middleware(),
 		authHandler.Refresh,
 	)
 
 	router.POST(
-		"/api/auth/logout",
+		constants.AuthLogout,
 		authLimiter.Middleware(),
 		authHandler.Logout,
 	)
 
 	router.POST(
-		"/api/auth/forgot-password",
+		constants.AuthForgotPassword,
 		refreshLimiter.Middleware(),
 		authHandler.ForgotPassword,
 	)
 
 	router.POST(
-		"/api/auth/reset-password",
+		constants.AuthResetPassword,
 		authLimiter.Middleware(),
 		authHandler.ResetPassword,
 	)
 
 	router.POST(
-		"/api/auth/resend-verification",
+		constants.AuthResendVerification,
 		authLimiter.Middleware(),
 		authHandler.ResendVerificationEmail,
 	)
 
-	// Protected routes
+	// =========================
+	// Protected
+	// =========================
+
 	protected := router.Group("/api")
 
 	protected.Use(
 		middleware.Auth(
-			authService,
+			deps.AuthService,
 		),
 	)
 
+	// Users
+
 	protected.GET(
-		"/auth/sessions",
+		constants.UserSessions,
 		sessionHandler.GetSessions,
 	)
 
 	protected.DELETE(
-		"/auth/sessions/:familyID",
+		constants.UserSessionByFamilyID,
 		sessionHandler.DeleteSession,
 	)
 
 	protected.DELETE(
-		"/auth/sessions",
+		constants.UserSessions,
 		sessionHandler.LogoutAll,
 	)
 
-	// * User * //
 	protected.GET(
-		"/users/me",
+		constants.UserMe,
 		userHandler.Me,
 	)
 
 	protected.PUT(
-		"/users/me/complete-profile",
+		constants.UserCompleteProfile,
 		userHandler.CompleteProfile,
 	)
 
 	protected.PUT(
-		"/users/me/password",
+		constants.UserPassword,
 		userHandler.ChangePassword,
 	)
 
-	// * User * //
+	// Parties
 
-	// * Parties * //
 	protected.POST(
-		"/parties",
+		constants.PartyCreate,
 		partyHandler.Create,
 	)
 
 	router.GET(
-		"/api/parties",
+		constants.PartyList,
 		partyHandler.GetAll,
 	)
 
 	router.GET(
-		"/api/parties/:id",
+		constants.PartyByID,
 		partyHandler.GetByID,
 	)
 
 	protected.PUT(
-		"/parties/:id",
+		constants.PartyUpdate,
 		partyHandler.Update,
 	)
 
 	protected.DELETE(
-		"/parties/:id",
+		constants.PartyDelete,
 		partyHandler.Delete,
 	)
-	// * Parties * //
 
-	// * Categories * //
+	// Categories
+
 	router.GET(
-		"/api/categories",
+		constants.CategoryList,
 		categoryHandler.GetAll,
 	)
 
 	router.POST(
-		"/api/categories",
+		constants.CategoryCreate,
 		categoryHandler.Create,
 	)
 
 	router.GET(
-		"/api/categories/:id",
+		constants.CategoryByID,
 		categoryHandler.GetByID,
 	)
 
 	router.PUT(
-		"/api/categories/:id",
+		constants.CategoryByID,
 		categoryHandler.Update,
 	)
 
 	router.DELETE(
-		"/api/categories/:id",
+		constants.CategoryByID,
 		categoryHandler.Delete,
 	)
-	// * Categories * //
 
-	// * TicketCategories * //
+	// Ticket Categories
+
 	protected.POST(
-		"/parties/:id/ticket-categories",
+		constants.PartyTicketCategories,
 		ticketCategoryHandler.Create,
 	)
 
 	router.GET(
-		"/api/parties/:id/ticket-categories",
+		constants.PartyTicketCategories,
 		ticketCategoryHandler.GetAll,
 	)
 
 	router.GET(
-		"/api/ticket-categories/:id",
+		constants.TicketCategoryByID,
 		ticketCategoryHandler.GetByID,
 	)
 
 	protected.PUT(
-		"/ticket-categories/:id",
+		constants.TicketCategoryUpdate,
 		ticketCategoryHandler.Update,
 	)
 
 	protected.DELETE(
-		"/ticket-categories/:id",
+		constants.TicketCategoryUpdate,
 		ticketCategoryHandler.Delete,
 	)
-	// * TicketCategories * //
 
-	// * Tickets * //
+	// Tickets
+
 	protected.GET(
-		"/tickets/me",
+		constants.MyTickets,
 		ticketHandler.GetMyTickets,
 	)
 
 	protected.POST(
-		"/tickets/scan",
+		constants.TicketScan,
 		ticketHandler.Scan,
 	)
 
 	protected.POST(
-		"/tickets/scan/:id/verify",
+		constants.TicketVerifyScan,
 		ticketHandler.VerifyScan,
 	)
-	// * Tickets * //
 
-	// * Purchase * //
+	// Purchases
+
 	protected.POST(
-		"/parties/:id/purchase",
+		constants.PurchaseCreate,
 		purchaseHandler.Create,
 	)
 
 	protected.GET(
-		"/purchases/:id",
+		constants.PurchaseByID,
 		purchaseHandler.GetByID,
 	)
-	// * Purchase * //
 
-	// * Payments * //
+	// Payments
+
 	protected.POST(
-		"/purchases/:id/checkout",
+		constants.Checkout,
 		paymentHandler.CreateCheckout,
 	)
 
 	protected.POST(
-		"/purchases/:id/refund",
+		constants.Refund,
 		paymentHandler.Refund,
 	)
 
 	router.POST(
-		"/api/payments/paypal/webhook",
+		constants.PayPalWebhook,
 		paymentHandler.Webhook,
 	)
-	// * Payments * //
 
-	// * PartyMembers * //
+	// Party Members
+
 	protected.POST(
-		"/parties/:id/members",
+		constants.PartyMembers,
 		partyMemberHandler.Create,
 	)
 
 	protected.GET(
-		"/parties/:id/members",
+		constants.PartyMembers,
 		partyMemberHandler.GetAll,
 	)
 
 	protected.DELETE(
-		"/parties/:id/members/:memberID",
+		constants.PartyMemberByID,
 		partyMemberHandler.Delete,
 	)
 
 	protected.PUT(
-		"/parties/:id/members/:memberID/roles",
+		constants.PartyMemberRoles,
 		partyMemberHandler.UpdateRoles,
 	)
-	// * PartyMembers * //
 
-	// * Media * //
+	// Media
+
 	router.POST(
-		"/api/media/upload",
+		constants.MediaUpload,
 		mediaHandler.Upload,
 	)
-
 }

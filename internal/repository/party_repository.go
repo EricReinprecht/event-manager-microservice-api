@@ -25,34 +25,11 @@ func NewPartyRepository(
 func (r *PartyRepository) Create(
 	tx database.DBExecutor,
 	party *models.Party,
-	imageIDs []uuid.UUID,
 ) error {
 
-	if err := tx.
+	return tx.
 		Create(party).
-		Error(); err != nil {
-
-		return err
-	}
-
-	for _, imageID := range imageIDs {
-
-		link := models.PartyMedia{
-
-			PartyID: party.ID,
-
-			MediaID: imageID,
-		}
-
-		if err := tx.
-			Create(&link).
-			Error(); err != nil {
-
-			return err
-		}
-	}
-
-	return nil
+		Error()
 }
 
 func (r *PartyRepository) FindAll(
@@ -85,7 +62,11 @@ func (r *PartyRepository) FindByID(
 		Preload("Images").
 		Preload("Category").
 		Preload("Organizer").
-		First(&party, "id = ?", id).
+		First(
+			&party,
+			"id = ?",
+			id,
+		).
 		Error()
 
 	return &party, err
@@ -99,15 +80,25 @@ func (r *PartyRepository) Update(
 	return r.db.
 		WithContext(ctx).
 		Model(&models.Party{}).
-		Where("id = ?", party.ID).
+		Where(
+			"id = ?",
+			party.ID,
+		).
 		Updates(map[string]interface{}{
-			"title":        party.Title,
-			"description":  party.Description,
-			"location":     party.Location,
-			"category_id":  party.CategoryID,
+
+			"title": party.Title,
+
+			"description": party.Description,
+
+			"location": party.Location,
+
+			"category_id": party.CategoryID,
+
 			"thumbnail_id": party.ThumbnailID,
-			"start_at":     party.StartAt,
-			"end_at":       party.EndAt,
+
+			"start_at": party.StartAt,
+
+			"end_at": party.EndAt,
 		}).
 		Error()
 }
@@ -121,80 +112,4 @@ func (r *PartyRepository) Delete(
 		WithContext(ctx).
 		Delete(party).
 		Error()
-}
-
-func (r *PartyRepository) UpdateImages(
-	ctx context.Context,
-	party *models.Party,
-	imageIDs []uuid.UUID,
-) error {
-
-	return r.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
-
-			// remove old images
-
-			err := tx.
-				Where(
-					"party_id = ?",
-					party.ID,
-				).
-				Delete(
-					&models.PartyMedia{},
-				).
-				Error()
-
-			if err != nil {
-				return err
-			}
-
-			// insert new relations
-
-			for _, imageID := range imageIDs {
-
-				link := models.PartyMedia{
-
-					PartyID: party.ID,
-
-					MediaID: imageID,
-				}
-
-				err := tx.
-					Create(
-						&link,
-					).
-					Error()
-
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		},
-	)
-}
-
-func (r *PartyRepository) Transaction(
-	ctx context.Context,
-	fn func(tx database.DBExecutor) error,
-) error {
-
-	tx := r.db.
-		WithContext(ctx).
-		Begin()
-
-	if err := tx.Error(); err != nil {
-		return err
-	}
-
-	if err := fn(tx); err != nil {
-
-		_ = tx.Rollback()
-
-		return err
-	}
-
-	return tx.Commit()
 }
