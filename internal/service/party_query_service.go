@@ -69,6 +69,7 @@ func (s *PartyQueryService) FindOrganizedByUser(
 	name string,
 	startAt string,
 	endAt string,
+	sorts string,
 	page int,
 	limit int,
 ) ([]models.Party, int64, error) {
@@ -79,6 +80,7 @@ func (s *PartyQueryService) FindOrganizedByUser(
 		name,
 		startAt,
 		endAt,
+		sorts,
 		page,
 		limit,
 	)

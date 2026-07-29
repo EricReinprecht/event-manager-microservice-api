@@ -161,6 +161,7 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 	name string,
 	startAt string,
 	endAt string,
+	sorts string,
 	page int,
 	limit int,
 ) ([]models.Party, int64, error) {
@@ -203,16 +204,62 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 
 	offset := (page - 1) * limit
 
+	query = applyPartySorts(
+		query,
+		sorts,
+	)
+
 	err := query.
 		Preload("Categories").
 		Preload("Thumbnail").
-		Order(
-			"parties.start_at DESC",
-		).
 		Limit(limit).
 		Offset(offset).
 		Find(&parties).
 		Error()
 
 	return parties, total, err
+}
+
+func applyPartySorts(
+	query database.DBExecutor,
+	sorts string,
+) database.DBExecutor {
+
+	allowed := map[string]string{
+		"title":    "parties.title",
+		"startAt":  "parties.start_at",
+		"endAt":    "parties.end_at",
+		"location": "parties.location",
+	}
+
+	if sorts == "" {
+		return query.Order("parties.start_at DESC")
+	}
+
+	for _, sort := range strings.Split(sorts, ",") {
+
+		parts := strings.Split(sort, ":")
+
+		if len(parts) != 2 {
+			continue
+		}
+
+		column, ok := allowed[parts[0]]
+
+		if !ok {
+			continue
+		}
+
+		direction := strings.ToLower(parts[1])
+
+		if direction != "asc" && direction != "desc" {
+			direction = "asc"
+		}
+
+		query = query.Order(
+			column + " " + direction,
+		)
+	}
+
+	return query
 }

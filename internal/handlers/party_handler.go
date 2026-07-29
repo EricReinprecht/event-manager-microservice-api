@@ -485,12 +485,15 @@ func (h *PartyHandler) GetMyParties(
 		),
 	)
 
+	sorts := c.Query("sorts")
+
 	parties, total, err := h.service.FindOrganizedByUser(
 		c.Request.Context(),
 		userID,
 		name,
 		startAt,
 		endAt,
+		sorts,
 		page,
 		limit,
 	)
