@@ -147,11 +147,11 @@ func (h *UserHandler) CompleteProfile(
 
 		"username": user.Username,
 
-		"first_name": user.FirstName,
+		"firstName": user.FirstName,
 
-		"last_name": user.LastName,
+		"lastName": user.LastName,
 
-		"profile_completed": true,
+		"profileCompleted": true,
 	})
 }
 
