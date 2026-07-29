@@ -470,7 +470,6 @@ func (h *PartyHandler) GetMyParties(
 	name := c.Query("name")
 	startAt := c.Query("startAt")
 	endAt := c.Query("endAt")
-	role := c.Query("role")
 
 	page, _ := strconv.Atoi(
 		c.DefaultQuery(
@@ -486,13 +485,12 @@ func (h *PartyHandler) GetMyParties(
 		),
 	)
 
-	parties, total, err := h.service.FindForUser(
+	parties, total, err := h.service.FindOrganizedByUser(
 		c.Request.Context(),
 		userID,
 		name,
 		startAt,
 		endAt,
-		role,
 		page,
 		limit,
 	)

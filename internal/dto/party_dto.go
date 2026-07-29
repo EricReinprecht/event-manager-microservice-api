@@ -13,15 +13,15 @@ type CreatePartyRequest struct {
 
 	Location string `json:"location"`
 
-	StartAt time.Time `json:"start_at" binding:"required"`
+	StartAt time.Time `json:"startAt" binding:"required"`
 
-	EndAt time.Time `json:"end_at" binding:"required"`
+	EndAt time.Time `json:"endAt" binding:"required"`
 
-	CategoryID uuid.UUID `json:"category_id" binding:"required"`
+	CategoryIDs []uuid.UUID `json:"categoryIds" binding:"required,min=1"`
 
-	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
+	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 
-	ImageIDs []uuid.UUID `json:"image_ids"`
+	ImageIDs []uuid.UUID `json:"imageIds"`
 }
 
 type UpdatePartyRequest struct {
@@ -31,13 +31,13 @@ type UpdatePartyRequest struct {
 
 	Location string `json:"location"`
 
-	StartAt time.Time `json:"start_at" binding:"required"`
+	StartAt time.Time `json:"startAt" binding:"required"`
 
-	EndAt time.Time `json:"end_at" binding:"required"`
+	EndAt time.Time `json:"endAt" binding:"required"`
 
-	CategoryID uuid.UUID `json:"category_id" binding:"required"`
+	CategoryIDs []uuid.UUID `json:"categoryIds" binding:"required,min=1"`
 
-	ThumbnailID *uuid.UUID `json:"thumbnail_id"`
+	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 
-	ImageIDs []uuid.UUID `json:"image_ids"`
+	ImageIDs []uuid.UUID `json:"imageIds"`
 }

@@ -84,7 +84,7 @@ func (r *PartyRepository) Update(
 			"id = ?",
 			party.ID,
 		).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 
 			"title": party.Title,
 

@@ -130,3 +130,24 @@ func (s *PartyService) FindForUser(
 		limit,
 	)
 }
+
+func (s *PartyService) FindOrganizedByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	name string,
+	startAt string,
+	endAt string,
+	page int,
+	limit int,
+) ([]models.Party, int64, error) {
+
+	return s.query.FindOrganizedByUser(
+		ctx,
+		userID,
+		name,
+		startAt,
+		endAt,
+		page,
+		limit,
+	)
+}

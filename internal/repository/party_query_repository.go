@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -148,6 +149,68 @@ func (r *PartyQueryRepository) FindForUser(
 		Offset((page - 1) * limit).
 		Preload("Categories").
 		Preload("Thumbnail").
+		Find(&parties).
+		Error()
+
+	return parties, total, err
+}
+
+func (r *PartyQueryRepository) FindOrganizedByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	name string,
+	startAt string,
+	endAt string,
+	page int,
+	limit int,
+) ([]models.Party, int64, error) {
+
+	var parties []models.Party
+	var total int64
+
+	query := r.db.
+		WithContext(ctx).
+		Model(&models.Party{}).
+		Where(
+			"parties.organizer_id = ?",
+			userID,
+		)
+
+	if name != "" {
+		query = query.Where(
+			"LOWER(parties.title) LIKE ?",
+			"%"+strings.ToLower(name)+"%",
+		)
+	}
+
+	if startAt != "" {
+		query = query.Where(
+			"parties.start_at >= ?",
+			startAt,
+		)
+	}
+
+	if endAt != "" {
+		query = query.Where(
+			"parties.end_at <= ?",
+			endAt,
+		)
+	}
+
+	if err := query.Count(&total).Error(); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+
+	err := query.
+		Preload("Categories").
+		Preload("Thumbnail").
+		Order(
+			"parties.start_at DESC",
+		).
+		Limit(limit).
+		Offset(offset).
 		Find(&parties).
 		Error()
 
