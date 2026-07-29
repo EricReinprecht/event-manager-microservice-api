@@ -23,13 +23,13 @@ func (g *GormExecutor) WithContext(ctx context.Context) DBExecutor {
 	}
 }
 
-func (g *GormExecutor) Model(value interface{}) DBExecutor {
+func (g *GormExecutor) Model(value any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Model(value),
 	}
 }
 
-func (g *GormExecutor) Where(query interface{}, args ...interface{}) DBExecutor {
+func (g *GormExecutor) Where(query any, args ...any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Where(query, args...),
 	}
@@ -56,75 +56,91 @@ func (g *GormExecutor) Offset(offset int) DBExecutor {
 	}
 }
 
-func (g *GormExecutor) Order(value interface{}) DBExecutor {
+func (g *GormExecutor) Order(value any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Order(value),
 	}
 }
 
-func (g *GormExecutor) First(dest interface{}, conds ...interface{}) DBExecutor {
+func (g *GormExecutor) Group(
+	query string,
+) DBExecutor {
+
+	return &GormExecutor{
+		db: g.db.Group(query),
+	}
+}
+
+func (g *GormExecutor) First(dest any, conds ...any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.First(dest, conds...),
 	}
 }
 
-func (g *GormExecutor) Find(dest interface{}, conds ...interface{}) DBExecutor {
+func (g *GormExecutor) Find(dest any, conds ...any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Find(dest, conds...),
 	}
 }
 
-func (g *GormExecutor) Preload(query string, args ...interface{}) DBExecutor {
+func (g *GormExecutor) Preload(query string, args ...any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Preload(query, args...),
 	}
 }
 
-func (g *GormExecutor) Joins(query string, args ...interface{}) DBExecutor {
+func (g *GormExecutor) Joins(query string, args ...any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Joins(query, args...),
 	}
 }
 
-func (g *GormExecutor) Select(query interface{}, args ...interface{}) DBExecutor {
+func (g *GormExecutor) Select(query any, args ...any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Select(query, args...),
 	}
 }
 
-func (g *GormExecutor) Scan(dest interface{}) DBExecutor {
+func (g *GormExecutor) Scan(dest any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Scan(dest),
 	}
 }
 
-func (g *GormExecutor) Create(value interface{}) DBExecutor {
+func (g *GormExecutor) Create(value any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Create(value),
 	}
 }
 
-func (e *GormExecutor) Updates(values interface{}) DBExecutor {
+func (e *GormExecutor) Updates(values any) DBExecutor {
 	return &GormExecutor{
 		db: e.db.Updates(values),
 	}
 }
 
-func (g *GormExecutor) Save(value interface{}) DBExecutor {
+func (g *GormExecutor) Save(value any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Save(value),
 	}
 }
 
-func (g *GormExecutor) Delete(value interface{}) DBExecutor {
+func (g *GormExecutor) Delete(value any) DBExecutor {
 	return &GormExecutor{
 		db: g.db.Delete(value),
 	}
 }
 
+func (g *GormExecutor) Association(
+	column string,
+) *gorm.Association {
+
+	return g.db.Association(column)
+}
+
 func (g *GormExecutor) Raw(
 	query string,
-	args ...interface{},
+	args ...any,
 ) DBExecutor {
 
 	return &GormExecutor{

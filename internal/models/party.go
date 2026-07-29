@@ -27,13 +27,11 @@ type Party struct {
 
 	TicketCategories []TicketCategory
 
-	CategoryID uuid.UUID
-
-	Category Category
+	Categories []Category `gorm:"many2many:party_categories;"`
 
 	OrganizerID uuid.UUID
 
-	Organizer User
+	Organizer User `gorm:"foreignKey:OrganizerID"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

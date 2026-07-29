@@ -15,6 +15,7 @@ func Migrate(
 		&models.User{},
 		&models.RefreshToken{},
 		&models.PasswordResetToken{},
+		&models.EmailVerification{},
 
 		&models.Category{},
 		&models.Party{},

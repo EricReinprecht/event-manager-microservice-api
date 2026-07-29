@@ -114,11 +114,11 @@ func (h *PartyHandler) Create(
 
 		EndAt: req.EndAt,
 
-		CategoryID: req.CategoryID,
-
 		OrganizerID: userID,
 
 		ThumbnailID: req.ThumbnailID,
+
+		Categories: []models.Category{},
 	}
 
 	err := h.service.Create(
@@ -338,7 +338,6 @@ func (h *PartyHandler) Update(
 	party.Title = req.Title
 	party.Description = req.Description
 	party.Location = req.Location
-	party.CategoryID = req.CategoryID
 	party.ThumbnailID = req.ThumbnailID
 	party.StartAt = req.StartAt
 	party.EndAt = req.EndAt

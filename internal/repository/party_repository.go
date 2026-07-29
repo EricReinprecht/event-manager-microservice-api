@@ -41,7 +41,7 @@ func (r *PartyRepository) FindAll(
 	err := r.db.
 		WithContext(ctx).
 		Preload("Organizer").
-		Preload("Category").
+		Preload("Categories").
 		Preload("Thumbnail").
 		Find(&parties).
 		Error()
@@ -60,7 +60,7 @@ func (r *PartyRepository) FindByID(
 		WithContext(ctx).
 		Preload("Thumbnail").
 		Preload("Images").
-		Preload("Category").
+		Preload("Categories").
 		Preload("Organizer").
 		First(
 			&party,
@@ -91,8 +91,6 @@ func (r *PartyRepository) Update(
 			"description": party.Description,
 
 			"location": party.Location,
-
-			"category_id": party.CategoryID,
 
 			"thumbnail_id": party.ThumbnailID,
 

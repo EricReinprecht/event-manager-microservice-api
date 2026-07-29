@@ -3,15 +3,16 @@ package database
 import (
 	"context"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type DBExecutor interface {
 	WithContext(ctx context.Context) DBExecutor
 
-	Model(value interface{}) DBExecutor
+	Model(value any) DBExecutor
 
-	Where(query interface{}, args ...interface{}) DBExecutor
+	Where(query any, args ...any) DBExecutor
 
 	Clauses(conds ...clause.Expression) DBExecutor
 
@@ -19,29 +20,33 @@ type DBExecutor interface {
 
 	Offset(offset int) DBExecutor
 
-	Order(value interface{}) DBExecutor
+	Group(query string) DBExecutor
 
-	First(dest interface{}, conds ...interface{}) DBExecutor
+	Order(value any) DBExecutor
 
-	Find(dest interface{}, conds ...interface{}) DBExecutor
+	First(dest any, conds ...any) DBExecutor
 
-	Preload(query string, args ...interface{}) DBExecutor
+	Find(dest any, conds ...any) DBExecutor
 
-	Joins(query string, args ...interface{}) DBExecutor
+	Preload(query string, args ...any) DBExecutor
 
-	Select(query interface{}, args ...interface{}) DBExecutor
+	Joins(query string, args ...any) DBExecutor
 
-	Scan(dest interface{}) DBExecutor
+	Select(query any, args ...any) DBExecutor
 
-	Create(value interface{}) DBExecutor
+	Scan(dest any) DBExecutor
 
-	Updates(values interface{}) DBExecutor
+	Create(value any) DBExecutor
 
-	Save(value interface{}) DBExecutor
+	Updates(values any) DBExecutor
 
-	Delete(value interface{}) DBExecutor
+	Save(value any) DBExecutor
 
-	Raw(query string, args ...interface{}) DBExecutor
+	Delete(value any) DBExecutor
+
+	Association(column string) *gorm.Association
+
+	Raw(query string, args ...any) DBExecutor
 
 	Count(count *int64) DBExecutor
 

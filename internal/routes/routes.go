@@ -203,27 +203,32 @@ func Register(
 
 	// Categories
 
-	router.GET(
+	protected.GET(
 		constants.CategoryList,
 		categoryHandler.GetAll,
 	)
 
-	router.POST(
+	protected.GET(
+		constants.CategoryListPopular,
+		categoryHandler.GetPaginatedByPopularity,
+	)
+
+	protected.POST(
 		constants.CategoryCreate,
 		categoryHandler.Create,
 	)
 
-	router.GET(
+	protected.GET(
 		constants.CategoryByID,
 		categoryHandler.GetByID,
 	)
 
-	router.PUT(
+	protected.PUT(
 		constants.CategoryByID,
 		categoryHandler.Update,
 	)
 
-	router.DELETE(
+	protected.DELETE(
 		constants.CategoryByID,
 		categoryHandler.Delete,
 	)

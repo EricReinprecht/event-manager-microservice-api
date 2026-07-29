@@ -10,4 +10,6 @@ const (
 	CategoryByID = "/categories/:id"
 
 	CategoryList = "/categories"
+
+	CategoryListPopular = "/categories/popular"
 )

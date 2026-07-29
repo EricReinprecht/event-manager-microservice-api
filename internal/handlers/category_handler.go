@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
@@ -209,5 +211,39 @@ func (h *CategoryHandler) Delete(c *gin.Context) {
 		gin.H{
 			"message": "category deleted",
 		},
+	)
+}
+
+func (h *CategoryHandler) GetPaginatedByPopularity(
+	c *gin.Context,
+) {
+
+	limit, _ := strconv.Atoi(
+		c.DefaultQuery(
+			"limit",
+			"10",
+		),
+	)
+
+	categories, err := h.service.FindPaginatedByPopularity(
+		c.Request.Context(),
+		limit,
+	)
+
+	if err != nil {
+
+		responses.Error(
+			c,
+			http.StatusInternalServerError,
+			err,
+		)
+
+		return
+	}
+
+	responses.Success(
+		c,
+		http.StatusOK,
+		categories,
 	)
 }

@@ -64,6 +64,8 @@ var Routes = map[string]string{
 
 	"CategoryList": CategoryList,
 
+	"CategoryListPopular": CategoryListPopular,
+
 	// * ---------------------------------------------------------------------
 	// * PARTIES
 	// * ---------------------------------------------------------------------

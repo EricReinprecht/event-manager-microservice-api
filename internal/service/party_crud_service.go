@@ -51,18 +51,23 @@ func (s *PartyCRUDService) Create(
 	imageIDs []uuid.UUID,
 ) error {
 
-	_, err := s.categories.FindByID(
-		ctx,
-		party.CategoryID,
-	)
+	// Validate categories
+	for _, category := range party.Categories {
 
-	if err != nil {
-		return appErrors.ErrCategoryNotFound
+		_, err := s.categories.FindByID(
+			ctx,
+			category.ID,
+		)
+
+		if err != nil {
+			return appErrors.ErrCategoryNotFound
+		}
 	}
 
+	// Validate thumbnail
 	if party.ThumbnailID != nil {
 
-		_, err = s.media.FindByID(
+		_, err := s.media.FindByID(
 			ctx,
 			*party.ThumbnailID,
 		)
@@ -72,9 +77,10 @@ func (s *PartyCRUDService) Create(
 		}
 	}
 
+	// Validate images
 	for _, imageID := range imageIDs {
 
-		_, err = s.media.FindByID(
+		_, err := s.media.FindByID(
 			ctx,
 			imageID,
 		)
@@ -92,6 +98,16 @@ func (s *PartyCRUDService) Create(
 				tx,
 				party,
 			); err != nil {
+
+				return err
+			}
+
+			// Save many-to-many category relations
+			if err := tx.
+				Model(party).
+				Association("Categories").
+				Replace(party.Categories); err != nil {
+
 				return err
 			}
 
@@ -100,12 +116,16 @@ func (s *PartyCRUDService) Create(
 				party.ID,
 				imageIDs,
 			); err != nil {
+
 				return err
 			}
 
 			member := &models.PartyMember{
-				ID:      uuid.New(),
-				UserID:  party.OrganizerID,
+
+				ID: uuid.New(),
+
+				UserID: party.OrganizerID,
+
 				PartyID: party.ID,
 			}
 
@@ -113,19 +133,22 @@ func (s *PartyCRUDService) Create(
 				tx,
 				member,
 			); err != nil {
+
 				return err
 			}
 
 			role := &models.PartyMemberRole{
-				ID:            uuid.New(),
+
+				ID: uuid.New(),
+
 				PartyMemberID: member.ID,
-				Role:          enum.RoleOrganizer,
+
+				Role: enum.RoleOrganizer,
 			}
 
 			return s.roles.Create(
 				tx,
-				role,
-			)
+				role)
 		},
 	)
 }

@@ -60,3 +60,14 @@ func (s *CategoryService) Delete(
 
 	return s.repository.Delete(ctx, category)
 }
+
+func (s *CategoryService) FindPaginatedByPopularity(
+	ctx context.Context,
+	limit int,
+) ([]models.Category, error) {
+
+	return s.repository.FindPaginatedByPopularity(
+		ctx,
+		limit,
+	)
+}

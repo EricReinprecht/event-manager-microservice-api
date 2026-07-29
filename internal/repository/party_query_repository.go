@@ -31,7 +31,7 @@ func (r *PartyQueryRepository) FindAll(
 	err := r.db.
 		WithContext(ctx).
 		Preload("Organizer").
-		Preload("Category").
+		Preload("Categories").
 		Preload("Thumbnail").
 		Find(&parties).
 		Error()
@@ -49,7 +49,7 @@ func (r *PartyQueryRepository) FindByID(
 	err := r.db.
 		WithContext(ctx).
 		Preload("Organizer").
-		Preload("Category").
+		Preload("Categories").
 		Preload("Thumbnail").
 		Preload("Images").
 		First(
@@ -146,7 +146,7 @@ func (r *PartyQueryRepository) FindForUser(
 		Order("start_at DESC").
 		Limit(limit).
 		Offset((page - 1) * limit).
-		Preload("Category").
+		Preload("Categories").
 		Preload("Thumbnail").
 		Find(&parties).
 		Error()
