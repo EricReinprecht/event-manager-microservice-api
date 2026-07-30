@@ -41,6 +41,14 @@ func (s *PartyService) Create(
 		userID,
 	)
 
+	categoryIDs, err := helpers.ParseUUIDs(
+		req.CategoryIDs,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	if err := helpers.ValidateParty(
 		party.StartAt,
 		party.EndAt,
@@ -48,14 +56,6 @@ func (s *PartyService) Create(
 		party.Longitude,
 		party.Timezone,
 	); err != nil {
-		return nil, err
-	}
-
-	categoryIDs, err := helpers.ParseUUIDs(
-		req.CategoryIDs,
-	)
-
-	if err != nil {
 		return nil, err
 	}
 

@@ -283,6 +283,7 @@ func (s *PartyCRUDService) CreateRelations(
 				return err
 			}
 
+			// save categories in party_categories
 			if err := s.partyCategories.Replace(
 				tx,
 				party.ID,
@@ -291,6 +292,7 @@ func (s *PartyCRUDService) CreateRelations(
 				return err
 			}
 
+			// save images in party_media
 			if err := s.images.Replace(
 				tx,
 				party.ID,
@@ -299,9 +301,12 @@ func (s *PartyCRUDService) CreateRelations(
 				return err
 			}
 
+			// create organizer membership
 			member := &models.PartyMember{
-				ID:      uuid.New(),
-				UserID:  party.OrganizerID,
+				ID: uuid.New(),
+
+				UserID: party.OrganizerID,
+
 				PartyID: party.ID,
 			}
 
@@ -312,10 +317,13 @@ func (s *PartyCRUDService) CreateRelations(
 				return err
 			}
 
+			// assign organizer role
 			role := &models.PartyMemberRole{
-				ID:            uuid.New(),
+				ID: uuid.New(),
+
 				PartyMemberID: member.ID,
-				Role:          enum.RoleOrganizer,
+
+				Role: enum.RoleOrganizer,
 			}
 
 			return s.roles.Create(
