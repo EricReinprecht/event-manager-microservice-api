@@ -34,6 +34,7 @@ func (r *PartyQueryRepository) FindAll(
 		Preload("Organizer").
 		Preload("Categories").
 		Preload("Thumbnail").
+		Preload("Images").
 		Find(&parties).
 		Error()
 
@@ -84,14 +85,15 @@ func (r *PartyQueryRepository) FindForUser(
 
 	query := r.db.
 		WithContext(ctx).
-		Model(&models.Party{})
+		Model(&models.Party{}).
+		Distinct("parties.*")
 
 	switch role {
 
 	case "organized":
 
 		query = query.Where(
-			"organizer_id = ?",
+			"parties.organizer_id = ?",
 			userID,
 		)
 
@@ -110,7 +112,7 @@ func (r *PartyQueryRepository) FindForUser(
 	if name != "" {
 
 		query = query.Where(
-			"title ILIKE ?",
+			"parties.title ILIKE ?",
 			"%"+name+"%",
 		)
 	}
@@ -118,7 +120,7 @@ func (r *PartyQueryRepository) FindForUser(
 	if startAt != "" {
 
 		query = query.Where(
-			"start_at >= ?",
+			"parties.start_at >= ?",
 			startAt,
 		)
 	}
@@ -126,7 +128,7 @@ func (r *PartyQueryRepository) FindForUser(
 	if endAt != "" {
 
 		query = query.Where(
-			"end_at <= ?",
+			"parties.end_at <= ?",
 			endAt,
 		)
 	}
@@ -144,11 +146,15 @@ func (r *PartyQueryRepository) FindForUser(
 	}
 
 	err := query.
-		Order("start_at DESC").
+		Order(
+			"parties.start_at DESC",
+		).
 		Limit(limit).
 		Offset((page - 1) * limit).
+		Preload("Organizer").
 		Preload("Categories").
 		Preload("Thumbnail").
+		Preload("Images").
 		Find(&parties).
 		Error()
 
@@ -169,6 +175,14 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 	var parties []models.Party
 	var total int64
 
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 {
+		limit = 10
+	}
+
 	query := r.db.
 		WithContext(ctx).
 		Model(&models.Party{}).
@@ -178,6 +192,7 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 		)
 
 	if name != "" {
+
 		query = query.Where(
 			"LOWER(parties.title) LIKE ?",
 			"%"+strings.ToLower(name)+"%",
@@ -185,6 +200,7 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 	}
 
 	if startAt != "" {
+
 		query = query.Where(
 			"(parties.start_at AT TIME ZONE parties.timezone)::date = ?",
 			startAt,
@@ -192,6 +208,7 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 	}
 
 	if endAt != "" {
+
 		query = query.Where(
 			"(parties.end_at AT TIME ZONE parties.timezone)::date = ?",
 			endAt,
@@ -202,18 +219,18 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * limit
-
 	query = applyPartySorts(
 		query,
 		sorts,
 	)
 
 	err := query.
+		Preload("Organizer").
 		Preload("Categories").
 		Preload("Thumbnail").
+		Preload("Images").
 		Limit(limit).
-		Offset(offset).
+		Offset((page - 1) * limit).
 		Find(&parties).
 		Error()
 
@@ -229,16 +246,25 @@ func applyPartySorts(
 		"title":    "parties.title",
 		"startAt":  "parties.start_at",
 		"endAt":    "parties.end_at",
-		"location": "parties.location",
+		"location": "parties.location_name",
 	}
 
 	if sorts == "" {
-		return query.Order("parties.start_at DESC")
+
+		return query.Order(
+			"parties.start_at DESC",
+		)
 	}
 
-	for _, sort := range strings.Split(sorts, ",") {
+	for _, sort := range strings.Split(
+		sorts,
+		",",
+	) {
 
-		parts := strings.Split(sort, ":")
+		parts := strings.Split(
+			sort,
+			":",
+		)
 
 		if len(parts) != 2 {
 			continue
@@ -252,7 +278,9 @@ func applyPartySorts(
 
 		direction := strings.ToLower(parts[1])
 
-		if direction != "asc" && direction != "desc" {
+		if direction != "asc" &&
+			direction != "desc" {
+
 			direction = "asc"
 		}
 

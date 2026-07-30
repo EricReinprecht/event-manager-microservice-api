@@ -43,6 +43,7 @@ func (r *PartyRepository) FindAll(
 		Preload("Organizer").
 		Preload("Categories").
 		Preload("Thumbnail").
+		Preload("Images").
 		Find(&parties).
 		Error()
 
@@ -69,7 +70,12 @@ func (r *PartyRepository) FindByID(
 		).
 		Error()
 
-	return &party, err
+	if err != nil {
+
+		return nil, err
+	}
+
+	return &party, nil
 }
 
 func (r *PartyRepository) Update(
@@ -114,6 +120,8 @@ func (r *PartyRepository) Delete(
 
 	return r.db.
 		WithContext(ctx).
-		Delete(party).
+		Delete(
+			party,
+		).
 		Error()
 }

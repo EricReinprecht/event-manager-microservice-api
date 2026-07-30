@@ -8,6 +8,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/mapper"
+	"github.com/reinp/event-platform/backend/internal/models"
 )
 
 type PartyService struct {
@@ -234,4 +235,17 @@ func (s *PartyService) FindOrganizedByUser(
 	}
 
 	return mapper.PartyResponses(parties), total, nil
+}
+
+func (s *PartyService) FindOwnedParty(
+	ctx context.Context,
+	partyID uuid.UUID,
+	userID uuid.UUID,
+) (*models.Party, error) {
+
+	return s.access.FindOwnedParty(
+		ctx,
+		partyID,
+		userID,
+	)
 }

@@ -62,6 +62,15 @@ func (g *GormExecutor) Order(value any) DBExecutor {
 	}
 }
 
+func (g *GormExecutor) Distinct(
+	args ...any,
+) DBExecutor {
+
+	return &GormExecutor{
+		db: g.db.Distinct(args...),
+	}
+}
+
 func (g *GormExecutor) Group(
 	query string,
 ) DBExecutor {

@@ -24,6 +24,8 @@ type DBExecutor interface {
 
 	Order(value any) DBExecutor
 
+	Distinct(args ...any) DBExecutor
+
 	First(dest any, conds ...any) DBExecutor
 
 	Find(dest any, conds ...any) DBExecutor
