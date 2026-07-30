@@ -25,9 +25,5 @@ func DayRangeUTC(
 
 	endLocal := startLocal.AddDate(0, 0, 1)
 
-	return (
-		startLocal.UTC(),
-		endLocal.UTC(),
-		nil
-	)
+	return startLocal.UTC(), endLocal.UTC(), nil
 }

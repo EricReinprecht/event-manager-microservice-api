@@ -53,3 +53,27 @@ type UpdatePartyRequest struct {
 
 	ImageIDs []uuid.UUID `json:"imageIds"`
 }
+
+type PartyResponse struct {
+	ID uuid.UUID `json:"id"`
+
+	Title string `json:"title"`
+
+	Description string `json:"description"`
+
+	LocationName string `json:"locationName"`
+
+	Latitude float64 `json:"latitude"`
+
+	Longitude float64 `json:"longitude"`
+
+	Timezone string `json:"timezone"`
+
+	StartAt time.Time `json:"startAt"`
+
+	EndAt time.Time `json:"endAt"`
+
+	ThumbnailID *uuid.UUID `json:"thumbnailId"`
+
+	OrganizerID uuid.UUID `json:"organizerId"`
+}

@@ -5,7 +5,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/dto"
+	"github.com/reinp/event-platform/backend/internal/helpers"
+	"github.com/reinp/event-platform/backend/internal/mapper"
 )
 
 type PartyService struct {
@@ -29,105 +31,178 @@ func NewPartyService(
 
 func (s *PartyService) Create(
 	ctx context.Context,
-	party *models.Party,
-	imageIDs []uuid.UUID,
-) error {
+	req dto.CreatePartyRequest,
+	userID uuid.UUID,
+) (*dto.PartyResponse, error) {
 
-	return s.crud.Create(
+	party := mapper.NewParty(
+		req,
+		userID,
+	)
+
+	if err := helpers.ValidateParty(
+		party.StartAt,
+		party.EndAt,
+		party.Latitude,
+		party.Longitude,
+		party.Timezone,
+	); err != nil {
+
+		return nil, err
+	}
+
+	if err := s.crud.Create(
 		ctx,
 		party,
-		imageIDs,
+		req.ImageIDs,
+	); err != nil {
+
+		return nil, err
+	}
+
+	createdParty, err := s.query.FindByID(
+		ctx,
+		party.ID,
 	)
+
+	if err != nil {
+
+		return nil, err
+	}
+
+	response := mapper.PartyResponse(
+		createdParty,
+	)
+
+	return &response, nil
 }
 
 func (s *PartyService) FindAll(
 	ctx context.Context,
-) ([]models.Party, error) {
+) ([]dto.PartyResponse, error) {
 
-	return s.query.FindAll(
+	parties, err := s.query.FindAll(
 		ctx,
 	)
+
+	if err != nil {
+
+		return nil, err
+	}
+
+	return mapper.PartyResponses(parties), nil
 }
 
 func (s *PartyService) FindByID(
 	ctx context.Context,
 	id uuid.UUID,
-) (*models.Party, error) {
+) (*dto.PartyResponse, error) {
 
-	return s.query.FindByID(
+	party, err := s.query.FindByID(
 		ctx,
 		id,
 	)
+
+	if err != nil {
+
+		return nil, err
+	}
+
+	response := mapper.PartyResponse(
+		party,
+	)
+
+	return &response, nil
 }
 
 func (s *PartyService) Update(
 	ctx context.Context,
-	party *models.Party,
-) error {
+	id uuid.UUID,
+	userID uuid.UUID,
+	req dto.UpdatePartyRequest,
+) (*dto.PartyResponse, error) {
 
-	return s.crud.Update(
+	party, err := s.access.RequireOwnership(
+		ctx,
+		id,
+		userID,
+	)
+
+	if err != nil {
+
+		return nil, err
+	}
+
+	if err := helpers.ValidateParty(
+		req.StartAt,
+		req.EndAt,
+		req.Latitude,
+		req.Longitude,
+		req.Timezone,
+	); err != nil {
+
+		return nil, err
+	}
+
+	mapper.ApplyPartyUpdate(
+		party,
+		req,
+	)
+
+	if err := s.crud.Update(
 		ctx,
 		party,
+	); err != nil {
+
+		return nil, err
+	}
+
+	if err := s.crud.UpdateImages(
+		ctx,
+		party.ID,
+		req.ImageIDs,
+	); err != nil {
+
+		return nil, err
+	}
+
+	updatedParty, err := s.query.FindByID(
+		ctx,
+		id,
 	)
+
+	if err != nil {
+
+		return nil, err
+	}
+
+	response := mapper.PartyResponse(
+		updatedParty,
+	)
+
+	return &response, nil
 }
 
 func (s *PartyService) Delete(
 	ctx context.Context,
-	party *models.Party,
+	id uuid.UUID,
+	userID uuid.UUID,
 ) error {
+
+	party, err := s.access.RequireOwnership(
+		ctx,
+		id,
+		userID,
+	)
+
+	if err != nil {
+
+		return err
+	}
 
 	return s.crud.Delete(
 		ctx,
 		party,
-	)
-}
-
-func (s *PartyService) UpdateImages(
-	ctx context.Context,
-	partyID uuid.UUID,
-	imageIDs []uuid.UUID,
-) error {
-
-	return s.crud.UpdateImages(
-		ctx,
-		partyID,
-		imageIDs,
-	)
-}
-
-func (s *PartyService) FindOwnedParty(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-) (*models.Party, error) {
-
-	return s.access.FindOwnedParty(
-		ctx,
-		partyID,
-		userID,
-	)
-}
-
-func (s *PartyService) FindForUser(
-	ctx context.Context,
-	userID uuid.UUID,
-	name string,
-	startAt string,
-	endAt string,
-	role string,
-	page int,
-	limit int,
-) ([]models.Party, int64, error) {
-
-	return s.query.FindForUser(
-		ctx,
-		userID,
-		name,
-		startAt,
-		endAt,
-		role,
-		page,
-		limit,
 	)
 }
 
@@ -140,9 +215,9 @@ func (s *PartyService) FindOrganizedByUser(
 	sorts string,
 	page int,
 	limit int,
-) ([]models.Party, int64, error) {
+) ([]dto.PartyResponse, int64, error) {
 
-	return s.query.FindOrganizedByUser(
+	parties, total, err := s.query.FindOrganizedByUser(
 		ctx,
 		userID,
 		name,
@@ -152,4 +227,11 @@ func (s *PartyService) FindOrganizedByUser(
 		page,
 		limit,
 	)
+
+	if err != nil {
+
+		return nil, 0, err
+	}
+
+	return mapper.PartyResponses(parties), total, nil
 }

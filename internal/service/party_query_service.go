@@ -26,7 +26,9 @@ func (s *PartyQueryService) FindAll(
 	ctx context.Context,
 ) ([]models.Party, error) {
 
-	return s.parties.FindAll(ctx)
+	return s.parties.FindAll(
+		ctx,
+	)
 }
 
 func (s *PartyQueryService) FindByID(

@@ -26,4 +26,6 @@ var (
 	ErrPurchaseAlreadyRefunded    = errors.New("purchase already refunded")
 	ErrEmailAlreadyExists         = errors.New("email already exists")
 	ErrUsernameAlreadyExists      = errors.New("username already exists")
+	ErrUnauthorized               = errors.New("unauthorized")
+	ErrForbidden                  = errors.New("forbidden")
 )

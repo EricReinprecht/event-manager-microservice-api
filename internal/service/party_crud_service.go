@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 
@@ -51,20 +50,6 @@ func (s *PartyCRUDService) Create(
 	imageIDs []uuid.UUID,
 ) error {
 
-	// Validate location
-	if party.LocationName == "" {
-		return errors.New("location name is required")
-	}
-
-	if party.Latitude == 0 || party.Longitude == 0 {
-		return errors.New("location coordinates are required")
-	}
-
-	if party.Timezone == "" {
-		return errors.New("timezone is required")
-	}
-
-	// Validate categories
 	for _, category := range party.Categories {
 
 		_, err := s.categories.FindByID(
@@ -73,11 +58,11 @@ func (s *PartyCRUDService) Create(
 		)
 
 		if err != nil {
+
 			return appErrors.ErrCategoryNotFound
 		}
 	}
 
-	// Validate thumbnail
 	if party.ThumbnailID != nil {
 
 		_, err := s.media.FindByID(
@@ -86,11 +71,11 @@ func (s *PartyCRUDService) Create(
 		)
 
 		if err != nil {
+
 			return appErrors.ErrMediaNotFound
 		}
 	}
 
-	// Validate images
 	for _, imageID := range imageIDs {
 
 		_, err := s.media.FindByID(
@@ -99,6 +84,7 @@ func (s *PartyCRUDService) Create(
 		)
 
 		if err != nil {
+
 			return appErrors.ErrMediaNotFound
 		}
 	}
@@ -115,11 +101,12 @@ func (s *PartyCRUDService) Create(
 				return err
 			}
 
-			// Save many-to-many category relations
 			if err := tx.
 				Model(party).
 				Association("Categories").
-				Replace(party.Categories); err != nil {
+				Replace(
+					party.Categories,
+				); err != nil {
 
 				return err
 			}
@@ -134,7 +121,6 @@ func (s *PartyCRUDService) Create(
 			}
 
 			member := &models.PartyMember{
-
 				ID: uuid.New(),
 
 				UserID: party.OrganizerID,
@@ -151,7 +137,6 @@ func (s *PartyCRUDService) Create(
 			}
 
 			role := &models.PartyMemberRole{
-
 				ID: uuid.New(),
 
 				PartyMemberID: member.ID,
@@ -204,7 +189,6 @@ func (s *PartyCRUDService) UpdateImages(
 				partyID,
 				imageIDs,
 			)
-
 		},
 	)
 }
@@ -218,26 +202,4 @@ func (s *PartyCRUDService) Delete(
 		ctx,
 		party,
 	)
-}
-
-func (s *PartyCRUDService) FindOwnedParty(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-) (*models.Party, error) {
-
-	party, err := s.FindByID(
-		ctx,
-		partyID,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if party.OrganizerID != userID {
-		return nil, errors.New("not allowed")
-	}
-
-	return party, nil
 }
