@@ -25,14 +25,18 @@ func (r *PartyCategoryRepository) Replace(
 	categoryIDs []uuid.UUID,
 ) error {
 
-	party := &models.Party{
-		ID: partyID,
+	var party models.Party
+
+	if err := tx.
+		Where("id = ?", partyID).
+		First(&party).
+		Error(); err != nil {
+		return err
 	}
 
 	var categories []models.Category
 
 	if len(categoryIDs) > 0 {
-
 		if err := tx.
 			Where("id IN ?", categoryIDs).
 			Find(&categories).
@@ -42,7 +46,7 @@ func (r *PartyCategoryRepository) Replace(
 	}
 
 	return tx.
-		Model(party).
+		Model(&party).
 		Association("Categories").
-		Replace(categories)
+		Replace(&categories)
 }

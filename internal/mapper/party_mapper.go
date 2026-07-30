@@ -68,6 +68,8 @@ func PartyResponse(
 		ThumbnailID: party.ThumbnailID,
 
 		OrganizerID: party.OrganizerID,
+
+		Categories: CategoryResponses(party.Categories),
 	}
 }
 
@@ -83,6 +85,22 @@ func PartyResponses(
 			result,
 			PartyResponse(&party),
 		)
+	}
+
+	return result
+}
+
+func CategoryResponses(
+	categories []models.Category,
+) []dto.CategoryResponse {
+
+	result := make([]dto.CategoryResponse, 0, len(categories))
+
+	for _, category := range categories {
+		result = append(result, dto.CategoryResponse{
+			ID:   category.ID,
+			Name: category.Name,
+		})
 	}
 
 	return result
