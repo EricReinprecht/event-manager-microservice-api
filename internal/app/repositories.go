@@ -27,6 +27,8 @@ type Repositories struct {
 
 	PartyMemberRoleRepository *repository.PartyMemberRoleRepository
 
+	PartyCategoryRepository *repository.PartyCategoryRepository
+
 	// Media / Categories
 	CategoryRepository *repository.CategoryRepository
 

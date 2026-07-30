@@ -130,7 +130,6 @@ func (s *PartyService) Update(
 	)
 
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -141,7 +140,6 @@ func (s *PartyService) Update(
 		req.Longitude,
 		req.Timezone,
 	); err != nil {
-
 		return nil, err
 	}
 
@@ -150,20 +148,14 @@ func (s *PartyService) Update(
 		req,
 	)
 
-	if err := s.crud.Update(
+	categoryIDs, err := helpers.ParseUUIDs(req.CategoryIDs)
+
+	if err := s.crud.UpdateRelations(
 		ctx,
 		party,
-	); err != nil {
-
-		return nil, err
-	}
-
-	if err := s.crud.UpdateImages(
-		ctx,
-		party.ID,
+		categoryIDs,
 		req.ImageIDs,
 	); err != nil {
-
 		return nil, err
 	}
 
@@ -173,7 +165,6 @@ func (s *PartyService) Update(
 	)
 
 	if err != nil {
-
 		return nil, err
 	}
 

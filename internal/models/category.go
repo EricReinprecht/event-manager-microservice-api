@@ -8,14 +8,15 @@ import (
 )
 
 type Category struct {
-	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
-	Name string `gorm:"unique;not null"`
+	Name string `gorm:"unique;not null" json:"name"`
 
-	Parties []Party `gorm:"many2many:party_categories;"`
+	Parties []Party `gorm:"many2many:party_categories;" json:"-"`
 
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt time.Time `json:"createdAt"`
 
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	UpdatedAt time.Time `json:"updatedAt"`
+
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }

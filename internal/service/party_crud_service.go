@@ -13,12 +13,13 @@ import (
 )
 
 type PartyCRUDService struct {
-	parties    *repository.PartyRepository
-	images     *repository.PartyImageRepository
-	members    *repository.PartyMemberRepository
-	roles      *repository.PartyMemberRoleRepository
-	categories *repository.CategoryRepository
-	media      *repository.MediaRepository
+	parties         *repository.PartyRepository
+	images          *repository.PartyImageRepository
+	members         *repository.PartyMemberRepository
+	roles           *repository.PartyMemberRoleRepository
+	categories      *repository.CategoryRepository
+	partyCategories *repository.PartyCategoryRepository
+	media           *repository.MediaRepository
 
 	tx *database.TransactionManager
 }
@@ -29,18 +30,20 @@ func NewPartyCRUDService(
 	members *repository.PartyMemberRepository,
 	roles *repository.PartyMemberRoleRepository,
 	categories *repository.CategoryRepository,
+	partyCategories *repository.PartyCategoryRepository,
 	media *repository.MediaRepository,
 	tx *database.TransactionManager,
 ) *PartyCRUDService {
 
 	return &PartyCRUDService{
-		parties:    parties,
-		images:     images,
-		members:    members,
-		roles:      roles,
-		categories: categories,
-		media:      media,
-		tx:         tx,
+		parties:         parties,
+		images:          images,
+		members:         members,
+		roles:           roles,
+		categories:      categories,
+		partyCategories: partyCategories,
+		media:           media,
+		tx:              tx,
 	}
 }
 
@@ -193,6 +196,25 @@ func (s *PartyCRUDService) UpdateImages(
 	)
 }
 
+func (s *PartyCRUDService) UpdateCategories(
+	ctx context.Context,
+	partyID uuid.UUID,
+	categoryIDs []uuid.UUID,
+) error {
+
+	return s.tx.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			return s.partyCategories.Replace(
+				tx,
+				partyID,
+				categoryIDs,
+			)
+		},
+	)
+}
+
 func (s *PartyCRUDService) Delete(
 	ctx context.Context,
 	party *models.Party,
@@ -201,5 +223,44 @@ func (s *PartyCRUDService) Delete(
 	return s.parties.Delete(
 		ctx,
 		party,
+	)
+}
+
+func (s *PartyCRUDService) UpdateRelations(
+	ctx context.Context,
+	party *models.Party,
+	categoryIDs []uuid.UUID,
+	imageIDs []uuid.UUID,
+) error {
+
+	return s.tx.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			if err := s.parties.Update(
+				ctx,
+				party,
+			); err != nil {
+				return err
+			}
+
+			if err := s.partyCategories.Replace(
+				tx,
+				party.ID,
+				categoryIDs,
+			); err != nil {
+				return err
+			}
+
+			if err := s.images.Replace(
+				tx,
+				party.ID,
+				imageIDs,
+			); err != nil {
+				return err
+			}
+
+			return nil
+		},
 	)
 }

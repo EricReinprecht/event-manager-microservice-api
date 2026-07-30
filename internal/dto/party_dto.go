@@ -23,7 +23,7 @@ type CreatePartyRequest struct {
 
 	EndAt time.Time `json:"endAt" binding:"required"`
 
-	CategoryIDs []uuid.UUID `json:"categoryIds"`
+	CategoryIDs []string `json:"categories"`
 
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 
@@ -47,7 +47,7 @@ type UpdatePartyRequest struct {
 
 	EndAt time.Time `json:"endAt" binding:"required"`
 
-	CategoryIDs []uuid.UUID `json:"categoryIds"`
+	CategoryIDs []string `json:"categories"`
 
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 

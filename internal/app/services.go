@@ -126,6 +126,8 @@ func NewServices(
 
 			repos.CategoryRepository,
 
+			repos.PartyCategoryRepository,
+
 			repos.MediaRepository,
 
 			transactionManager,

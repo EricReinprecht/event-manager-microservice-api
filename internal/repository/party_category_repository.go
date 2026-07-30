@@ -1,0 +1,48 @@
+package repository
+
+import (
+	"github.com/google/uuid"
+
+	"github.com/reinp/event-platform/backend/internal/database"
+	"github.com/reinp/event-platform/backend/internal/models"
+)
+
+type PartyCategoryRepository struct {
+	db database.DBExecutor
+}
+
+func NewPartyCategoryRepository(
+	db database.DBExecutor,
+) *PartyCategoryRepository {
+	return &PartyCategoryRepository{
+		db: db,
+	}
+}
+
+func (r *PartyCategoryRepository) Replace(
+	tx database.DBExecutor,
+	partyID uuid.UUID,
+	categoryIDs []uuid.UUID,
+) error {
+
+	party := &models.Party{
+		ID: partyID,
+	}
+
+	var categories []models.Category
+
+	if len(categoryIDs) > 0 {
+
+		if err := tx.
+			Where("id IN ?", categoryIDs).
+			Find(&categories).
+			Error(); err != nil {
+			return err
+		}
+	}
+
+	return tx.
+		Model(party).
+		Association("Categories").
+		Replace(categories)
+}

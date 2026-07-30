@@ -55,6 +55,11 @@ func BuildDependencies(
 			executor,
 		)
 
+	partyCategoryRepository :=
+		repository.NewPartyCategoryRepository(
+			executor,
+		)
+
 	mediaRepository :=
 		repository.NewMediaRepository(
 			executor,
@@ -151,6 +156,7 @@ func BuildDependencies(
 			partyMemberRepository,
 			partyMemberRoleRepository,
 			categoryRepository,
+			partyCategoryRepository,
 			mediaRepository,
 			database.NewTransactionManager(
 				executor,
