@@ -181,12 +181,12 @@ func Register(
 		partyHandler.Create,
 	)
 
-	router.GET(
+	protected.GET(
 		constants.PartyList,
 		partyHandler.GetAll,
 	)
 
-	router.GET(
+	protected.GET(
 		constants.PartyByID,
 		partyHandler.GetByID,
 	)
