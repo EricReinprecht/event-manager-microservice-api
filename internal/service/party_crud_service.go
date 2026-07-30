@@ -264,3 +264,64 @@ func (s *PartyCRUDService) UpdateRelations(
 		},
 	)
 }
+
+func (s *PartyCRUDService) CreateRelations(
+	ctx context.Context,
+	party *models.Party,
+	categoryIDs []uuid.UUID,
+	imageIDs []uuid.UUID,
+) error {
+
+	return s.tx.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
+
+			if err := s.parties.Create(
+				tx,
+				party,
+			); err != nil {
+				return err
+			}
+
+			if err := s.partyCategories.Replace(
+				tx,
+				party.ID,
+				categoryIDs,
+			); err != nil {
+				return err
+			}
+
+			if err := s.images.Replace(
+				tx,
+				party.ID,
+				imageIDs,
+			); err != nil {
+				return err
+			}
+
+			member := &models.PartyMember{
+				ID:      uuid.New(),
+				UserID:  party.OrganizerID,
+				PartyID: party.ID,
+			}
+
+			if err := s.members.Create(
+				tx,
+				member,
+			); err != nil {
+				return err
+			}
+
+			role := &models.PartyMemberRole{
+				ID:            uuid.New(),
+				PartyMemberID: member.ID,
+				Role:          enum.RoleOrganizer,
+			}
+
+			return s.roles.Create(
+				tx,
+				role,
+			)
+		},
+	)
+}

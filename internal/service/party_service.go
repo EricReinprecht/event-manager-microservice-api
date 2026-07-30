@@ -48,16 +48,23 @@ func (s *PartyService) Create(
 		party.Longitude,
 		party.Timezone,
 	); err != nil {
-
 		return nil, err
 	}
 
-	if err := s.crud.Create(
+	categoryIDs, err := helpers.ParseUUIDs(
+		req.CategoryIDs,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.crud.CreateRelations(
 		ctx,
 		party,
+		categoryIDs,
 		req.ImageIDs,
 	); err != nil {
-
 		return nil, err
 	}
 
@@ -67,7 +74,6 @@ func (s *PartyService) Create(
 	)
 
 	if err != nil {
-
 		return nil, err
 	}
 
