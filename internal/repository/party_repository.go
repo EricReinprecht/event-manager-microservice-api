@@ -96,15 +96,26 @@ func (r *PartyRepository) Update(
 
 			"description": party.Description,
 
+			"thumbnail_id": party.ThumbnailID,
+
 			"location_name": party.LocationName,
+
+			// Location metadata
+			"street": party.Street,
+
+			"house_number": party.HouseNumber,
+
+			"city": party.City,
+
+			"country": party.Country,
+
+			"postal_code": party.PostalCode,
 
 			"latitude": party.Latitude,
 
 			"longitude": party.Longitude,
 
 			"timezone": party.Timezone,
-
-			"thumbnail_id": party.ThumbnailID,
 
 			"start_at": party.StartAt,
 

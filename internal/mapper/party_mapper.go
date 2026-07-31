@@ -66,6 +66,7 @@ func ApplyPartyUpdate(
 
 	party.ThumbnailID = req.ThumbnailID
 }
+
 func PartyResponse(
 	party *models.Party,
 ) dto.PartyResponse {
