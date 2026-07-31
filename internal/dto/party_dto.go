@@ -13,11 +13,7 @@ type CreatePartyRequest struct {
 
 	LocationName string `json:"locationName"`
 
-	Latitude float64 `json:"latitude"`
-
-	Longitude float64 `json:"longitude"`
-
-	Timezone string `json:"timezone"`
+	Location PartyLocation `json:"location"`
 
 	StartAt time.Time `json:"startAt" binding:"required"`
 
@@ -37,11 +33,7 @@ type UpdatePartyRequest struct {
 
 	LocationName string `json:"locationName"`
 
-	Latitude float64 `json:"latitude"`
-
-	Longitude float64 `json:"longitude"`
-
-	Timezone string `json:"timezone"`
+	Location PartyLocation `json:"location"`
 
 	StartAt time.Time `json:"startAt" binding:"required"`
 
@@ -63,11 +55,7 @@ type PartyResponse struct {
 
 	LocationName string `json:"locationName"`
 
-	Latitude float64 `json:"latitude"`
-
-	Longitude float64 `json:"longitude"`
-
-	Timezone string `json:"timezone"`
+	Location PartyLocation `json:"location"`
 
 	StartAt time.Time `json:"startAt"`
 

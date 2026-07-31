@@ -142,9 +142,9 @@ func (s *PartyService) Update(
 	if err := helpers.ValidateParty(
 		req.StartAt,
 		req.EndAt,
-		req.Latitude,
-		req.Longitude,
-		req.Timezone,
+		req.Location.Latitude,
+		req.Location.Longitude,
+		req.Location.Timezone,
 	); err != nil {
 		return nil, err
 	}

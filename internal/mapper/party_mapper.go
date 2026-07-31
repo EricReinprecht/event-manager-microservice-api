@@ -13,17 +13,29 @@ func NewParty(
 ) *models.Party {
 
 	return &models.Party{
-		Title:        req.Title,
-		Description:  req.Description,
+		Title:       req.Title,
+		Description: req.Description,
+
 		LocationName: req.LocationName,
-		Latitude:     req.Latitude,
-		Longitude:    req.Longitude,
-		Timezone:     req.Timezone,
-		StartAt:      req.StartAt,
-		EndAt:        req.EndAt,
-		OrganizerID:  organizerID,
-		ThumbnailID:  req.ThumbnailID,
-		Categories:   []models.Category{},
+
+		Street:      req.Location.Street,
+		HouseNumber: req.Location.HouseNumber,
+		City:        req.Location.City,
+		Country:     req.Location.Country,
+		PostalCode:  req.Location.PostalCode,
+
+		Latitude:  req.Location.Latitude,
+		Longitude: req.Location.Longitude,
+		Timezone:  req.Location.Timezone,
+
+		StartAt: req.StartAt,
+		EndAt:   req.EndAt,
+
+		OrganizerID: organizerID,
+
+		ThumbnailID: req.ThumbnailID,
+
+		Categories: []models.Category{},
 	}
 }
 
@@ -32,16 +44,28 @@ func ApplyPartyUpdate(
 	req dto.UpdatePartyRequest,
 ) {
 	party.Title = req.Title
+
 	party.Description = req.Description
+
 	party.LocationName = req.LocationName
-	party.Latitude = req.Latitude
-	party.Longitude = req.Longitude
-	party.Timezone = req.Timezone
+
+	// Location metadata
+	party.Street = req.Location.Street
+	party.HouseNumber = req.Location.HouseNumber
+	party.City = req.Location.City
+	party.Country = req.Location.Country
+	party.PostalCode = req.Location.PostalCode
+
+	party.Latitude = req.Location.Latitude
+	party.Longitude = req.Location.Longitude
+	party.Timezone = req.Location.Timezone
+
 	party.StartAt = req.StartAt
+
 	party.EndAt = req.EndAt
+
 	party.ThumbnailID = req.ThumbnailID
 }
-
 func PartyResponse(
 	party *models.Party,
 ) dto.PartyResponse {
@@ -55,11 +79,23 @@ func PartyResponse(
 
 		LocationName: party.LocationName,
 
-		Latitude: party.Latitude,
+		Location: dto.PartyLocation{
+			Street: party.Street,
 
-		Longitude: party.Longitude,
+			HouseNumber: party.HouseNumber,
 
-		Timezone: party.Timezone,
+			City: party.City,
+
+			Country: party.Country,
+
+			PostalCode: party.PostalCode,
+
+			Latitude: party.Latitude,
+
+			Longitude: party.Longitude,
+
+			Timezone: party.Timezone,
+		},
 
 		StartAt: party.StartAt,
 
