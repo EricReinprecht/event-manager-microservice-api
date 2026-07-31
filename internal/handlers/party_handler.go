@@ -259,6 +259,7 @@ func (h *PartyHandler) GetMyParties(c *gin.Context) {
 	name := c.Query("name")
 	startAt := c.Query("startAt")
 	endAt := c.Query("endAt")
+	locationName := c.Query("locationName")
 
 	page, limit := helpers.QueryPagination(c)
 
@@ -270,6 +271,7 @@ func (h *PartyHandler) GetMyParties(c *gin.Context) {
 		name,
 		startAt,
 		endAt,
+		locationName,
 		sorts,
 		page,
 		limit,

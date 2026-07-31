@@ -167,6 +167,7 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 	name string,
 	startAt string,
 	endAt string,
+	locationName string,
 	sorts string,
 	page int,
 	limit int,
@@ -212,6 +213,14 @@ func (r *PartyQueryRepository) FindOrganizedByUser(
 		query = query.Where(
 			"(parties.end_at AT TIME ZONE parties.timezone)::date = ?",
 			endAt,
+		)
+	}
+
+	if locationName != "" {
+
+		query = query.Where(
+			"LOWER(parties.location_name) LIKE ?",
+			"%"+strings.ToLower(locationName)+"%",
 		)
 	}
 
