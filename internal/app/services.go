@@ -130,6 +130,8 @@ func NewServices(
 
 			repos.MediaRepository,
 
+			repos.TicketCategoryRepository,
+
 			transactionManager,
 		)
 

@@ -67,3 +67,18 @@ func (r *TicketAccessWindowRepository) FindCurrent(
 
 	return &window, err
 }
+
+func (r *TicketAccessWindowRepository) Delete(
+	tx database.DBExecutor,
+	id uuid.UUID,
+) error {
+
+	return tx.
+		Unscoped().
+		Delete(
+			&models.TicketAccessWindow{},
+			"id = ?",
+			id,
+		).
+		Error()
+}

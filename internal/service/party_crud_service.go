@@ -13,13 +13,14 @@ import (
 )
 
 type PartyCRUDService struct {
-	parties         *repository.PartyRepository
-	images          *repository.PartyImageRepository
-	members         *repository.PartyMemberRepository
-	roles           *repository.PartyMemberRoleRepository
-	categories      *repository.CategoryRepository
-	partyCategories *repository.PartyCategoryRepository
-	media           *repository.MediaRepository
+	parties          *repository.PartyRepository
+	images           *repository.PartyImageRepository
+	members          *repository.PartyMemberRepository
+	roles            *repository.PartyMemberRoleRepository
+	categories       *repository.CategoryRepository
+	partyCategories  *repository.PartyCategoryRepository
+	media            *repository.MediaRepository
+	ticketCategories *repository.TicketCategoryRepository
 
 	tx *database.TransactionManager
 }
@@ -32,18 +33,20 @@ func NewPartyCRUDService(
 	categories *repository.CategoryRepository,
 	partyCategories *repository.PartyCategoryRepository,
 	media *repository.MediaRepository,
+	ticketCategories *repository.TicketCategoryRepository,
 	tx *database.TransactionManager,
 ) *PartyCRUDService {
 
 	return &PartyCRUDService{
-		parties:         parties,
-		images:          images,
-		members:         members,
-		roles:           roles,
-		categories:      categories,
-		partyCategories: partyCategories,
-		media:           media,
-		tx:              tx,
+		parties:          parties,
+		images:           images,
+		members:          members,
+		roles:            roles,
+		categories:       categories,
+		partyCategories:  partyCategories,
+		media:            media,
+		ticketCategories: ticketCategories,
+		tx:               tx,
 	}
 }
 
@@ -231,6 +234,7 @@ func (s *PartyCRUDService) UpdateRelations(
 	party *models.Party,
 	categoryIDs []uuid.UUID,
 	imageIDs []uuid.UUID,
+	ticketCategories []models.TicketCategory,
 ) error {
 
 	return s.tx.Transaction(
@@ -256,6 +260,14 @@ func (s *PartyCRUDService) UpdateRelations(
 				tx,
 				party.ID,
 				imageIDs,
+			); err != nil {
+				return err
+			}
+
+			if err := s.ticketCategories.Replace(
+				tx,
+				party.ID,
+				ticketCategories,
 			); err != nil {
 				return err
 			}

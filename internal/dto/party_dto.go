@@ -24,6 +24,8 @@ type CreatePartyRequest struct {
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 
 	ImageIDs []uuid.UUID `json:"imageIds"`
+
+	TicketCategories []CreateTicketCategoryRequest `json:"ticketCategories"`
 }
 
 type UpdatePartyRequest struct {
@@ -44,6 +46,8 @@ type UpdatePartyRequest struct {
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 
 	ImageIDs []uuid.UUID `json:"imageIds"`
+
+	TicketCategories []UpdateTicketCategoryRequest `json:"ticketCategories"`
 }
 
 type PartyResponse struct {
@@ -66,4 +70,6 @@ type PartyResponse struct {
 	OrganizerID uuid.UUID `json:"organizerId"`
 
 	Categories []CategoryResponse `json:"categories"`
+
+	TicketCategories []TicketCategoryResponse `json:"ticketCategories"`
 }

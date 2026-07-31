@@ -14,6 +14,8 @@ type DBExecutor interface {
 
 	Where(query any, args ...any) DBExecutor
 
+	Unscoped() DBExecutor
+
 	Clauses(conds ...clause.Expression) DBExecutor
 
 	Limit(limit int) DBExecutor
@@ -44,7 +46,7 @@ type DBExecutor interface {
 
 	Save(value any) DBExecutor
 
-	Delete(value any) DBExecutor
+	Delete(value any, conds ...any) DBExecutor
 
 	Association(column string) *gorm.Association
 

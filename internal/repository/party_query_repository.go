@@ -54,6 +54,8 @@ func (r *PartyQueryRepository) FindByID(
 		Preload("Categories").
 		Preload("Thumbnail").
 		Preload("Images").
+		Preload("TicketCategories").
+		Preload("TicketCategories.AccessWindows").
 		First(
 			&party,
 			"id = ?",

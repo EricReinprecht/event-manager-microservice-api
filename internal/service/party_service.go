@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -156,11 +157,63 @@ func (s *PartyService) Update(
 
 	categoryIDs, err := helpers.ParseUUIDs(req.CategoryIDs)
 
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("ticket categories request:", len(req.TicketCategories))
+	fmt.Printf("%+v\n", req.TicketCategories)
+
+	ticketCategories := make([]models.TicketCategory, 0, len(req.TicketCategories))
+
+	for _, reqCategory := range req.TicketCategories {
+
+		category := models.TicketCategory{
+			PartyID:                party.ID,
+			Name:                   reqCategory.Name,
+			Price:                  reqCategory.Price,
+			Capacity:               reqCategory.Capacity,
+			RequiresVerification:   reqCategory.RequiresVerification,
+			RefundRequiresApproval: reqCategory.RefundRequiresApproval,
+			RefundPolicyID:         reqCategory.RefundPolicyID,
+		}
+
+		// existing category
+		if reqCategory.ID != nil {
+			category.ID = *reqCategory.ID
+		}
+
+		for _, reqWindow := range reqCategory.AccessWindows {
+
+			window := models.TicketAccessWindow{
+				TicketCategoryID: category.ID,
+				StartsAt:         reqWindow.StartsAt,
+				EndsAt:           reqWindow.EndsAt,
+			}
+
+			// existing access window
+			if reqWindow.ID != nil {
+				window.ID = *reqWindow.ID
+			}
+
+			category.AccessWindows = append(
+				category.AccessWindows,
+				window,
+			)
+		}
+
+		ticketCategories = append(
+			ticketCategories,
+			category,
+		)
+	}
+
 	if err := s.crud.UpdateRelations(
 		ctx,
 		party,
 		categoryIDs,
 		req.ImageIDs,
+		ticketCategories,
 	); err != nil {
 		return nil, err
 	}

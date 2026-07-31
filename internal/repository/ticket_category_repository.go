@@ -140,3 +140,227 @@ func (r *TicketCategoryRepository) FindByIDForUpdate(
 
 	return &category, nil
 }
+
+func (r *TicketCategoryRepository) Replace(
+	tx database.DBExecutor,
+	partyID uuid.UUID,
+	categories []models.TicketCategory,
+) error {
+
+	var existing []models.TicketCategory
+
+	if err := tx.
+		Where(
+			"party_id = ?",
+			partyID,
+		).
+		Find(
+			&existing,
+		).
+		Error(); err != nil {
+
+		return err
+	}
+
+	keepCategories := make(map[uuid.UUID]bool)
+
+	for _, category := range categories {
+
+		//
+		// CREATE CATEGORY
+		//
+		if category.ID == uuid.Nil {
+
+			category.ID = uuid.New()
+
+			category.PartyID = partyID
+
+			keepCategories[category.ID] = true
+
+			windows := category.AccessWindows
+
+			category.AccessWindows = nil
+
+			if err := tx.
+				Create(
+					&category,
+				).
+				Error(); err != nil {
+
+				return err
+			}
+
+			for _, window := range windows {
+
+				window.ID = uuid.New()
+
+				window.TicketCategoryID = category.ID
+
+				if err := tx.
+					Create(
+						&window,
+					).
+					Error(); err != nil {
+
+					return err
+				}
+			}
+
+			continue
+		}
+
+		//
+		// UPDATE CATEGORY
+		//
+		keepCategories[category.ID] = true
+
+		if err := tx.
+			Model(
+				&models.TicketCategory{},
+			).
+			Where(
+				"id = ?",
+				category.ID,
+			).
+			Updates(
+				map[string]interface{}{
+					"name":                     category.Name,
+					"price":                    category.Price,
+					"capacity":                 category.Capacity,
+					"requires_verification":    category.RequiresVerification,
+					"refund_requires_approval": category.RefundRequiresApproval,
+					"refund_policy_id":         category.RefundPolicyID,
+				},
+			).
+			Error(); err != nil {
+
+			return err
+		}
+
+		//
+		// ACCESS WINDOWS
+		//
+		var existingWindows []models.TicketAccessWindow
+
+		if err := tx.
+			Where(
+				"ticket_category_id = ?",
+				category.ID,
+			).
+			Find(
+				&existingWindows,
+			).
+			Error(); err != nil {
+
+			return err
+		}
+
+		keepWindows := make(map[uuid.UUID]bool)
+
+		for _, window := range category.AccessWindows {
+
+			//
+			// CREATE WINDOW
+			//
+			if window.ID == uuid.Nil {
+
+				window.ID = uuid.New()
+
+				window.TicketCategoryID = category.ID
+
+				if err := tx.
+					Create(
+						&window,
+					).
+					Error(); err != nil {
+
+					return err
+				}
+
+				continue
+			}
+
+			//
+			// UPDATE WINDOW
+			//
+			keepWindows[window.ID] = true
+
+			if err := tx.
+				Model(
+					&models.TicketAccessWindow{},
+				).
+				Where(
+					"id = ?",
+					window.ID,
+				).
+				Updates(
+					map[string]interface{}{
+						"starts_at": window.StartsAt,
+						"ends_at":   window.EndsAt,
+					},
+				).
+				Error(); err != nil {
+
+				return err
+			}
+		}
+
+		//
+		// DELETE REMOVED WINDOWS
+		//
+		for _, oldWindow := range existingWindows {
+
+			if !keepWindows[oldWindow.ID] {
+
+				if err := tx.
+					Unscoped().
+					Delete(
+						&models.TicketAccessWindow{},
+						"id = ?",
+						oldWindow.ID,
+					).
+					Error(); err != nil {
+
+					return err
+				}
+			}
+		}
+	}
+
+	//
+	// DELETE REMOVED CATEGORIES
+	//
+	for _, oldCategory := range existing {
+
+		if !keepCategories[oldCategory.ID] {
+
+			if err := tx.
+				Unscoped().
+				Where(
+					"ticket_category_id = ?",
+					oldCategory.ID,
+				).
+				Delete(
+					&models.TicketAccessWindow{},
+				).
+				Error(); err != nil {
+
+				return err
+			}
+
+			if err := tx.
+				Unscoped().
+				Delete(
+					&models.TicketCategory{},
+					"id = ?",
+					oldCategory.ID,
+				).
+				Error(); err != nil {
+
+				return err
+			}
+		}
+	}
+
+	return nil
+}

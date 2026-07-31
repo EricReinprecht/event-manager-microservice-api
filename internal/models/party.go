@@ -35,7 +35,7 @@ type Party struct {
 
 	Images []Media `gorm:"many2many:party_media;" json:"images"`
 
-	TicketCategories []TicketCategory `json:"ticketCategories"`
+	TicketCategories []TicketCategory `gorm:"foreignKey:PartyID" json:"ticketCategories"`
 
 	Categories []Category `gorm:"many2many:party_categories;" json:"categories"`
 

@@ -35,6 +35,12 @@ func (g *GormExecutor) Where(query any, args ...any) DBExecutor {
 	}
 }
 
+func (g *GormExecutor) Unscoped() DBExecutor {
+	return &GormExecutor{
+		db: g.db.Unscoped(),
+	}
+}
+
 func (g *GormExecutor) Clauses(
 	conds ...clause.Expression,
 ) DBExecutor {
@@ -134,9 +140,13 @@ func (g *GormExecutor) Save(value any) DBExecutor {
 	}
 }
 
-func (g *GormExecutor) Delete(value any) DBExecutor {
+func (g *GormExecutor) Delete(
+	value any,
+	conds ...any,
+) DBExecutor {
+
 	return &GormExecutor{
-		db: g.db.Delete(value),
+		db: g.db.Delete(value, conds...),
 	}
 }
 

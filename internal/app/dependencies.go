@@ -158,6 +158,7 @@ func BuildDependencies(
 			categoryRepository,
 			partyCategoryRepository,
 			mediaRepository,
+			ticketCategoryRepository,
 			database.NewTransactionManager(
 				executor,
 			),

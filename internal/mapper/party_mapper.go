@@ -107,6 +107,10 @@ func PartyResponse(
 		OrganizerID: party.OrganizerID,
 
 		Categories: CategoryResponses(party.Categories),
+
+		TicketCategories: TicketCategoryResponses(
+			party.TicketCategories,
+		),
 	}
 }
 
