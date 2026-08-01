@@ -134,6 +134,8 @@ func (h *PartyHandler) GetByID(c *gin.Context) {
 
 func (h *PartyHandler) Update(c *gin.Context) {
 
+	ctx := c.Request.Context()
+
 	id, err := helpers.UUIDParam(
 		c,
 		"id",
@@ -145,15 +147,6 @@ func (h *PartyHandler) Update(c *gin.Context) {
 			c,
 			err,
 		)
-
-		return
-	}
-
-	userID, ok := helpers.RequireUserID(c)
-
-	if !ok {
-
-		responses.Unauthorized(c)
 
 		return
 	}
@@ -171,9 +164,8 @@ func (h *PartyHandler) Update(c *gin.Context) {
 	}
 
 	response, err := h.service.Update(
-		c.Request.Context(),
+		ctx,
 		id,
-		userID,
 		req,
 	)
 
@@ -211,19 +203,9 @@ func (h *PartyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	userID, ok := helpers.RequireUserID(c)
-
-	if !ok {
-
-		responses.Unauthorized(c)
-
-		return
-	}
-
 	err = h.service.Delete(
 		c.Request.Context(),
 		id,
-		userID,
 	)
 
 	if err != nil {

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 
@@ -126,14 +125,12 @@ func (s *PartyService) FindByID(
 func (s *PartyService) Update(
 	ctx context.Context,
 	id uuid.UUID,
-	userID uuid.UUID,
 	req dto.UpdatePartyRequest,
 ) (*dto.PartyResponse, error) {
 
-	party, err := s.access.RequireOwnership(
+	party, err := s.query.FindByID(
 		ctx,
 		id,
-		userID,
 	)
 
 	if err != nil {
@@ -160,9 +157,6 @@ func (s *PartyService) Update(
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("ticket categories request:", len(req.TicketCategories))
-	fmt.Printf("%+v\n", req.TicketCategories)
 
 	ticketCategories := make([]models.TicketCategory, 0, len(req.TicketCategories))
 
@@ -237,13 +231,11 @@ func (s *PartyService) Update(
 func (s *PartyService) Delete(
 	ctx context.Context,
 	id uuid.UUID,
-	userID uuid.UUID,
 ) error {
 
-	party, err := s.access.RequireOwnership(
+	party, err := s.query.FindByID(
 		ctx,
 		id,
-		userID,
 	)
 
 	if err != nil {
