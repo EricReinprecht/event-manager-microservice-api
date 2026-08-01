@@ -6,6 +6,7 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/config"
 	"github.com/reinp/event-platform/backend/internal/dependencies"
+	"github.com/reinp/event-platform/backend/internal/i18n"
 	"github.com/reinp/event-platform/backend/internal/middleware"
 )
 
@@ -16,9 +17,18 @@ type Server struct {
 func New(
 	cfg *config.Config,
 	deps *dependencies.Container,
-) *Server {
+) (*Server, error) {
 
 	router := gin.Default()
+
+	translationRegistry, err := i18n.NewRegistry(
+		"en",
+		"de",
+	)
+
+	if err != nil {
+		return nil, err
+	}
 
 	globalLimiter := middleware.NewIPRateLimiter(
 		20,
@@ -38,6 +48,12 @@ func New(
 	)
 
 	router.Use(
+		middleware.Language(
+			translationRegistry,
+		),
+	)
+
+	router.Use(
 		globalLimiter.Middleware(),
 	)
 
@@ -48,7 +64,7 @@ func New(
 
 	return &Server{
 		router: router,
-	}
+	}, nil
 }
 
 func (s *Server) Start(

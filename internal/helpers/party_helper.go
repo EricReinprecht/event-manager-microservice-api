@@ -1,8 +1,9 @@
 package helpers
 
 import (
-	"errors"
 	"time"
+
+	"github.com/reinp/event-platform/backend/internal/appErrors"
 )
 
 func ValidateParty(
@@ -13,16 +14,27 @@ func ValidateParty(
 	timezone string,
 ) error {
 
-	if endAt.Before(startAt) {
-		return errors.New("end date must be after start date")
+	validationErrors := appErrors.ValidationErrors{}
+
+	if !endAt.After(startAt) {
+		validationErrors["_section_schedule"] =
+			appErrors.ErrMsgPartyEndBeforeStart
 	}
 
 	if latitude == 0 || longitude == 0 {
-		return errors.New("location coordinates are required")
+		validationErrors["location"] =
+			appErrors.ErrMsgLocationRequired
 	}
 
 	if timezone == "" {
-		return errors.New("timezone is required")
+		validationErrors["timezone"] =
+			appErrors.ErrMsgTimezoneRequired
+	}
+
+	if len(validationErrors) > 0 {
+		return appErrors.NewValidationError(
+			validationErrors,
+		)
 	}
 
 	return nil

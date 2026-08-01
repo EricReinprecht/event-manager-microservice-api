@@ -39,13 +39,18 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	return &App{
-		cfg: cfg,
+	server, err := server.New(
+		cfg,
+		deps,
+	)
 
-		server: server.New(
-			cfg,
-			deps,
-		),
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &App{
+		cfg:    cfg,
+		server: server,
 	}, nil
 }
 

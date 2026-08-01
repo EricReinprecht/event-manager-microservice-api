@@ -1,5 +1,13 @@
 package appErrors
 
+const (
+	ErrMsgPartyEndBeforeStart = "party.end_before_start"
+
+	ErrMsgLocationRequired = "party.location_required"
+
+	ErrMsgTimezoneRequired = "party.timezone_required"
+)
+
 type ValidationErrors map[string]string
 
 type ValidationError struct {

@@ -1,0 +1,7 @@
+{
+  "party": {
+    "end_before_start": "End date must be after start date",
+    "location_required": "Location coordinates are required",
+    "timezone_required": "Timezone is required"
+  }
+}
