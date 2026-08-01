@@ -12,15 +12,15 @@ import (
 )
 
 type PartyHandler struct {
-	service *service.PartyService
+	partyService *service.PartyService
 }
 
 func NewPartyHandler(
-	service *service.PartyService,
+	partyService *service.PartyService,
 ) *PartyHandler {
 
 	return &PartyHandler{
-		service: service,
+		partyService: partyService,
 	}
 }
 
@@ -47,7 +47,7 @@ func (h *PartyHandler) Create(c *gin.Context) {
 		return
 	}
 
-	response, err := h.service.Create(
+	response, err := h.partyService.Create(
 		c.Request.Context(),
 		req,
 		userID,
@@ -72,13 +72,13 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 func (h *PartyHandler) GetAll(c *gin.Context) {
 
-	parties, err := h.service.FindAll(
+	parties, err := h.partyService.FindAll(
 		c.Request.Context(),
 	)
 
 	if err != nil {
 
-		responses.InternalError(
+		responses.HandleDomainError(
 			c,
 			err,
 		)
@@ -110,7 +110,7 @@ func (h *PartyHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	party, err := h.service.FindByID(
+	party, err := h.partyService.FindByID(
 		c.Request.Context(),
 		id,
 	)
@@ -163,7 +163,7 @@ func (h *PartyHandler) Update(c *gin.Context) {
 		return
 	}
 
-	response, err := h.service.Update(
+	response, err := h.partyService.Update(
 		ctx,
 		id,
 		req,
@@ -203,7 +203,7 @@ func (h *PartyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	err = h.service.Delete(
+	err = h.partyService.Delete(
 		c.Request.Context(),
 		id,
 	)
@@ -247,7 +247,7 @@ func (h *PartyHandler) GetMyParties(c *gin.Context) {
 
 	sorts := c.Query("sorts")
 
-	parties, total, err := h.service.FindOrganizedByUser(
+	parties, total, err := h.partyService.FindOrganizedByUser(
 		c.Request.Context(),
 		userID,
 		name,
@@ -261,11 +261,10 @@ func (h *PartyHandler) GetMyParties(c *gin.Context) {
 
 	if err != nil {
 
-		responses.InternalError(
+		responses.HandleDomainError(
 			c,
 			err,
 		)
-
 		return
 	}
 
