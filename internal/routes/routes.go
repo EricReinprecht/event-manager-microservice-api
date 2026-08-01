@@ -39,7 +39,7 @@ func Register(
 
 	ticketCategoryHandler := handlers.NewTicketCategoryHandler(
 		deps.TicketCategoryService,
-		deps.PartyService,
+		deps.PermissionService,
 	)
 
 	ticketHandler := handlers.NewTicketHandler(
@@ -237,6 +237,9 @@ func Register(
 
 	protected.POST(
 		constants.PartyTicketCategories,
+		middleware.PartyOwnerMiddleware(
+			deps.PermissionService,
+		),
 		ticketCategoryHandler.Create,
 	)
 
@@ -252,11 +255,17 @@ func Register(
 
 	protected.PUT(
 		constants.TicketCategoryUpdate,
+		middleware.PartyOwnerMiddleware(
+			deps.PermissionService,
+		),
 		ticketCategoryHandler.Update,
 	)
 
 	protected.DELETE(
 		constants.TicketCategoryUpdate,
+		middleware.PartyOwnerMiddleware(
+			deps.PermissionService,
+		),
 		ticketCategoryHandler.Delete,
 	)
 

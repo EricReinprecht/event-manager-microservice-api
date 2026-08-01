@@ -24,4 +24,6 @@ type Container struct {
 	PaymentService *service.PaymentService
 
 	PartyMemberService *service.PartyMemberService
+
+	PermissionService *service.PermissionService
 }

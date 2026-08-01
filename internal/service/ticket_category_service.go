@@ -6,25 +6,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+
+	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
 )
 
-var ErrTicketCategoryExists = errors.New(
-	"ticket category already exists",
-)
-
 type TicketCategoryService struct {
-	ticketCategories *repository.TicketCategoryRepository
+	repo *repository.TicketCategoryRepository
 }
 
 func NewTicketCategoryService(
-	ticketCategories *repository.TicketCategoryRepository,
+	repo *repository.TicketCategoryRepository,
 ) *TicketCategoryService {
-
 	return &TicketCategoryService{
-		ticketCategories: ticketCategories,
+		repo: repo,
 	}
 }
 
@@ -33,29 +29,32 @@ func (s *TicketCategoryService) Create(
 	category *models.TicketCategory,
 ) error {
 
-	if len(category.AccessWindows) == 0 {
-
-		return appErrors.ErrTicketAccessWindowRequired
+	if err := s.validateCategory(category); err != nil {
+		return err
 	}
 
-	err := s.ticketCategories.Create(
-		ctx,
-		category,
-	)
+	err := s.repo.Create(ctx, category)
 
 	if err != nil {
+		return mapTicketCategoryError(err)
+	}
 
-		var pgErr *pgconn.PgError
+	return nil
+}
 
-		if errors.As(err, &pgErr) {
+func (s *TicketCategoryService) Update(
+	ctx context.Context,
+	category *models.TicketCategory,
+) error {
 
-			if pgErr.Code == "23505" {
-
-				return ErrTicketCategoryExists
-			}
-		}
-
+	if err := s.validateCategory(category); err != nil {
 		return err
+	}
+
+	err := s.repo.Update(ctx, category)
+
+	if err != nil {
+		return mapTicketCategoryError(err)
 	}
 
 	return nil
@@ -66,7 +65,7 @@ func (s *TicketCategoryService) FindByParty(
 	partyID uuid.UUID,
 ) ([]models.TicketCategory, error) {
 
-	return s.ticketCategories.FindByParty(
+	return s.repo.FindByParty(
 		ctx,
 		partyID,
 	)
@@ -77,20 +76,9 @@ func (s *TicketCategoryService) FindByID(
 	id uuid.UUID,
 ) (*models.TicketCategory, error) {
 
-	return s.ticketCategories.FindByID(
+	return s.repo.FindByID(
 		ctx,
 		id,
-	)
-}
-
-func (s *TicketCategoryService) Update(
-	ctx context.Context,
-	category *models.TicketCategory,
-) error {
-
-	return s.ticketCategories.Update(
-		ctx,
-		category,
 	)
 }
 
@@ -99,8 +87,42 @@ func (s *TicketCategoryService) Delete(
 	category *models.TicketCategory,
 ) error {
 
-	return s.ticketCategories.Delete(
+	return s.repo.Delete(
 		ctx,
 		category,
 	)
+}
+
+func mapTicketCategoryError(err error) error {
+
+	var pgErr *pgconn.PgError
+
+	if errors.As(err, &pgErr) {
+
+		switch pgErr.Code {
+
+		case "23505":
+			return appErrors.ErrTicketCategoryExists
+		}
+	}
+
+	return err
+}
+
+func (s *TicketCategoryService) validateCategory(
+	category *models.TicketCategory,
+) error {
+
+	if len(category.AccessWindows) == 0 {
+		return appErrors.ErrTicketAccessWindowRequired
+	}
+
+	for _, window := range category.AccessWindows {
+
+		if window.EndsAt.Before(window.StartsAt) {
+			return appErrors.ErrAccessWindowInvalid
+		}
+	}
+
+	return nil
 }

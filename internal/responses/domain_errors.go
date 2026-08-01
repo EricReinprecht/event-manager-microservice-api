@@ -53,6 +53,12 @@ func HandleDomainError(
 			err,
 		)
 
+	case errors.Is(err, appErrors.ErrTicketCategoryExists),
+		errors.Is(err, appErrors.ErrTicketAccessWindowRequired),
+		errors.Is(err, appErrors.ErrAccessWindowInvalid):
+
+		BadRequest(c, err)
+
 	default:
 
 		InternalError(

@@ -28,4 +28,7 @@ var (
 	ErrUsernameAlreadyExists      = errors.New("username already exists")
 	ErrUnauthorized               = errors.New("unauthorized")
 	ErrForbidden                  = errors.New("forbidden")
+	ErrInvalidAccessWindow        = errors.New("access window end must be after start")
+	ErrTicketCategoryExists       = errors.New("ticket category already exists")
+	ErrAccessWindowInvalid        = errors.New("access window end must be after start")
 )

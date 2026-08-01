@@ -3,11 +3,11 @@ package dto
 import "github.com/google/uuid"
 
 type CreateTicketCategoryRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name string `json:"name" binding:"required,min=2,max=100"`
 
-	Price int64 `json:"price" binding:"required"`
+	Price int64 `json:"price" binding:"min=0"`
 
-	Capacity int `json:"capacity" binding:"required"`
+	Capacity int `json:"capacity" binding:"min=1"`
 
 	RequiresVerification bool `json:"requiresVerification"`
 
@@ -15,17 +15,17 @@ type CreateTicketCategoryRequest struct {
 
 	RefundPolicyID *uuid.UUID `json:"refundPolicyId"`
 
-	AccessWindows []CreateAccessWindowRequest `json:"accessWindows"`
+	AccessWindows []CreateAccessWindowRequest `json:"accessWindows" binding:"dive"`
 }
 
 type UpdateTicketCategoryRequest struct {
 	ID *uuid.UUID `json:"id"`
 
-	Name string `json:"name"`
+	Name string `json:"name" binding:"omitempty,min=2,max=100"`
 
-	Price int64 `json:"price"`
+	Price int64 `json:"price" binding:"omitempty,min=0"`
 
-	Capacity int `json:"capacity"`
+	Capacity int `json:"capacity" binding:"omitempty,min=1"`
 
 	RequiresVerification bool `json:"requiresVerification"`
 
@@ -33,7 +33,7 @@ type UpdateTicketCategoryRequest struct {
 
 	RefundPolicyID *uuid.UUID `json:"refundPolicyId"`
 
-	AccessWindows []UpdateAccessWindowRequest `json:"accessWindows"`
+	AccessWindows []UpdateAccessWindowRequest `json:"accessWindows" binding:"dive"`
 }
 
 type TicketCategoryResponse struct {
