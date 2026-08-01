@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/i18n"
 )
 
 func HandleDomainError(
@@ -21,10 +22,25 @@ func HandleDomainError(
 		&validationError,
 	) {
 
+		translator := i18n.FromContext(c)
+
+		translatedErrors := make(
+			map[string]string,
+			len(validationError.Errors),
+		)
+
+		for field, translationKey := range validationError.Errors {
+
+			translatedErrors[field] =
+				translator.T(
+					translationKey,
+				)
+		}
+
 		c.JSON(
 			http.StatusUnprocessableEntity,
 			gin.H{
-				"errors": validationError.Errors,
+				"errors": translatedErrors,
 			},
 		)
 
