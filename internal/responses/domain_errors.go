@@ -14,6 +14,23 @@ func HandleDomainError(
 	err error,
 ) {
 
+	var validationError *appErrors.ValidationError
+
+	if errors.As(
+		err,
+		&validationError,
+	) {
+
+		c.JSON(
+			http.StatusUnprocessableEntity,
+			gin.H{
+				"errors": validationError.Errors,
+			},
+		)
+
+		return
+	}
+
 	switch {
 
 	case errors.Is(
@@ -23,11 +40,22 @@ func HandleDomainError(
 		errors.Is(
 			err,
 			appErrors.ErrMediaNotFound,
+		),
+		errors.Is(
+			err,
+			appErrors.ErrTicketCategoryExists,
+		),
+		errors.Is(
+			err,
+			appErrors.ErrTicketAccessWindowRequired,
+		),
+		errors.Is(
+			err,
+			appErrors.ErrAccessWindowInvalid,
 		):
 
-		Error(
+		BadRequest(
 			c,
-			http.StatusBadRequest,
 			err,
 		)
 
@@ -47,17 +75,10 @@ func HandleDomainError(
 		appErrors.ErrPartyNotFound,
 	):
 
-		Error(
+		NotFound(
 			c,
-			http.StatusNotFound,
 			err,
 		)
-
-	case errors.Is(err, appErrors.ErrTicketCategoryExists),
-		errors.Is(err, appErrors.ErrTicketAccessWindowRequired),
-		errors.Is(err, appErrors.ErrAccessWindowInvalid):
-
-		BadRequest(c, err)
 
 	default:
 
