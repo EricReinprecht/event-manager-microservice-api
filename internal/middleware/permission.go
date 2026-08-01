@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/reinp/event-platform/backend/internal/helpers"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -40,10 +41,12 @@ func PartyOwnerMiddleware(
 			return
 		}
 
-		err = permission.RequirePartyOwner(
+		err = permission.RequirePartyRole(
 			c.Request.Context(),
 			partyID,
 			userID,
+			enum.RoleOrganizer,
+			enum.RoleAdmin,
 		)
 
 		if err != nil {
