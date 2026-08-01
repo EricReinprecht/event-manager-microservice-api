@@ -2,26 +2,16 @@ package service
 
 import (
 	"fmt"
+
+	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
 )
-
-type EmailSender interface {
-	SendVerificationEmail(
-		email string,
-		username string,
-		token string,
-	) error
-
-	SendPasswordResetEmail(
-		email string,
-		username string,
-		token string,
-	) error
-}
 
 type EmailService struct {
 	mailer      MailSender
 	frontendURL string
 }
+
+var _ auth_service.EmailSender = (*EmailService)(nil)
 
 type MailSender interface {
 	Send(

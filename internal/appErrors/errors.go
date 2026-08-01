@@ -31,4 +31,5 @@ var (
 	ErrInvalidAccessWindow        = errors.New("access window end must be after start")
 	ErrTicketCategoryExists       = errors.New("ticket category already exists")
 	ErrAccessWindowInvalid        = errors.New("access window end must be after start")
+	ErrMissingToken               = errors.New("missing token")
 )

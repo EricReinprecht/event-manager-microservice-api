@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/reinp/event-platform/backend/internal/helpers"
+	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
@@ -22,7 +24,9 @@ func NewSessionHandler(
 	}
 }
 
-func (h *SessionHandler) GetSessions(c *gin.Context) {
+func (h *SessionHandler) GetSessions(
+	c *gin.Context,
+) {
 
 	userID := c.MustGet(
 		"userID",
@@ -39,17 +43,17 @@ func (h *SessionHandler) GetSessions(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(
-			500,
-			gin.H{
-				"error": err.Error(),
-			},
+
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		sessions,
 	)
@@ -63,17 +67,16 @@ func (h *SessionHandler) DeleteSession(
 		"userID",
 	).(uuid.UUID)
 
-	familyID, err := uuid.Parse(
-		c.Param("familyID"),
+	familyID, err := helpers.UUIDParam(
+		c,
+		"familyID",
 	)
 
 	if err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": "invalid session id",
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
@@ -87,17 +90,16 @@ func (h *SessionHandler) DeleteSession(
 
 	if err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
 			"message": "session revoked",
@@ -120,17 +122,16 @@ func (h *SessionHandler) LogoutAll(
 
 	if err != nil {
 
-		c.JSON(
-			http.StatusInternalServerError,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
 			"message": "logged out from all devices",

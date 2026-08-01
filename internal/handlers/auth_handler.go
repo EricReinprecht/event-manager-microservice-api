@@ -1,17 +1,23 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+
+	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/requests"
 	"github.com/reinp/event-platform/backend/internal/responses"
-	"github.com/reinp/event-platform/backend/internal/security"
 	"github.com/reinp/event-platform/backend/internal/service"
+	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
+)
+
+const (
+	registrationSuccessMessage = "Please check your email to complete registration."
+
+	passwordResetRequestMessage = "if this email exists, a reset link was sent"
 )
 
 type AuthHandler struct {
@@ -25,6 +31,7 @@ func NewAuthHandler(
 	refreshTokenDuration time.Duration,
 	cookieSecure bool,
 ) *AuthHandler {
+
 	return &AuthHandler{
 		service:              service,
 		refreshTokenDuration: refreshTokenDuration,
@@ -32,17 +39,17 @@ func NewAuthHandler(
 	}
 }
 
-func (h *AuthHandler) Register(c *gin.Context) {
+func (h *AuthHandler) Register(
+	c *gin.Context,
+) {
 
 	var req requests.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": security.ErrorMessage(err),
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
@@ -50,7 +57,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	user, err := h.service.Register(
 		c.Request.Context(),
-		service.RegisterRequest{
+		auth_service.RegisterRequest{
 			Email:    req.Email,
 			Password: req.Password,
 			Username: req.Username,
@@ -59,70 +66,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	if err != nil {
 
-		// Password validation
-		if passwordErr, ok := errors.AsType[*security.PasswordValidationError](err); ok {
-
-			c.JSON(
-				http.StatusBadRequest,
-				gin.H{
-					"field":  "password",
-					"errors": passwordErr.Errors,
-				},
-			)
-
-			return
-		}
-
-		// Username already exists
-		// Safe to expose because usernames are public identifiers
-
-		if errors.Is(
+		responses.HandleDomainError(
+			c,
 			err,
-			appErrors.ErrUsernameAlreadyExists,
-		) {
-
-			c.JSON(
-				http.StatusConflict,
-				gin.H{
-					"field": "username",
-					"error": "username already exists",
-				},
-			)
-
-			return
-		}
-
-		// Email already exists
-		// Do NOT reveal account existence
-
-		if errors.Is(
-			err,
-			appErrors.ErrEmailAlreadyExists,
-		) {
-
-			c.JSON(
-				http.StatusCreated,
-				gin.H{
-					"message": "Please check your email to complete registration.",
-				},
-			)
-
-			return
-		}
-
-		// fallback
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusCreated,
 		gin.H{
 			"message": "Please check your email to complete registration.",
@@ -131,23 +84,23 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	)
 }
 
-func (h *AuthHandler) Login(c *gin.Context) {
+func (h *AuthHandler) Login(
+	c *gin.Context,
+) {
 
 	var req requests.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	response, err := h.service.Login(
+	result, err := h.service.Login(
 		c.Request.Context(),
 		req.Identifier,
 		req.Password,
@@ -156,63 +109,65 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	)
 
 	if err != nil {
-		responses.HandleDomainError(c, err)
+
+		responses.HandleDomainError(
+			c,
+			err,
+		)
+
 		return
 	}
 
-	helpers.SetRefreshTokenCookie(
+	h.setRefreshTokenCookie(
 		c,
-		response.RefreshToken,
-		h.refreshTokenDuration,
-		h.cookieSecure,
+		result.RefreshToken,
 	)
 
 	responses.Success(
 		c,
 		http.StatusOK,
 		gin.H{
-			"accessToken": response.AccessToken,
+			"accessToken": result.AccessToken,
 		},
 	)
 }
 
-func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+func (h *AuthHandler) VerifyEmail(
+	c *gin.Context,
+) {
 
 	token := c.Query("token")
 
 	if token == "" {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": "missing token",
-			},
+		responses.BadRequest(
+			c,
+			appErrors.ErrMissingToken,
 		)
 
 		return
 	}
 
-	jwtToken, err := h.service.VerifyEmail(
+	accessToken, err := h.service.VerifyEmail(
 		c.Request.Context(),
 		token,
 	)
 
 	if err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
-			"token": jwtToken,
+			"accessToken": accessToken,
 		},
 	)
 }
@@ -220,44 +175,40 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 func (h *AuthHandler) Refresh(
 	c *gin.Context,
 ) {
-	refreshToken, err := c.Cookie(
-		helpers.RefreshTokenCookie,
-	)
 
-	if err != nil || refreshToken == "" {
+	refreshToken, err := h.readRefreshTokenCookie(c)
+
+	if err != nil {
+
 		responses.Unauthorized(c)
+
 		return
 	}
 
-	response, err := h.service.Refresh(
+	result, err := h.service.Refresh(
 		c.Request.Context(),
 		refreshToken,
 	)
 
 	if err != nil {
-		helpers.ClearRefreshTokenCookie(
-			c,
-			h.cookieSecure,
-		)
+
+		h.clearRefreshTokenCookie(c)
 
 		responses.Unauthorized(c)
+
 		return
 	}
 
-	// Refresh-token rotation:
-	// replace the old cookie with the newly generated token.
-	helpers.SetRefreshTokenCookie(
+	h.setRefreshTokenCookie(
 		c,
-		response.RefreshToken,
-		h.refreshTokenDuration,
-		h.cookieSecure,
+		result.RefreshToken,
 	)
 
 	responses.Success(
 		c,
 		http.StatusOK,
 		gin.H{
-			"accessToken": response.AccessToken,
+			"accessToken": result.AccessToken,
 		},
 	)
 }
@@ -265,21 +216,18 @@ func (h *AuthHandler) Refresh(
 func (h *AuthHandler) Logout(
 	c *gin.Context,
 ) {
-	refreshToken, err := c.Cookie(
-		helpers.RefreshTokenCookie,
-	)
 
-	if err == nil && refreshToken != "" {
+	refreshToken, _ := h.readRefreshTokenCookie(c)
+
+	if refreshToken != "" {
+
 		_ = h.service.Logout(
 			c.Request.Context(),
 			refreshToken,
 		)
 	}
 
-	helpers.ClearRefreshTokenCookie(
-		c,
-		h.cookieSecure,
-	)
+	h.clearRefreshTokenCookie(c)
 
 	responses.Success(
 		c,
@@ -298,11 +246,9 @@ func (h *AuthHandler) ForgotPassword(
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
@@ -313,20 +259,18 @@ func (h *AuthHandler) ForgotPassword(
 		req.Identifier,
 	)
 
-	// Always return success to prevent email enumeration
 	if err != nil {
 
-		c.JSON(
-			http.StatusOK,
-			gin.H{
-				"message": "if this email exists, a reset link was sent",
-			},
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
 			"message": "if this email exists, a reset link was sent",
@@ -342,35 +286,32 @@ func (h *AuthHandler) ResetPassword(
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	err := h.service.ResetPassword(
+	if err := h.service.ResetPassword(
 		c.Request.Context(),
 		req.Token,
 		req.NewPassword,
-	)
+	); err != nil {
 
-	if err != nil {
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	h.clearRefreshTokenCookie(c)
+
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
 			"message": "password reset successful",
@@ -386,37 +327,70 @@ func (h *AuthHandler) ResendVerificationEmail(
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	err := h.service.ResendVerificationEmail(
+	if err := h.service.ResendVerificationEmail(
 		c.Request.Context(),
 		req.Email,
-	)
+	); err != nil {
 
-	if err != nil {
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
 			"message": "verification email sent",
 		},
+	)
+}
+
+func (h *AuthHandler) readRefreshTokenCookie(
+	c *gin.Context,
+) (string, error) {
+
+	refreshToken, err := c.Cookie(
+		helpers.RefreshTokenCookie,
+	)
+
+	if err != nil || refreshToken == "" {
+		return "", http.ErrNoCookie
+	}
+
+	return refreshToken, nil
+}
+
+func (h *AuthHandler) setRefreshTokenCookie(
+	c *gin.Context,
+	refreshToken string,
+) {
+
+	helpers.SetRefreshTokenCookie(
+		c,
+		refreshToken,
+		h.refreshTokenDuration,
+		h.cookieSecure,
+	)
+}
+
+func (h *AuthHandler) clearRefreshTokenCookie(
+	c *gin.Context,
+) {
+
+	helpers.ClearRefreshTokenCookie(
+		c,
+		h.cookieSecure,
 	)
 }

@@ -8,18 +8,22 @@ import (
 )
 
 type JWT struct {
-	Secret string
-	Clock  clock.Clock
+	Secret              string
+	Clock               clock.Clock
+	accessTokenDuration time.Duration
 }
 
 func NewJWT(
 	secret string,
 	clock clock.Clock,
+	accessTokenDuration time.Duration,
+
 ) *JWT {
 
 	return &JWT{
-		Secret: secret,
-		Clock:  clock,
+		Secret:              secret,
+		Clock:               clock,
+		accessTokenDuration: accessTokenDuration,
 	}
 }
 
@@ -31,9 +35,9 @@ func (j *JWT) Generate(
 	claims := jwt.MapClaims{
 		"user_id":   userID,
 		"family_id": familyID,
-		"exp": time.Now().Add(
-			15 * time.Second,
-		).Unix(),
+		"exp": j.Clock.Now().
+			Add(j.accessTokenDuration).
+			Unix(),
 	}
 
 	token := jwt.NewWithClaims(

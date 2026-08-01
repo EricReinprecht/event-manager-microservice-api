@@ -6,6 +6,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/dependencies"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/service"
+	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
 )
 
 func BuildDependencies(
@@ -120,17 +121,62 @@ func BuildDependencies(
 			cfg.FrontendURL,
 		)
 
+	tokenService :=
+		auth_service.NewTokenService(
+			userRepository,
+			refreshTokenRepository,
+			clients.JWT,
+			clients.Clock,
+			cfg.RefreshTokenDuration,
+		)
+
+	verificationService :=
+		auth_service.NewVerificationService(
+			userRepository,
+			emailVerificationRepository,
+			tokenService,
+			clients.Clock,
+			emailService,
+			cfg.EmailVerificationDuration,
+			cfg.EmailVerificationCooldown,
+		)
+
+	sessionService :=
+		auth_service.NewSessionService(
+			userRepository,
+			refreshTokenRepository,
+			tokenService,
+		)
+
+	passwordService :=
+		auth_service.NewPasswordService(
+			userRepository,
+			passwordResetRepository,
+			refreshTokenRepository,
+			clients.PasswordValidator,
+			emailService,
+			clients.Clock,
+			cfg.PasswordResetDuration,
+			cfg.PasswordResetCooldown,
+		)
+
+	registrationService :=
+		auth_service.NewRegistrationService(
+			userRepository,
+			emailVerificationRepository,
+			verificationService,
+			emailService,
+			clients.PasswordValidator,
+		)
+
 	authService :=
 		service.NewAuthService(
 			userRepository,
-			emailVerificationRepository,
-			refreshTokenRepository,
-			passwordResetRepository,
-			clients.JWT,
-			emailService,
-			clients.PasswordValidator,
-			cfg.RefreshTokenDuration,
-			cfg.PasswordResetCooldown,
+			registrationService,
+			sessionService,
+			tokenService,
+			verificationService,
+			passwordService,
 		)
 
 	userService :=

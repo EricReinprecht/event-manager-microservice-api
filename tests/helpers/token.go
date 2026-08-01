@@ -17,6 +17,7 @@ func CreateAuthToken(
 		NewFakeClock(
 			time.Now().UTC(),
 		),
+		15*time.Minute,
 	)
 
 	token, err := jwtService.Generate(

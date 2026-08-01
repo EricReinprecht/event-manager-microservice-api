@@ -30,6 +30,7 @@ func NewClients(
 	jwt := auth.NewJWT(
 		cfg.JWTSecret,
 		appClock,
+		cfg.AccessTokenDuration,
 	)
 
 	mailer := mail.NewMailer(

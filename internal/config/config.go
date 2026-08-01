@@ -23,6 +23,10 @@ type Config struct {
 
 	JWTSecret             string
 	PasswordResetCooldown time.Duration
+	PasswordResetDuration time.Duration
+
+	EmailVerificationDuration time.Duration
+	EmailVerificationCooldown time.Duration
 
 	TicketVerificationTTL time.Duration
 
@@ -42,6 +46,7 @@ type Config struct {
 	SMTPPassword string
 	SMTPFrom     string
 
+	AccessTokenDuration  time.Duration
 	RefreshTokenDuration time.Duration
 	CookieSecure         bool
 }
@@ -100,6 +105,11 @@ func Load() *Config {
 
 		PasswordResetCooldown: getEnvDuration(
 			"PASSWORD_RESET_COOLDOWN",
+			15*time.Minute,
+		),
+
+		PasswordResetDuration: getEnvDuration(
+			"PASSWORD_RESET_DURATION",
 			5*time.Minute,
 		),
 
@@ -177,9 +187,24 @@ func Load() *Config {
 			30*24*time.Hour,
 		),
 
+		AccessTokenDuration: getEnvDuration(
+			"ACCES_TOKEN_DURATION",
+			15*time.Minute,
+		),
+
 		CookieSecure: getEnvBool(
 			"COOKIE_SECURE",
 			true,
+		),
+
+		EmailVerificationDuration: getEnvDuration(
+			"EMAIL_VERIFICATION_DURATION",
+			24*time.Hour,
+		),
+
+		EmailVerificationCooldown: getEnvDuration(
+			"EMAIL_VERIFICATION_COOLDOWN",
+			5*time.Minute,
 		),
 	}
 }
