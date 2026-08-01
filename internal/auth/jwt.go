@@ -32,7 +32,7 @@ func (j *JWT) Generate(
 		"user_id":   userID,
 		"family_id": familyID,
 		"exp": time.Now().Add(
-			15 * time.Minute,
+			15 * time.Second,
 		).Unix(),
 	}
 

@@ -3,24 +3,32 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/requests"
+	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/security"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
 type AuthHandler struct {
-	service *service.AuthService
+	service              *service.AuthService
+	refreshTokenDuration time.Duration
+	cookieSecure         bool
 }
 
 func NewAuthHandler(
-	authService *service.AuthService,
+	service *service.AuthService,
+	refreshTokenDuration time.Duration,
+	cookieSecure bool,
 ) *AuthHandler {
-
 	return &AuthHandler{
-		service: authService,
+		service:              service,
+		refreshTokenDuration: refreshTokenDuration,
+		cookieSecure:         cookieSecure,
 	}
 }
 
@@ -146,23 +154,24 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.Request.UserAgent(),
 		c.ClientIP(),
 	)
+
 	if err != nil {
-
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
-
+		responses.HandleDomainError(c, err)
 		return
 	}
 
-	c.JSON(
+	helpers.SetRefreshTokenCookie(
+		c,
+		response.RefreshToken,
+		h.refreshTokenDuration,
+		h.cookieSecure,
+	)
+
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
-			"accessToken":  response.AccessToken,
-			"refreshToken": response.RefreshToken,
+			"accessToken": response.AccessToken,
 		},
 	)
 }
@@ -211,45 +220,44 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 func (h *AuthHandler) Refresh(
 	c *gin.Context,
 ) {
+	refreshToken, err := c.Cookie(
+		helpers.RefreshTokenCookie,
+	)
 
-	var req struct {
-		RefreshToken string `json:"refreshToken" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": "invalid request",
-			},
-		)
-
+	if err != nil || refreshToken == "" {
+		responses.Unauthorized(c)
 		return
 	}
 
 	response, err := h.service.Refresh(
 		c.Request.Context(),
-		req.RefreshToken,
+		refreshToken,
 	)
 
 	if err != nil {
-
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"error": err.Error(),
-			},
+		helpers.ClearRefreshTokenCookie(
+			c,
+			h.cookieSecure,
 		)
 
+		responses.Unauthorized(c)
 		return
 	}
 
-	c.JSON(
+	// Refresh-token rotation:
+	// replace the old cookie with the newly generated token.
+	helpers.SetRefreshTokenCookie(
+		c,
+		response.RefreshToken,
+		h.refreshTokenDuration,
+		h.cookieSecure,
+	)
+
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
-			"accessToken":  response.AccessToken,
-			"refreshToken": response.RefreshToken,
+			"accessToken": response.AccessToken,
 		},
 	)
 }
@@ -257,42 +265,27 @@ func (h *AuthHandler) Refresh(
 func (h *AuthHandler) Logout(
 	c *gin.Context,
 ) {
-
-	var req requests.LogoutRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
-
-		return
-	}
-
-	err := h.service.Logout(
-		c.Request.Context(),
-		req.RefreshToken,
+	refreshToken, err := c.Cookie(
+		helpers.RefreshTokenCookie,
 	)
 
-	if err != nil {
-
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"error": "invalid refresh token",
-			},
+	if err == nil && refreshToken != "" {
+		_ = h.service.Logout(
+			c.Request.Context(),
+			refreshToken,
 		)
-
-		return
 	}
 
-	c.JSON(
+	helpers.ClearRefreshTokenCookie(
+		c,
+		h.cookieSecure,
+	)
+
+	responses.Success(
+		c,
 		http.StatusOK,
 		gin.H{
-			"message": "logged out successfully",
+			"message": "logged out",
 		},
 	)
 }

@@ -1,6 +1,8 @@
 package dependencies
 
 import (
+	"time"
+
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
@@ -26,4 +28,8 @@ type Container struct {
 	PartyMemberService *service.PartyMemberService
 
 	PermissionService *service.PermissionService
+
+	RefreshTokenDuration time.Duration
+
+	CookieSecure bool
 }

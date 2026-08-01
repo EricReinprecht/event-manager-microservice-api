@@ -17,6 +17,8 @@ func registerPublicRoutes(
 
 	authHandler := handlers.NewAuthHandler(
 		deps.AuthService,
+		deps.RefreshTokenDuration,
+		deps.CookieSecure,
 	)
 
 	paymentHandler := handlers.NewPaymentHandler(

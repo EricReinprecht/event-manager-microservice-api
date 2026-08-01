@@ -26,6 +26,7 @@ func CORS(
 		AllowHeaders: []string{
 			"Origin",
 			"Content-Type",
+			"Accept",
 			"Authorization",
 		},
 

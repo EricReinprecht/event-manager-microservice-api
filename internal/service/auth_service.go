@@ -505,24 +505,11 @@ func (s *AuthService) Logout(
 	ctx context.Context,
 	refreshToken string,
 ) error {
+	hash := auth.HashToken(refreshToken)
 
-	hash := auth.HashToken(
-		refreshToken,
-	)
-
-	token, err := s.refreshTokens.FindByHash(
+	return s.refreshTokens.RevokeByHash(
 		ctx,
 		hash,
-	)
-
-	if err != nil {
-		return errors.New(
-			"invalid refresh token",
-		)
-	}
-
-	return s.refreshTokens.Revoke(
-		token.ID,
 	)
 }
 

@@ -22,7 +22,6 @@ type Config struct {
 	DBName     string
 
 	JWTSecret             string
-	RefreshTokenDuration  time.Duration
 	PasswordResetCooldown time.Duration
 
 	TicketVerificationTTL time.Duration
@@ -42,6 +41,9 @@ type Config struct {
 	SMTPUser     string
 	SMTPPassword string
 	SMTPFrom     string
+
+	RefreshTokenDuration time.Duration
+	CookieSecure         bool
 }
 
 func Load() *Config {
@@ -94,11 +96,6 @@ func Load() *Config {
 		JWTSecret: getEnv(
 			"JWT_SECRET",
 			"development-secret-change-me",
-		),
-
-		RefreshTokenDuration: getEnvDuration(
-			"REFRESH_TOKEN_DURATION",
-			30*24*time.Hour,
 		),
 
 		PasswordResetCooldown: getEnvDuration(
@@ -173,6 +170,16 @@ func Load() *Config {
 		SMTPFrom: getEnv(
 			"SMTP_FROM",
 			"",
+		),
+
+		RefreshTokenDuration: getEnvDuration(
+			"REFRESH_TOKEN_DURATION",
+			30*24*time.Hour,
+		),
+
+		CookieSecure: getEnvBool(
+			"COOKIE_SECURE",
+			true,
 		),
 	}
 }
@@ -263,4 +270,24 @@ func getEnvDuration(
 	}
 
 	return duration
+}
+
+func getEnvBool(
+	key string,
+	fallback bool,
+) bool {
+
+	value := os.Getenv(key)
+
+	if value == "" {
+		return fallback
+	}
+
+	result, err := strconv.ParseBool(value)
+
+	if err != nil {
+		return fallback
+	}
+
+	return result
 }

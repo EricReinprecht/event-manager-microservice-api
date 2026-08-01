@@ -253,5 +253,9 @@ func BuildDependencies(
 		PartyMemberService: partyMemberService,
 
 		PermissionService: permissionService,
+
+		RefreshTokenDuration: cfg.RefreshTokenDuration,
+
+		CookieSecure: cfg.CookieSecure,
 	}, nil
 }
