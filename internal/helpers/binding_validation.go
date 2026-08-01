@@ -1,0 +1,225 @@
+package helpers
+
+import (
+	"reflect"
+	"strings"
+
+	"github.com/go-playground/validator/v10"
+
+	"github.com/reinp/event-platform/backend/internal/appErrors"
+)
+
+func BindingValidationErrors(
+	err error,
+	request any,
+) *appErrors.ValidationError {
+
+	validationErrors, ok :=
+		err.(validator.ValidationErrors)
+
+	if !ok {
+		return nil
+	}
+
+	result := appErrors.ValidationErrors{}
+
+	requestType := reflect.TypeOf(request)
+
+	if requestType.Kind() == reflect.Pointer {
+		requestType = requestType.Elem()
+	}
+
+	for _, fieldError := range validationErrors {
+
+		path := validationFieldPath(
+			fieldError,
+			requestType,
+		)
+
+		result[path] = validationMessageKey(
+			fieldError.Tag(),
+		)
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+
+	return appErrors.NewValidationError(
+		result,
+	)
+}
+
+func validationFieldPath(
+	fieldError validator.FieldError,
+	rootType reflect.Type,
+) string {
+
+	namespace := fieldError.StructNamespace()
+
+	parts := strings.Split(
+		namespace,
+		".",
+	)
+
+	if len(parts) > 0 {
+		parts = parts[1:]
+	}
+
+	currentType := rootType
+
+	pathParts := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+
+		fieldName, indexes := splitValidationPart(
+			part,
+		)
+
+		if currentType.Kind() == reflect.Pointer {
+			currentType = currentType.Elem()
+		}
+
+		if currentType.Kind() != reflect.Struct {
+			pathParts = append(
+				pathParts,
+				lowerFirst(fieldName)+indexes,
+			)
+
+			continue
+		}
+
+		structField, found :=
+			currentType.FieldByName(fieldName)
+
+		if !found {
+			pathParts = append(
+				pathParts,
+				lowerFirst(fieldName)+indexes,
+			)
+
+			continue
+		}
+
+		jsonName := jsonFieldName(
+			structField,
+		)
+
+		pathParts = append(
+			pathParts,
+			jsonName+indexes,
+		)
+
+		currentType = structField.Type
+
+		if currentType.Kind() == reflect.Slice ||
+			currentType.Kind() == reflect.Array {
+
+			currentType = currentType.Elem()
+		}
+	}
+
+	return strings.Join(
+		pathParts,
+		".",
+	)
+}
+
+func splitValidationPart(
+	part string,
+) (string, string) {
+
+	index := strings.Index(
+		part,
+		"[",
+	)
+
+	if index == -1 {
+		return part, ""
+	}
+
+	fieldName := part[:index]
+
+	indexes := part[index:]
+
+	indexes = strings.ReplaceAll(
+		indexes,
+		"][",
+		".",
+	)
+
+	indexes = strings.ReplaceAll(
+		indexes,
+		"[",
+		".",
+	)
+
+	indexes = strings.ReplaceAll(
+		indexes,
+		"]",
+		"",
+	)
+
+	return fieldName, indexes
+}
+
+func jsonFieldName(
+	field reflect.StructField,
+) string {
+
+	jsonTag := field.Tag.Get(
+		"json",
+	)
+
+	if jsonTag == "" {
+		return lowerFirst(
+			field.Name,
+		)
+	}
+
+	name := strings.Split(
+		jsonTag,
+		",",
+	)[0]
+
+	if name == "" || name == "-" {
+		return lowerFirst(
+			field.Name,
+		)
+	}
+
+	return name
+}
+
+func lowerFirst(
+	value string,
+) string {
+
+	if value == "" {
+		return value
+	}
+
+	return strings.ToLower(
+		value[:1],
+	) + value[1:]
+}
+
+func validationMessageKey(
+	tag string,
+) string {
+
+	switch tag {
+
+	case "required":
+		return "validation.required"
+
+	case "min":
+		return "validation.min"
+
+	case "max":
+		return "validation.max"
+
+	default:
+		return "validation.invalid"
+	}
+}

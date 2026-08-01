@@ -1,4 +1,10 @@
 {
+    "validation": {
+        "required": "Dieses Feld ist erforderlich.",
+        "min": "Der Wert unterschreitet das erlaubte Minimum.",
+        "max": "Der Wert überschreitet das erlaubte Maximum.",
+        "invalid": "Der Wert ist ungültig."
+    },
     "party": {
         "end_before_start": "Das Enddatum muss nach dem Startdatum liegen",
         "location_required": "Standortkoordinaten sind erforderlich",

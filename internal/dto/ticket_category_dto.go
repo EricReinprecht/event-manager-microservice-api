@@ -7,7 +7,7 @@ type CreateTicketCategoryRequest struct {
 
 	Price int64 `json:"price" binding:"min=0"`
 
-	Capacity int `json:"capacity" binding:"min=1"`
+	Capacity int `json:"capacity" binding:"required,min=1"`
 
 	RequiresVerification bool `json:"requiresVerification"`
 
@@ -21,11 +21,11 @@ type CreateTicketCategoryRequest struct {
 type UpdateTicketCategoryRequest struct {
 	ID *uuid.UUID `json:"id"`
 
-	Name string `json:"name" binding:"omitempty,min=2,max=100"`
+	Name string `json:"name" binding:"required,min=2,max=100"`
 
-	Price int64 `json:"price" binding:"omitempty,min=0"`
+	Price int64 `json:"price" binding:"min=0"`
 
-	Capacity int `json:"capacity" binding:"omitempty,min=1"`
+	Capacity int `json:"capacity" binding:"required,min=1"`
 
 	RequiresVerification bool `json:"requiresVerification"`
 

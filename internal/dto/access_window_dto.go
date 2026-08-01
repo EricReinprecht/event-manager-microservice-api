@@ -15,9 +15,9 @@ type CreateAccessWindowRequest struct {
 type UpdateAccessWindowRequest struct {
 	ID *uuid.UUID `json:"id"`
 
-	StartsAt time.Time `json:"startsAt" binding:"omitempty"`
+	StartsAt time.Time `json:"startsAt" binding:"required"`
 
-	EndsAt time.Time `json:"endsAt" binding:"omitempty"`
+	EndsAt time.Time `json:"endsAt" binding:"required"`
 }
 
 type AccessWindowResponse struct {

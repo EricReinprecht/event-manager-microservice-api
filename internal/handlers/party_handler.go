@@ -30,6 +30,22 @@ func (h *PartyHandler) Create(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
+		validationError :=
+			helpers.BindingValidationErrors(
+				err,
+				req,
+			)
+
+		if validationError != nil {
+
+			responses.HandleDomainError(
+				c,
+				validationError,
+			)
+
+			return
+		}
+
 		responses.BadRequest(
 			c,
 			err,
@@ -154,6 +170,22 @@ func (h *PartyHandler) Update(c *gin.Context) {
 	var req dto.UpdatePartyRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+
+		validationError :=
+			helpers.BindingValidationErrors(
+				err,
+				req,
+			)
+
+		if validationError != nil {
+
+			responses.HandleDomainError(
+				c,
+				validationError,
+			)
+
+			return
+		}
 
 		responses.BadRequest(
 			c,
