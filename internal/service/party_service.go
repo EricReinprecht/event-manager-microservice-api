@@ -51,7 +51,7 @@ func (s *PartyService) Create(
 		return nil, err
 	}
 
-	validationErrors := helpers.ValidateParty(
+	validationErrors := validators.ValidateParty(
 		party.StartAt,
 		party.EndAt,
 		party.Latitude,
@@ -59,7 +59,7 @@ func (s *PartyService) Create(
 		party.Timezone,
 	)
 
-	helpers.MergeValidationErrors(
+	validators.MergeValidationErrors(
 		validationErrors,
 		validators.ValidateCreateTicketCategories(
 			req.TicketCategories,
@@ -151,7 +151,7 @@ func (s *PartyService) Update(
 		return nil, err
 	}
 
-	validationErrors := helpers.ValidateParty(
+	validationErrors := validators.ValidateParty(
 		req.StartAt,
 		req.EndAt,
 		req.Location.Latitude,
@@ -159,7 +159,7 @@ func (s *PartyService) Update(
 		req.Location.Timezone,
 	)
 
-	helpers.MergeValidationErrors(
+	validators.MergeValidationErrors(
 		validationErrors,
 		validators.ValidateUpdateTicketCategories(
 			req.TicketCategories,

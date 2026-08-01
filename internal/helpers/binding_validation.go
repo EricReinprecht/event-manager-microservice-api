@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 
@@ -14,20 +15,28 @@ func BindingValidationErrors(
 	request any,
 ) *appErrors.ValidationError {
 
-	validationErrors, ok :=
-		err.(validator.ValidationErrors)
+	var validationErrors validator.ValidationErrors
 
-	if !ok {
+	if !errors.As(
+		err,
+		&validationErrors,
+	) {
 		return nil
 	}
 
-	result := appErrors.ValidationErrors{}
+	requestType := reflect.TypeOf(
+		request,
+	)
 
-	requestType := reflect.TypeOf(request)
+	if requestType == nil {
+		return nil
+	}
 
 	if requestType.Kind() == reflect.Pointer {
 		requestType = requestType.Elem()
 	}
+
+	result := appErrors.ValidationErrors{}
 
 	for _, fieldError := range validationErrors {
 
@@ -36,9 +45,14 @@ func BindingValidationErrors(
 			requestType,
 		)
 
-		result[path] = validationMessageKey(
-			fieldError.Tag(),
-		)
+		if path == "" {
+			continue
+		}
+
+		result[path] =
+			validationMessageKey(
+				fieldError.Tag(),
+			)
 	}
 
 	if len(result) == 0 {
@@ -55,7 +69,8 @@ func validationFieldPath(
 	rootType reflect.Type,
 ) string {
 
-	namespace := fieldError.StructNamespace()
+	namespace :=
+		fieldError.StructNamespace()
 
 	parts := strings.Split(
 		namespace,
@@ -68,19 +83,27 @@ func validationFieldPath(
 
 	currentType := rootType
 
-	pathParts := make([]string, 0, len(parts))
+	pathParts := make(
+		[]string,
+		0,
+		len(parts),
+	)
 
 	for _, part := range parts {
 
-		fieldName, indexes := splitValidationPart(
-			part,
-		)
+		fieldName, indexes :=
+			splitValidationPart(part)
 
-		if currentType.Kind() == reflect.Pointer {
-			currentType = currentType.Elem()
+		for currentType.Kind() ==
+			reflect.Pointer {
+
+			currentType =
+				currentType.Elem()
 		}
 
-		if currentType.Kind() != reflect.Struct {
+		if currentType.Kind() !=
+			reflect.Struct {
+
 			pathParts = append(
 				pathParts,
 				lowerFirst(fieldName)+indexes,
@@ -90,9 +113,12 @@ func validationFieldPath(
 		}
 
 		structField, found :=
-			currentType.FieldByName(fieldName)
+			currentType.FieldByName(
+				fieldName,
+			)
 
 		if !found {
+
 			pathParts = append(
 				pathParts,
 				lowerFirst(fieldName)+indexes,
@@ -101,21 +127,28 @@ func validationFieldPath(
 			continue
 		}
 
-		jsonName := jsonFieldName(
-			structField,
-		)
-
 		pathParts = append(
 			pathParts,
-			jsonName+indexes,
+			jsonFieldName(structField)+indexes,
 		)
 
-		currentType = structField.Type
+		currentType =
+			structField.Type
 
-		if currentType.Kind() == reflect.Slice ||
-			currentType.Kind() == reflect.Array {
+		for currentType.Kind() ==
+			reflect.Pointer {
 
-			currentType = currentType.Elem()
+			currentType =
+				currentType.Elem()
+		}
+
+		if currentType.Kind() ==
+			reflect.Slice ||
+			currentType.Kind() ==
+				reflect.Array {
+
+			currentType =
+				currentType.Elem()
 		}
 	}
 

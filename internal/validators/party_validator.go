@@ -1,6 +1,7 @@
-package helpers
+package validators
 
 import (
+	"strings"
 	"time"
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
@@ -14,7 +15,8 @@ func ValidateParty(
 	timezone string,
 ) appErrors.ValidationErrors {
 
-	validationErrors := appErrors.ValidationErrors{}
+	validationErrors :=
+		appErrors.ValidationErrors{}
 
 	if !endAt.After(startAt) {
 		validationErrors["_section_schedule"] =
@@ -26,7 +28,7 @@ func ValidateParty(
 			appErrors.ErrMsgLocationRequired
 	}
 
-	if timezone == "" {
+	if strings.TrimSpace(timezone) == "" {
 		validationErrors["timezone"] =
 			appErrors.ErrMsgTimezoneRequired
 	}

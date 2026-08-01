@@ -40,6 +40,7 @@ func ValidateCreateTicketCategories(
 		)
 
 		for _, window := range category.AccessWindows {
+
 			windows = append(
 				windows,
 				accessWindowValidationItem{
@@ -82,6 +83,7 @@ func ValidateUpdateTicketCategories(
 		)
 
 		for _, window := range category.AccessWindows {
+
 			windows = append(
 				windows,
 				accessWindowValidationItem{
@@ -109,57 +111,75 @@ func validateTicketCategories(
 	categories []ticketCategoryValidationItem,
 ) appErrors.ValidationErrors {
 
-	validationErrors := appErrors.ValidationErrors{}
+	validationErrors :=
+		appErrors.ValidationErrors{}
 
-	seenNames := make(map[string]int)
+	seenNames := make(
+		map[string]int,
+	)
 
 	for categoryIndex, category := range categories {
 
-		name := strings.TrimSpace(category.Name)
+		name := strings.TrimSpace(
+			category.Name,
+		)
+
+		namePath := fmt.Sprintf(
+			"ticketCategories.%d.name",
+			categoryIndex,
+		)
 
 		if name == "" {
-			validationErrors[fmt.Sprintf(
-				"ticketCategories.%d.name",
-				categoryIndex,
-			)] = appErrors.ErrMsgTicketCategoryNameRequired
+
+			validationErrors[namePath] =
+				appErrors.ErrMsgTicketCategoryNameRequired
+
+		} else {
+
+			normalizedName :=
+				strings.ToLower(name)
+
+			if _, exists :=
+				seenNames[normalizedName]; exists {
+
+				validationErrors[namePath] =
+					appErrors.ErrMsgTicketCategoryNameDuplicate
+
+			} else {
+
+				seenNames[normalizedName] =
+					categoryIndex
+			}
 		}
 
 		if category.Price < 0 {
+
 			validationErrors[fmt.Sprintf(
 				"ticketCategories.%d.price",
 				categoryIndex,
-			)] = appErrors.ErrMsgTicketCategoryPriceInvalid
+			)] =
+				appErrors.ErrMsgTicketCategoryPriceInvalid
 		}
 
 		if category.Capacity < 1 {
+
 			validationErrors[fmt.Sprintf(
 				"ticketCategories.%d.capacity",
 				categoryIndex,
-			)] = appErrors.ErrMsgTicketCategoryCapacityInvalid
-		}
-
-		normalizedName := strings.ToLower(name)
-
-		if normalizedName != "" {
-
-			if _, exists := seenNames[normalizedName]; exists {
-				validationErrors[fmt.Sprintf(
-					"ticketCategories.%d.name",
-					categoryIndex,
-				)] = appErrors.ErrMsgTicketCategoryNameDuplicate
-			} else {
-				seenNames[normalizedName] = categoryIndex
-			}
+			)] =
+				appErrors.ErrMsgTicketCategoryCapacityInvalid
 		}
 
 		for windowIndex, window := range category.AccessWindows {
 
 			if !window.EndAt.After(window.StartAt) {
+
 				validationErrors[fmt.Sprintf(
 					"ticketCategories.%d.accessWindows.%d._repeater",
 					categoryIndex,
 					windowIndex,
-				)] = appErrors.ErrMsgAccessWindowEndBeforeStart
+				)] =
+					appErrors.ErrMsgAccessWindowEndBeforeStart
 			}
 		}
 	}
