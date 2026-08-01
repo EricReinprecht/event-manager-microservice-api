@@ -12,7 +12,7 @@ func ValidateParty(
 	latitude float64,
 	longitude float64,
 	timezone string,
-) error {
+) appErrors.ValidationErrors {
 
 	validationErrors := appErrors.ValidationErrors{}
 
@@ -31,11 +31,5 @@ func ValidateParty(
 			appErrors.ErrMsgTimezoneRequired
 	}
 
-	if len(validationErrors) > 0 {
-		return appErrors.NewValidationError(
-			validationErrors,
-		)
-	}
-
-	return nil
+	return validationErrors
 }

@@ -5,10 +5,12 @@ import (
 
 	"github.com/google/uuid"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/mapper"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/validators"
 )
 
 type PartyService struct {
@@ -49,14 +51,26 @@ func (s *PartyService) Create(
 		return nil, err
 	}
 
-	if err := helpers.ValidateParty(
+	validationErrors := helpers.ValidateParty(
 		party.StartAt,
 		party.EndAt,
 		party.Latitude,
 		party.Longitude,
 		party.Timezone,
-	); err != nil {
-		return nil, err
+	)
+
+	helpers.MergeValidationErrors(
+		validationErrors,
+		validators.ValidateCreateTicketCategories(
+			req.TicketCategories,
+		),
+	)
+
+	if len(validationErrors) > 0 {
+		return nil,
+			appErrors.NewValidationError(
+				validationErrors,
+			)
 	}
 
 	if err := s.crud.CreateRelations(
@@ -137,14 +151,26 @@ func (s *PartyService) Update(
 		return nil, err
 	}
 
-	if err := helpers.ValidateParty(
+	validationErrors := helpers.ValidateParty(
 		req.StartAt,
 		req.EndAt,
 		req.Location.Latitude,
 		req.Location.Longitude,
 		req.Location.Timezone,
-	); err != nil {
-		return nil, err
+	)
+
+	helpers.MergeValidationErrors(
+		validationErrors,
+		validators.ValidateUpdateTicketCategories(
+			req.TicketCategories,
+		),
+	)
+
+	if len(validationErrors) > 0 {
+		return nil,
+			appErrors.NewValidationError(
+				validationErrors,
+			)
 	}
 
 	mapper.ApplyPartyUpdate(
@@ -152,55 +178,18 @@ func (s *PartyService) Update(
 		req,
 	)
 
-	categoryIDs, err := helpers.ParseUUIDs(req.CategoryIDs)
+	categoryIDs, err := helpers.ParseUUIDs(
+		req.CategoryIDs,
+	)
 
 	if err != nil {
 		return nil, err
 	}
 
-	ticketCategories := make([]models.TicketCategory, 0, len(req.TicketCategories))
-
-	for _, reqCategory := range req.TicketCategories {
-
-		category := models.TicketCategory{
-			PartyID:                party.ID,
-			Name:                   reqCategory.Name,
-			Price:                  reqCategory.Price,
-			Capacity:               reqCategory.Capacity,
-			RequiresVerification:   reqCategory.RequiresVerification,
-			RefundRequiresApproval: reqCategory.RefundRequiresApproval,
-			RefundPolicyID:         reqCategory.RefundPolicyID,
-		}
-
-		// existing category
-		if reqCategory.ID != nil {
-			category.ID = *reqCategory.ID
-		}
-
-		for _, reqWindow := range reqCategory.AccessWindows {
-
-			window := models.TicketAccessWindow{
-				TicketCategoryID: category.ID,
-				StartsAt:         reqWindow.StartsAt,
-				EndsAt:           reqWindow.EndsAt,
-			}
-
-			// existing access window
-			if reqWindow.ID != nil {
-				window.ID = *reqWindow.ID
-			}
-
-			category.AccessWindows = append(
-				category.AccessWindows,
-				window,
-			)
-		}
-
-		ticketCategories = append(
-			ticketCategories,
-			category,
-		)
-	}
+	ticketCategories := mapper.TicketCategories(
+		req.TicketCategories,
+		party.ID,
+	)
 
 	if err := s.crud.UpdateRelations(
 		ctx,

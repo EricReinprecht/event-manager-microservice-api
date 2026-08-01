@@ -3,5 +3,12 @@
         "end_before_start": "Das Enddatum muss nach dem Startdatum liegen",
         "location_required": "Standortkoordinaten sind erforderlich",
         "timezone_required": "Zeitzone ist erforderlich"
+    },
+    "ticket_category": {
+        "name_required": "Der Name der Ticketkategorie ist erforderlich",
+        "name_duplicate": "Der Name der Ticketkategorie wird mehrfach verwendet",
+        "price_invalid": "Der Preis darf nicht negativ sein",
+        "capacity_invalid": "Die Kapazität muss mindestens 1 betragen",
+        "access_window_end_before_start": "Das Enddatum und die Endzeit müssen nach dem Startdatum und der Startzeit liegen"
     }
 }

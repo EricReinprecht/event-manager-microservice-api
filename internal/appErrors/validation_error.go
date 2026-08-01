@@ -6,6 +6,16 @@ const (
 	ErrMsgLocationRequired = "party.location_required"
 
 	ErrMsgTimezoneRequired = "party.timezone_required"
+
+	ErrMsgTicketCategoryNameRequired = "ticket_category.name_required"
+
+	ErrMsgTicketCategoryNameDuplicate = "ticket_category.name_duplicate"
+
+	ErrMsgTicketCategoryPriceInvalid = "ticket_category.price_invalid"
+
+	ErrMsgTicketCategoryCapacityInvalid = "ticket_category.capacity_invalid"
+
+	ErrMsgAccessWindowEndBeforeStart = "ticket_category.access_window_end_before_start"
 )
 
 type ValidationErrors map[string]string

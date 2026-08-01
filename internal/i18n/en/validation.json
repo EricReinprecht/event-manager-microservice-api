@@ -1,7 +1,14 @@
 {
-  "party": {
-    "end_before_start": "End date must be after start date",
-    "location_required": "Location coordinates are required",
-    "timezone_required": "Timezone is required"
-  }
+    "party": {
+        "end_before_start": "The end date must be after the start date",
+        "location_required": "Location coordinates are required",
+        "timezone_required": "A timezone is required"
+    },
+    "ticket_category": {
+        "name_required": "The ticket category name is required",
+        "name_duplicate": "The ticket category name is used more than once",
+        "price_invalid": "The price cannot be negative",
+        "capacity_invalid": "The capacity must be at least 1",
+        "access_window_end_before_start": "The end date and time must be after the start date and time"
+    }
 }
