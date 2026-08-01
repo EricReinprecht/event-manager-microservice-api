@@ -181,6 +181,12 @@ func BuildDependencies(
 			partyAccessService,
 		)
 
+	permissionService :=
+		service.NewPermissionService(
+			partyService,
+			partyMemberService,
+		)
+
 	categoryService :=
 		service.NewCategoryService(
 			categoryRepository,
@@ -245,5 +251,7 @@ func BuildDependencies(
 		PaymentService: paymentService,
 
 		PartyMemberService: partyMemberService,
+
+		PermissionService: permissionService,
 	}, nil
 }
