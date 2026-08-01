@@ -49,3 +49,27 @@ type UpdatePartyRequest struct {
 
 	TicketCategories []UpdateTicketCategoryRequest `json:"ticketCategories" binding:"dive"`
 }
+
+type PartyResponse struct {
+	ID uuid.UUID `json:"id"`
+
+	Title string `json:"title"`
+
+	Description string `json:"description"`
+
+	LocationName string `json:"locationName"`
+
+	Location PartyLocation `json:"location"`
+
+	StartAt time.Time `json:"startAt"`
+
+	EndAt time.Time `json:"endAt"`
+
+	ThumbnailID *uuid.UUID `json:"thumbnailId"`
+
+	OrganizerID uuid.UUID `json:"organizerId"`
+
+	Categories []CategoryResponse `json:"categories"`
+
+	TicketCategories []TicketCategoryResponse `json:"ticketCategories"`
+}

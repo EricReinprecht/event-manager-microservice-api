@@ -9,6 +9,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/mapper"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -51,10 +52,12 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if err := h.permission.RequirePartyOwner(
+	if err := h.permission.RequirePartyRole(
 		ctx,
 		partyID,
 		userID,
+		enum.RoleOrganizer,
+		enum.RoleAdmin,
 	); err != nil {
 
 		responses.HandleDomainError(
@@ -217,10 +220,12 @@ func (h *TicketCategoryHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.permission.RequirePartyOwner(
+	if err := h.permission.RequirePartyRole(
 		ctx,
 		category.PartyID,
 		userID,
+		enum.RoleOrganizer,
+		enum.RoleAdmin,
 	); err != nil {
 
 		responses.HandleDomainError(
@@ -313,10 +318,12 @@ func (h *TicketCategoryHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.permission.RequirePartyOwner(
+	if err := h.permission.RequirePartyRole(
 		ctx,
 		category.PartyID,
 		userID,
+		enum.RoleOrganizer,
+		enum.RoleAdmin,
 	); err != nil {
 
 		responses.HandleDomainError(
@@ -326,7 +333,6 @@ func (h *TicketCategoryHandler) Delete(c *gin.Context) {
 
 		return
 	}
-
 	if err := h.service.Delete(
 		ctx,
 		category,

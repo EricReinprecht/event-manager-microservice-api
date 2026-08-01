@@ -9,6 +9,7 @@ import (
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
+	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -35,8 +36,31 @@ func NewPartyMemberService(
 
 func (s *PartyMemberService) Create(
 	ctx context.Context,
-	member *models.PartyMember,
-) error {
+	partyID uuid.UUID,
+	req dto.CreatePartyMemberRequest,
+) (*models.PartyMember, error) {
+
+	member := &models.PartyMember{
+		ID: uuid.New(),
+
+		UserID: req.UserID,
+
+		PartyID: partyID,
+	}
+
+	for _, role := range req.Roles {
+
+		member.Roles = append(
+			member.Roles,
+			models.PartyMemberRole{
+				ID: uuid.New(),
+
+				PartyMemberID: member.ID,
+
+				Role: role,
+			},
+		)
+	}
 
 	err := s.repository.Create(
 		s.repository.DB(ctx),
@@ -54,19 +78,19 @@ func (s *PartyMemberService) Create(
 			case pgErr.Code == "23505" &&
 				pgErr.ConstraintName == "idx_party_member_user_party":
 
-				return appErrors.ErrPartyMemberAlreadyExists
+				return nil, appErrors.ErrPartyMemberAlreadyExists
 
 			case pgErr.Code == "23514" &&
 				pgErr.ConstraintName == "chk_party_members_role":
 
-				return appErrors.ErrInvalidPartyMemberRole
+				return nil, appErrors.ErrInvalidPartyMemberRole
 			}
 		}
 
-		return err
+		return nil, err
 	}
 
-	return nil
+	return member, nil
 }
 
 func (s *PartyMemberService) FindByPartyAndUser(
@@ -137,58 +161,6 @@ func (s *PartyMemberService) Delete(
 	)
 }
 
-func (s *PartyMemberService) HasRole(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-	roles ...enum.PartyRole,
-) bool {
-
-	party, err := s.partyRepository.FindByID(
-		ctx,
-		partyID,
-	)
-
-	if err == nil {
-
-		if party.OrganizerID == userID {
-
-			for _, role := range roles {
-
-				if role == enum.RoleOrganizer {
-					return true
-				}
-
-				if role == enum.RoleAdmin {
-					return true
-				}
-			}
-		}
-	}
-
-	member, err := s.repository.FindByPartyAndUser(
-		ctx,
-		partyID,
-		userID,
-	)
-
-	if err != nil {
-		return false
-	}
-
-	for _, wantedRole := range roles {
-
-		for _, memberRole := range member.Roles {
-
-			if memberRole.Role == wantedRole {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
 func (s *PartyMemberService) FindByID(
 	ctx context.Context,
 	id uuid.UUID,
@@ -243,4 +215,149 @@ func (s *PartyMemberService) SyncRoles(
 			return nil
 		},
 	)
+}
+
+func (s *PartyMemberService) HasRole(
+	ctx context.Context,
+	partyID uuid.UUID,
+	userID uuid.UUID,
+	roles ...enum.PartyRole,
+) bool {
+
+	party, err := s.partyRepository.FindByID(
+		ctx,
+		partyID,
+	)
+
+	if err == nil {
+
+		// organizer always has organizer permissions
+		if party.OrganizerID == userID {
+
+			for _, role := range roles {
+
+				if role == enum.RoleOrganizer {
+					return true
+				}
+			}
+		}
+	}
+
+	member, err := s.repository.FindByPartyAndUser(
+		ctx,
+		partyID,
+		userID,
+	)
+
+	if err != nil {
+		return false
+	}
+
+	for _, wantedRole := range roles {
+
+		for _, memberRole := range member.Roles {
+
+			if memberRole.Role == wantedRole {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (s *PartyMemberService) CanManageParty(
+	ctx context.Context,
+	partyID uuid.UUID,
+	userID uuid.UUID,
+) bool {
+
+	return s.HasAnyRole(
+		ctx,
+		partyID,
+		userID,
+		enum.RoleOrganizer,
+		enum.RoleAdmin,
+	)
+}
+
+func (s *PartyMemberService) CanScanTickets(
+	ctx context.Context,
+	partyID uuid.UUID,
+	userID uuid.UUID,
+) bool {
+
+	return s.HasAnyRole(
+		ctx,
+		partyID,
+		userID,
+		enum.RoleOrganizer,
+		enum.RoleAdmin,
+		enum.RoleStaff,
+	)
+}
+
+func (s *PartyMemberService) CanRefund(
+	ctx context.Context,
+	partyID uuid.UUID,
+	userID uuid.UUID,
+) bool {
+
+	return s.HasAnyRole(
+		ctx,
+		partyID,
+		userID,
+		enum.RoleOrganizer,
+		enum.RoleAdmin,
+		enum.RoleRefunder,
+	)
+}
+
+func (s *PartyMemberService) HasAnyRole(
+	ctx context.Context,
+	partyID uuid.UUID,
+	userID uuid.UUID,
+	roles ...enum.PartyRole,
+) bool {
+
+	party, err := s.partyRepository.FindByID(
+		ctx,
+		partyID,
+	)
+
+	if err == nil {
+
+		// organizer is stored directly on Party
+		if party.OrganizerID == userID {
+
+			for _, role := range roles {
+
+				if role == enum.RoleOrganizer {
+					return true
+				}
+			}
+		}
+	}
+
+	member, err := s.repository.FindByPartyAndUser(
+		ctx,
+		partyID,
+		userID,
+	)
+
+	if err != nil {
+		return false
+	}
+
+	for _, wanted := range roles {
+
+		for _, memberRole := range member.Roles {
+
+			if memberRole.Role == wanted {
+				return true
+			}
+		}
+	}
+
+	return false
 }

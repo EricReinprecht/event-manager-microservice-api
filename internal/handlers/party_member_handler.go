@@ -1,20 +1,20 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
-	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/dto"
+	"github.com/reinp/event-platform/backend/internal/helpers"
+	"github.com/reinp/event-platform/backend/internal/mapper"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
 type PartyMemberHandler struct {
-	service *service.PartyMemberService
+	partyMemberService *service.PartyMemberService
 }
 
 func NewPartyMemberHandler(
@@ -22,145 +22,126 @@ func NewPartyMemberHandler(
 ) *PartyMemberHandler {
 
 	return &PartyMemberHandler{
-		service: service,
+		partyMemberService: service,
 	}
-}
-
-type createPartyMemberRequest struct {
-	UserID uuid.UUID      `json:"user_id" binding:"required"`
-	Role   enum.PartyRole `json:"role" binding:"required"`
-}
-
-type updatePartyMemberRolesRequest struct {
-	Roles []enum.PartyRole `json:"roles" binding:"required"`
 }
 
 func (h *PartyMemberHandler) Create(
 	c *gin.Context,
 ) {
 
-	partyID, err := uuid.Parse(
-		c.Param("id"),
+	ctx := c.Request.Context()
+
+	partyID, err := helpers.UUIDParam(
+		c,
+		"id",
 	)
 
 	if err != nil {
-		c.JSON(400, gin.H{
-			"error": "invalid party id",
-		})
+
+		responses.BadRequest(
+			c,
+			err,
+		)
+
 		return
 	}
 
-	currentUser, err := uuid.Parse(
-		c.MustGet("user_id").(string),
-	)
+	userID, ok := helpers.RequireUserID(c)
 
-	if err != nil {
-		c.JSON(401, gin.H{
-			"error": "invalid user",
-		})
+	if !ok {
+
+		responses.Unauthorized(c)
+
 		return
 	}
 
-	if !h.service.HasRole(
-		c.Request.Context(),
+	if !h.partyMemberService.HasRole(
+		ctx,
 		partyID,
-		currentUser,
+		userID,
 		enum.RoleOrganizer,
 		enum.RoleAdmin,
 	) {
 
-		c.JSON(403, gin.H{
-			"error": "not allowed",
-		})
+		responses.Forbidden(c)
 
 		return
 	}
 
-	var req createPartyMemberRequest
+	var req dto.CreatePartyMemberRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(400, gin.H{
-			"error": err.Error(),
-		})
+		responses.BadRequest(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	member := models.PartyMember{
-		UserID:  req.UserID,
-		PartyID: partyID,
-
-		Roles: []models.PartyMemberRole{
-			{
-				ID:   uuid.New(),
-				Role: enum.RoleOrganizer,
-			},
-		},
-	}
+	member, err := h.partyMemberService.Create(
+		ctx,
+		partyID,
+		req,
+	)
 
 	if err != nil {
 
-		switch {
-
-		case errors.Is(err, appErrors.ErrPartyMemberAlreadyExists):
-
-			c.JSON(409, gin.H{
-				"error": err.Error(),
-			})
-
-		case errors.Is(err, appErrors.ErrInvalidPartyMemberRole):
-
-			c.JSON(400, gin.H{
-				"error": err.Error(),
-			})
-
-		default:
-
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-		}
+		responses.HandleDomainError(
+			c,
+			err,
+		)
 
 		return
 	}
-	c.JSON(http.StatusCreated, member)
+
+	responses.Success(
+		c,
+		http.StatusCreated,
+		mapper.PartyMemberResponse(*member),
+	)
 }
 
 func (h *PartyMemberHandler) GetAll(
 	c *gin.Context,
 ) {
 
-	partyID, err := uuid.Parse(
-		c.Param("id"),
+	partyID, err := helpers.UUIDParam(
+		c,
+		"id",
 	)
 
 	if err != nil {
 
-		c.JSON(400, gin.H{
-			"error": "invalid party id",
-		})
+		responses.BadRequest(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	members, err := h.service.FindByParty(
+	members, err := h.partyMemberService.FindByParty(
 		c.Request.Context(),
 		partyID,
 	)
 
 	if err != nil {
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.HandleDomainError(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	c.JSON(
-		200,
-		members,
+	responses.Success(
+		c,
+		http.StatusOK,
+		mapper.PartyMemberResponses(members),
 	)
 }
 
@@ -168,84 +149,77 @@ func (h *PartyMemberHandler) Delete(
 	c *gin.Context,
 ) {
 
-	memberID, err := uuid.Parse(
-		c.Param("memberID"),
+	memberID, err := helpers.UUIDParam(
+		c,
+		"memberID",
 	)
 
 	if err != nil {
 
-		c.JSON(400, gin.H{
-			"error": "invalid member id",
-		})
+		responses.BadRequest(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	err = h.service.Delete(
+	err = h.partyMemberService.Delete(
 		c.Request.Context(),
 		memberID,
 	)
 
 	if err != nil {
 
-		switch {
-
-		case errors.Is(err, appErrors.ErrCannotRemoveOrganizer):
-
-			c.JSON(403, gin.H{
-				"error": err.Error(),
-			})
-
-		case errors.Is(err, appErrors.ErrPartyMemberNotFound):
-
-			c.JSON(404, gin.H{
-				"error": err.Error(),
-			})
-
-		default:
-
-			c.JSON(500, gin.H{
-				"error": err.Error(),
-			})
-		}
+		responses.HandleDomainError(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"message": "member removed",
-	})
+	responses.Success(
+		c,
+		http.StatusOK,
+		gin.H{
+			"message": "member removed",
+		},
+	)
 }
 
 func (h *PartyMemberHandler) UpdateRoles(
 	c *gin.Context,
 ) {
 
-	memberID, err := uuid.Parse(
-		c.Param("memberID"),
+	memberID, err := helpers.UUIDParam(
+		c,
+		"memberID",
 	)
 
 	if err != nil {
 
-		c.JSON(400, gin.H{
-			"error": "invalid member id",
-		})
+		responses.BadRequest(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	var req updatePartyMemberRolesRequest
+	var req dto.UpdatePartyMemberRolesRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(400, gin.H{
-			"error": err.Error(),
-		})
+		responses.BadRequest(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	err = h.service.SyncRoles(
+	err = h.partyMemberService.SyncRoles(
 		c.Request.Context(),
 		memberID,
 		req.Roles,
@@ -253,14 +227,19 @@ func (h *PartyMemberHandler) UpdateRoles(
 
 	if err != nil {
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.HandleDomainError(
+			c,
+			err,
+		)
 
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"message": "roles updated",
-	})
+	responses.Success(
+		c,
+		http.StatusOK,
+		gin.H{
+			"message": "roles updated",
+		},
+	)
 }

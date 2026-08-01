@@ -4,16 +4,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
-func (s *PartyMemberService) CanManageParty(
+func (s *PermissionService) CanManageParty(
 	ctx context.Context,
 	partyID uuid.UUID,
 	userID uuid.UUID,
 ) bool {
 
-	return s.HasRole(
+	return s.HasPartyRole(
 		ctx,
 		partyID,
 		userID,
@@ -22,13 +23,13 @@ func (s *PartyMemberService) CanManageParty(
 	)
 }
 
-func (s *PartyMemberService) CanScanTickets(
+func (s *PermissionService) CanScanTickets(
 	ctx context.Context,
 	partyID uuid.UUID,
 	userID uuid.UUID,
 ) bool {
 
-	return s.HasRole(
+	return s.HasPartyRole(
 		ctx,
 		partyID,
 		userID,
@@ -38,13 +39,13 @@ func (s *PartyMemberService) CanScanTickets(
 	)
 }
 
-func (s *PartyMemberService) CanRefund(
+func (s *PermissionService) CanRefund(
 	ctx context.Context,
 	partyID uuid.UUID,
 	userID uuid.UUID,
 ) bool {
 
-	return s.HasRole(
+	return s.HasPartyRole(
 		ctx,
 		partyID,
 		userID,
