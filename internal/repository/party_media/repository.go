@@ -1,32 +1,42 @@
-package repository
+package party_media_repository
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
-type PartyImageRepository struct {
+type PartyMediaRepository struct {
 	db database.DBExecutor
 }
 
-func NewPartyImageRepository(
+func NewPartyMediaRepository(
 	db database.DBExecutor,
-) *PartyImageRepository {
+) *PartyMediaRepository {
 
-	return &PartyImageRepository{
+	return &PartyMediaRepository{
 		db: db,
 	}
 }
 
-func (r *PartyImageRepository) Replace(
-	tx database.DBExecutor,
+func (r *PartyMediaRepository) ReplaceImages(
+	ctx context.Context,
 	partyID uuid.UUID,
 	imageIDs []uuid.UUID,
 ) error {
 
-	if err := tx.
+	tx := r.db.
+		WithContext(ctx).
+		Begin()
+
+	if err := tx.Error(); err != nil {
+		return err
+	}
+
+	err := tx.
 		Where(
 			"party_id = ?",
 			partyID,
@@ -34,7 +44,11 @@ func (r *PartyImageRepository) Replace(
 		Delete(
 			&models.PartyMedia{},
 		).
-		Error(); err != nil {
+		Error()
+
+	if err != nil {
+
+		tx.Rollback()
 
 		return err
 	}
@@ -42,19 +56,21 @@ func (r *PartyImageRepository) Replace(
 	for _, imageID := range imageIDs {
 
 		link := models.PartyMedia{
+
 			PartyID: partyID,
+
 			MediaID: imageID,
 		}
 
 		if err := tx.
-			Create(
-				&link,
-			).
+			Create(&link).
 			Error(); err != nil {
+
+			tx.Rollback()
 
 			return err
 		}
 	}
 
-	return nil
+	return tx.Commit()
 }

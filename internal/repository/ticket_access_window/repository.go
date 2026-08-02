@@ -1,4 +1,4 @@
-package repository
+package ticket_access_window_repository
 
 import (
 	"context"

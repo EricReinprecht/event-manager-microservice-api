@@ -1,4 +1,4 @@
-package repository
+package email_verification_repository
 
 import (
 	"context"

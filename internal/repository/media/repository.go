@@ -1,4 +1,4 @@
-package repository
+package media_repository
 
 import (
 	"context"

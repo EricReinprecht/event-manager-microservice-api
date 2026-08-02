@@ -6,11 +6,20 @@ import (
 	"github.com/reinp/event-platform/backend/internal/dependencies"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
+	emailVerificationRepository "github.com/reinp/event-platform/backend/internal/repository/email_verification"
+	mediaRepository "github.com/reinp/event-platform/backend/internal/repository/media"
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
 	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
+	partyImageRepository "github.com/reinp/event-platform/backend/internal/repository/party_image"
 	partyMemberRepository "github.com/reinp/event-platform/backend/internal/repository/party_member"
+	passwordResetTokenRepository "github.com/reinp/event-platform/backend/internal/repository/password_reset_token"
+	paymentEventRepository "github.com/reinp/event-platform/backend/internal/repository/payment_event"
 	purchaseRepository "github.com/reinp/event-platform/backend/internal/repository/purchase"
+	refreshTokenRepository "github.com/reinp/event-platform/backend/internal/repository/refresh_token"
+	ticketRepository "github.com/reinp/event-platform/backend/internal/repository/ticket"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
+	ticketScanRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_scan"
+	userRepository "github.com/reinp/event-platform/backend/internal/repository/user"
 	"github.com/reinp/event-platform/backend/internal/service"
 	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
 )
@@ -27,50 +36,59 @@ func BuildDependencies(
 		)
 
 	// repositories
-	userRepository :=
-		repository.NewUserRepository(
+	userRepositories :=
+		userRepository.NewFacade(
 			executor,
 		)
+	userRepository := userRepositories.Repository
 
-	emailVerificationRepository :=
-		repository.NewEmailVerificationRepository(
+	emailVerificationRepositories :=
+		emailVerificationRepository.NewFacade(
 			executor,
 		)
+	emailVerificationRepository := emailVerificationRepositories.Repository
 
-	refreshTokenRepository :=
-		repository.NewRefreshTokenRepository(
+	refreshTokenRepositories :=
+		refreshTokenRepository.NewFacade(
 			executor,
 		)
+	refreshTokenRepository := refreshTokenRepositories.Repository
 
-	passwordResetRepository :=
-		repository.NewPasswordResetTokenRepository(
+	passwordResetRepositories :=
+		passwordResetTokenRepository.NewFacade(
 			executor,
 		)
+	passwordResetRepository := passwordResetRepositories.Repository
 
-	mediaRepository :=
-		repository.NewMediaRepository(
+	mediaRepositories :=
+		mediaRepository.NewFacade(
 			executor,
 		)
+	mediaRepository := mediaRepositories.Repository
 
-	partyImageRepository :=
-		repository.NewPartyImageRepository(
+	partyImageRepositories :=
+		partyImageRepository.NewFacade(
 			executor,
 		)
+	partyImageRepository := partyImageRepositories.Repository
 
-	ticketRepository :=
-		repository.NewTicketRepository(
+	ticketRepositories :=
+		ticketRepository.NewFacade(
 			executor,
 		)
+	ticketRepository := ticketRepositories.Repository
 
-	ticketScanRepository :=
-		repository.NewTicketScanRepository(
+	ticketScanRepositories :=
+		ticketScanRepository.NewFacade(
 			executor,
 		)
+	ticketScanRepository := ticketScanRepositories.Repository
 
-	paymentEventRepository :=
-		repository.NewPaymentEventRepository(
+	paymentEventRepositories :=
+		paymentEventRepository.NewFacade(
 			executor,
 		)
+	paymentEventRepository := paymentEventRepositories.Repository
 
 	ticketCategoryRepositories :=
 		ticketCategoryRepository.NewFacade(

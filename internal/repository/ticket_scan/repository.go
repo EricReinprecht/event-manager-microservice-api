@@ -1,4 +1,4 @@
-package repository
+package ticket_scan_repository
 
 import (
 	"context"

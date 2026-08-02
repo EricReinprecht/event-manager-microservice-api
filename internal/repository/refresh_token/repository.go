@@ -1,4 +1,4 @@
-package repository
+package refresh_token_repository
 
 import (
 	"context"

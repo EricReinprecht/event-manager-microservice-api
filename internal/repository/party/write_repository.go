@@ -9,21 +9,21 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 
-	baseRepository "github.com/reinp/event-platform/backend/internal/repository"
 	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
+	partyImageRepository "github.com/reinp/event-platform/backend/internal/repository/party_image"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
 type PartyWriteRepository struct {
 	transactionManager *database.TransactionManager
-	partyImages        *baseRepository.PartyImageRepository
+	partyImages        *partyImageRepository.PartyImageRepository
 	partyCategories    *partyCategoryRepository.PartyCategoryWriteRepository
 	ticketCategories   *ticketCategoryRepository.TicketCategoryWriteRepository
 }
 
 func NewPartyWriteRepository(
 	transactionManager *database.TransactionManager,
-	partyImages *baseRepository.PartyImageRepository,
+	partyImages *partyImageRepository.PartyImageRepository,
 	partyCategories *partyCategoryRepository.PartyCategoryWriteRepository,
 	ticketCategories *ticketCategoryRepository.TicketCategoryWriteRepository,
 ) *PartyWriteRepository {
