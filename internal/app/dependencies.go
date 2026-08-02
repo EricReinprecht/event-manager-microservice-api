@@ -7,6 +7,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
+	partyMemberRepository "github.com/reinp/event-platform/backend/internal/repository/party_member"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
 	"github.com/reinp/event-platform/backend/internal/service"
 	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
@@ -69,12 +70,6 @@ func BuildDependencies(
 			executor,
 		)
 
-	partyMemberRepository :=
-		repository.NewPartyMemberRepository(
-			executor,
-			transactionManager,
-		)
-
 	ticketRepository :=
 		repository.NewTicketRepository(
 			executor,
@@ -98,6 +93,12 @@ func BuildDependencies(
 	ticketCategoryRepositories :=
 		ticketCategoryRepository.NewFacade(
 			executor,
+		)
+
+	partyMemberRepositories :=
+		partyMemberRepository.NewFacade(
+			executor,
+			transactionManager,
 		)
 
 	partyRepositories :=
@@ -206,7 +207,7 @@ func BuildDependencies(
 
 	partyMemberService :=
 		service.NewPartyMemberService(
-			partyMemberRepository,
+			partyMemberRepositories,
 			partyRepositories,
 		)
 
@@ -236,7 +237,7 @@ func BuildDependencies(
 	permissionService :=
 		service.NewPermissionService(
 			partyRepositories,
-			partyMemberRepository,
+			partyMemberRepositories,
 		)
 
 	categoryService :=

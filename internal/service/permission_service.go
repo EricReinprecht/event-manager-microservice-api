@@ -7,24 +7,24 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"github.com/reinp/event-platform/backend/internal/repository"
 
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
+	partyMemberRepository "github.com/reinp/event-platform/backend/internal/repository/party_member"
 )
 
 type PermissionService struct {
-	parties               *partyRepository.Facade
-	partyMemberRepository *repository.PartyMemberRepository
+	parties *partyRepository.Facade
+	members *partyMemberRepository.Facade
 }
 
 func NewPermissionService(
 	parties *partyRepository.Facade,
-	partyMemberRepository *repository.PartyMemberRepository,
+	members *partyMemberRepository.Facade,
 ) *PermissionService {
 
 	return &PermissionService{
-		parties:               parties,
-		partyMemberRepository: partyMemberRepository,
+		parties: parties,
+		members: members,
 	}
 }
 
@@ -58,7 +58,7 @@ func (s *PermissionService) RequirePartyRole(
 	}
 
 	member, err :=
-		s.partyMemberRepository.FindByPartyAndUser(
+		s.members.Repository.FindByPartyAndUser(
 			ctx,
 			partyID,
 			userID,

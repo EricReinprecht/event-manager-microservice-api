@@ -1,4 +1,4 @@
-package repository
+package party_member_repository
 
 import (
 	"context"
@@ -10,22 +10,18 @@ import (
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type PartyMemberRepository struct {
-	db                 database.DBExecutor
-	transactionManager *database.TransactionManager
+	db database.DBExecutor
 }
 
 func NewPartyMemberRepository(
 	db database.DBExecutor,
-	transactionManager *database.TransactionManager,
 ) *PartyMemberRepository {
 
 	return &PartyMemberRepository{
-		db:                 db,
-		transactionManager: transactionManager,
+		db: db,
 	}
 }
 
@@ -146,65 +142,6 @@ func (r *PartyMemberRepository) Delete(
 		WithContext(ctx).
 		Delete(member).
 		Error()
-}
-
-func (r *PartyMemberRepository) SyncRoles(
-	ctx context.Context,
-	memberID uuid.UUID,
-	roles []enum.PartyMemberRole,
-) error {
-
-	return r.transactionManager.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
-
-			if err := tx.
-				Where(
-					"party_member_id = ?",
-					memberID,
-				).
-				Delete(
-					&models.PartyMemberRole{},
-				).
-				Error(); err != nil {
-
-				return err
-			}
-
-			if len(roles) == 0 {
-				return nil
-			}
-
-			memberRoles := make(
-				[]models.PartyMemberRole,
-				0,
-				len(roles),
-			)
-
-			for _, role := range roles {
-
-				memberRoles = append(
-					memberRoles,
-					models.PartyMemberRole{
-						ID:            uuid.New(),
-						PartyMemberID: memberID,
-						Role:          role,
-					},
-				)
-			}
-
-			if err := tx.
-				Create(
-					&memberRoles,
-				).
-				Error(); err != nil {
-
-				return mapPartyMemberDatabaseError(err)
-			}
-
-			return nil
-		},
-	)
 }
 
 func mapPartyMemberDatabaseError(

@@ -10,24 +10,24 @@ import (
 	"github.com/reinp/event-platform/backend/internal/mapper"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"github.com/reinp/event-platform/backend/internal/repository"
 
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
+	partyMemberRepository "github.com/reinp/event-platform/backend/internal/repository/party_member"
 )
 
 type PartyMemberService struct {
-	repository *repository.PartyMemberRepository
-	parties    *partyRepository.Facade
+	members *partyMemberRepository.Facade
+	parties *partyRepository.Facade
 }
 
 func NewPartyMemberService(
-	repository *repository.PartyMemberRepository,
+	members *partyMemberRepository.Facade,
 	parties *partyRepository.Facade,
 ) *PartyMemberService {
 
 	return &PartyMemberService{
-		repository: repository,
-		parties:    parties,
+		members: members,
+		parties: parties,
 	}
 }
 
@@ -42,7 +42,7 @@ func (s *PartyMemberService) Create(
 		req,
 	)
 
-	if err := s.repository.Create(
+	if err := s.members.Repository.Create(
 		ctx,
 		member,
 	); err != nil {
@@ -57,7 +57,7 @@ func (s *PartyMemberService) FindByID(
 	id uuid.UUID,
 ) (*models.PartyMember, error) {
 
-	return s.repository.FindByID(
+	return s.members.Repository.FindByID(
 		ctx,
 		id,
 	)
@@ -69,7 +69,7 @@ func (s *PartyMemberService) FindByPartyAndUser(
 	userID uuid.UUID,
 ) (*models.PartyMember, error) {
 
-	return s.repository.FindByPartyAndUser(
+	return s.members.Repository.FindByPartyAndUser(
 		ctx,
 		partyID,
 		userID,
@@ -81,7 +81,7 @@ func (s *PartyMemberService) FindByParty(
 	partyID uuid.UUID,
 ) ([]models.PartyMember, error) {
 
-	return s.repository.FindByParty(
+	return s.members.Repository.FindByParty(
 		ctx,
 		partyID,
 	)
@@ -92,7 +92,7 @@ func (s *PartyMemberService) Update(
 	member *models.PartyMember,
 ) error {
 
-	return s.repository.Update(
+	return s.members.Repository.Update(
 		ctx,
 		member,
 	)
@@ -103,7 +103,7 @@ func (s *PartyMemberService) Delete(
 	memberID uuid.UUID,
 ) error {
 
-	member, err := s.repository.FindByID(
+	member, err := s.members.Repository.FindByID(
 		ctx,
 		memberID,
 	)
@@ -125,7 +125,7 @@ func (s *PartyMemberService) Delete(
 		return appErrors.ErrCannotRemoveOrganizer
 	}
 
-	return s.repository.Delete(
+	return s.members.Repository.Delete(
 		ctx,
 		member,
 	)
@@ -137,7 +137,7 @@ func (s *PartyMemberService) SyncRoles(
 	roles []enum.PartyMemberRole,
 ) error {
 
-	if _, err := s.repository.FindByID(
+	if _, err := s.members.Repository.FindByID(
 		ctx,
 		memberID,
 	); err != nil {
@@ -149,7 +149,7 @@ func (s *PartyMemberService) SyncRoles(
 		return appErrors.ErrInvalidPartyMemberRole
 	}
 
-	return s.repository.SyncRoles(
+	return s.members.Write.SyncRoles(
 		ctx,
 		memberID,
 		mapper.UniquePartyRoles(
