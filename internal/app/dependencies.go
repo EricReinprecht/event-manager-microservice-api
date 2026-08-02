@@ -251,7 +251,7 @@ func BuildDependencies(
 
 	ticketCategoryService :=
 		service.NewTicketCategoryService(
-			ticketCategoryRepositories.Repository,
+			ticketCategoryRepositories,
 		)
 
 	ticketService :=
