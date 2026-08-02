@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -17,6 +18,14 @@ type PartyCRUDService struct {
 	parties    *partyRepository.Facade
 	categories *partyCategoryRepository.Facade
 	media      *repository.MediaRepository
+}
+
+func (s *PartyCRUDService) Publish(
+	ctx context.Context,
+	partyID uuid.UUID,
+	publishedAt time.Time,
+) error {
+	return s.parties.Repository.Publish(ctx, partyID, publishedAt)
 }
 
 func NewPartyCRUDService(

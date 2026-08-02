@@ -43,4 +43,9 @@ func registerPartyRoutes(
 		handler.Delete,
 	)
 
+	protected.POST(
+		constants.PartyPublish,
+		handler.Publish,
+	)
+
 }

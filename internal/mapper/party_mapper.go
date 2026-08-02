@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/dto"
@@ -64,6 +66,8 @@ func ApplyPartyUpdate(
 
 	party.EndAt = req.EndAt
 
+	party.PublishAt = req.PublishAt
+
 	party.ThumbnailID = req.ThumbnailID
 }
 
@@ -101,6 +105,13 @@ func PartyResponse(
 		StartAt: party.StartAt,
 
 		EndAt: party.EndAt,
+
+		PublishedAt: party.PublishedAt,
+
+		PublishAt: party.PublishAt,
+
+		IsPublished: party.PublishedAt != nil ||
+			(party.PublishAt != nil && !party.PublishAt.After(time.Now())),
 
 		ThumbnailID: party.ThumbnailID,
 

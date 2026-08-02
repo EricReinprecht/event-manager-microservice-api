@@ -76,6 +76,8 @@ var Routes = map[string]string{
 
 	"PartyDelete": PartyDelete,
 
+	"PartyPublish": PartyPublish,
+
 	"PartyByID": PartyByID,
 
 	"PartyList": PartyList,

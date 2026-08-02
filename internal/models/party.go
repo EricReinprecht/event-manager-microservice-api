@@ -18,6 +18,10 @@ type Party struct {
 
 	EndAt time.Time `json:"endAt"`
 
+	PublishedAt *time.Time `json:"publishedAt"`
+
+	PublishAt *time.Time `json:"publishAt"`
+
 	// Location
 	LocationName string
 	Street       string  `json:"street"`

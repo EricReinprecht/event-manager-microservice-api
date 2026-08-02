@@ -41,6 +41,8 @@ type UpdatePartyRequest struct {
 
 	EndAt time.Time `json:"endAt" binding:"required"`
 
+	PublishAt *time.Time `json:"publishAt"`
+
 	CategoryIDs []string `json:"categories"`
 
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
@@ -64,6 +66,12 @@ type PartyResponse struct {
 	StartAt time.Time `json:"startAt"`
 
 	EndAt time.Time `json:"endAt"`
+
+	PublishedAt *time.Time `json:"publishedAt"`
+
+	PublishAt *time.Time `json:"publishAt"`
+
+	IsPublished bool `json:"isPublished"`
 
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 

@@ -3,6 +3,7 @@ package party_repository
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -60,7 +61,8 @@ func (r *PartyRepository) Update(
 			"timezone":  party.Timezone,
 
 			"start_at": party.StartAt,
-			"end_at":   party.EndAt,
+			"end_at":    party.EndAt,
+			"publish_at": party.PublishAt,
 		}).
 		Error()
 }
@@ -73,6 +75,23 @@ func (r *PartyRepository) Delete(
 	return r.db.
 		WithContext(ctx).
 		Delete(party).
+		Error()
+}
+
+func (r *PartyRepository) Publish(
+	ctx context.Context,
+	id uuid.UUID,
+	publishedAt time.Time,
+) error {
+
+	return r.db.
+		WithContext(ctx).
+		Model(&models.Party{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"published_at": publishedAt,
+			"publish_at":   nil,
+		}).
 		Error()
 }
 

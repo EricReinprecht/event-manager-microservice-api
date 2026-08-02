@@ -7,6 +7,8 @@ const (
 
 	PartyDelete = "/parties/:id"
 
+	PartyPublish = "/parties/:id/publish"
+
 	PartyByID = "/parties/:id"
 
 	PartyList = "/parties"

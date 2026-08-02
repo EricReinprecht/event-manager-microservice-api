@@ -195,9 +195,16 @@ func (h *PartyHandler) Update(c *gin.Context) {
 		return
 	}
 
+	userID, ok := helpers.RequireUserID(c)
+	if !ok {
+		responses.Unauthorized(c)
+		return
+	}
+
 	response, err := h.partyService.Update(
 		ctx,
 		id,
+		userID,
 		req,
 	)
 
@@ -258,6 +265,29 @@ func (h *PartyHandler) Delete(c *gin.Context) {
 		},
 	)
 }
+
+func (h *PartyHandler) Publish(c *gin.Context) {
+	id, err := helpers.UUIDParam(c, "id")
+	if err != nil {
+		responses.BadRequest(c, err)
+		return
+	}
+
+	userID, ok := helpers.RequireUserID(c)
+	if !ok {
+		responses.Unauthorized(c)
+		return
+	}
+
+	response, err := h.partyService.Publish(c.Request.Context(), id, userID)
+	if err != nil {
+		responses.HandleDomainError(c, err)
+		return
+	}
+
+	responses.Success(c, http.StatusOK, response)
+}
+
 
 func (h *PartyHandler) GetMyParties(c *gin.Context) {
 

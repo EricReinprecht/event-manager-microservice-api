@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -17,6 +18,22 @@ type PartyService struct {
 	crud   *PartyCRUDService
 	query  *PartyQueryService
 	access *PartyAccessService
+}
+
+func (s *PartyService) Publish(
+	ctx context.Context,
+	partyID, userID uuid.UUID,
+) (*dto.PartyResponse, error) {
+	party, err := s.access.RequireOwnership(ctx, partyID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.crud.Publish(ctx, party.ID, time.Now()); err != nil {
+		return nil, err
+	}
+
+	return s.FindByID(ctx, partyID)
 }
 
 func NewPartyService(
@@ -142,6 +159,7 @@ func (s *PartyService) FindByID(
 func (s *PartyService) Update(
 	ctx context.Context,
 	id uuid.UUID,
+	userID uuid.UUID,
 	req dto.UpdatePartyRequest,
 ) (*dto.PartyResponse, error) {
 
@@ -152,6 +170,19 @@ func (s *PartyService) Update(
 
 	if err != nil {
 		return nil, err
+	}
+
+	if !optionalTimesEqual(party.PublishAt, req.PublishAt) {
+		if _, err := s.access.RequireOwnership(ctx, id, userID); err != nil {
+			return nil, err
+		}
+
+		if req.PublishAt != nil &&
+			(!req.PublishAt.After(time.Now()) || !req.PublishAt.Before(req.EndAt)) {
+			return nil, appErrors.NewValidationError(appErrors.ValidationErrors{
+				"publishDate": "party.publish_at_invalid",
+			})
+		}
 	}
 
 	validationErrors := validators.ValidateParty(
@@ -220,6 +251,14 @@ func (s *PartyService) Update(
 	)
 
 	return &response, nil
+}
+
+func optionalTimesEqual(left, right *time.Time) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+
+	return left.Equal(*right)
 }
 
 func (s *PartyService) Delete(
