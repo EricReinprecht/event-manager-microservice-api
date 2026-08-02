@@ -37,6 +37,11 @@ type Party struct {
 
 	TicketCategories []TicketCategory `gorm:"foreignKey:PartyID" json:"ticketCategories"`
 
+	Members     []PartyMember `gorm:"foreignKey:PartyID;constraint:OnDelete:CASCADE" json:"-"`
+	Staff       []StaffMember `gorm:"foreignKey:PartyID;constraint:OnDelete:CASCADE" json:"staff"`
+	Stages      []PartyStage  `gorm:"foreignKey:PartyID;constraint:OnDelete:CASCADE" json:"stages"`
+	ArtistSlots []ArtistSlot  `gorm:"foreignKey:PartyID;constraint:OnDelete:CASCADE" json:"artistSlots"`
+
 	Categories []PartyCategory `gorm:"many2many:party_categories;" json:"categories"`
 
 	OrganizerID uuid.UUID `json:"organizerId"`

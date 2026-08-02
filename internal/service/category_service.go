@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/models"
 	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
 )
@@ -39,25 +40,41 @@ func (s *CategoryService) FindByID(
 
 func (s *CategoryService) Create(
 	ctx context.Context,
-	category *models.PartyCategory,
-) error {
+	req dto.CreateCategoryRequest,
+) (*models.PartyCategory, error) {
+	category := &models.PartyCategory{Name: req.Name}
 
-	return s.categories.Repository.Create(ctx, category)
+	if err := s.categories.Repository.Create(ctx, category); err != nil {
+		return nil, err
+	}
+	return category, nil
 }
 
 func (s *CategoryService) Update(
 	ctx context.Context,
-	category *models.PartyCategory,
-) error {
+	id uuid.UUID,
+	req dto.UpdateCategoryRequest,
+) (*models.PartyCategory, error) {
+	category, err := s.categories.Repository.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	category.Name = req.Name
 
-	return s.categories.Repository.Update(ctx, category)
+	if err := s.categories.Repository.Update(ctx, category); err != nil {
+		return nil, err
+	}
+	return category, nil
 }
 
 func (s *CategoryService) Delete(
 	ctx context.Context,
-	category *models.PartyCategory,
+	id uuid.UUID,
 ) error {
-
+	category, err := s.categories.Repository.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
 	return s.categories.Repository.Delete(ctx, category)
 }
 

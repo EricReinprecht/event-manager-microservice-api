@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
@@ -187,6 +186,29 @@ func (s *PaymentService) CreatePaymentEvent(
 	)
 }
 
+func (s *PaymentService) EnsurePaymentEvent(
+	ctx context.Context,
+	eventID string,
+	eventType string,
+	payload []byte,
+) (bool, error) {
+	existing, err := s.paymentEventRepository.FindByEventID(ctx, eventID)
+	if err != nil {
+		return false, err
+	}
+	if existing != nil {
+		return existing.Processed, nil
+	}
+	event := &models.PaymentEvent{
+		ID: uuid.New(), Provider: "paypal", EventID: eventID,
+		Type: eventType, Payload: string(payload), Processed: false,
+	}
+	if err := s.paymentEventRepository.Create(event); err != nil {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (s *PaymentService) MarkPaymentEventProcessed(
 	ctx context.Context,
 	eventID string,
@@ -319,9 +341,6 @@ func mapPurchaseNotFoundError(
 ) error {
 
 	if errors.Is(
-		err,
-		gorm.ErrRecordNotFound,
-	) || errors.Is(
 		err,
 		appErrors.ErrPurchaseNotFound,
 	) {

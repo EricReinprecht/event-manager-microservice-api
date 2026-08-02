@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/clock"
@@ -330,12 +328,7 @@ func ensureTicketNotAlreadyScanned(
 		return appErrors.ErrTicketAlreadyScanned
 	}
 
-	if err != nil &&
-		!errors.Is(
-			err,
-			gorm.ErrRecordNotFound,
-		) {
-
+	if err != nil {
 		return err
 	}
 

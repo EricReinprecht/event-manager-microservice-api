@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -332,9 +331,11 @@ func (h *PaymentHandler) processWebhookEvent(
 	body []byte,
 ) bool {
 
-	existing, err := h.service.FindPaymentEvent(
+	processed, err := h.service.EnsurePaymentEvent(
 		c.Request.Context(),
 		payloadID,
+		eventType,
+		body,
 	)
 
 	if err != nil {
@@ -348,7 +349,7 @@ func (h *PaymentHandler) processWebhookEvent(
 		return true
 	}
 
-	if existing != nil && existing.Processed {
+	if processed {
 
 		c.JSON(
 			http.StatusOK,
@@ -358,41 +359,6 @@ func (h *PaymentHandler) processWebhookEvent(
 		)
 
 		return true
-	}
-
-	if existing == nil {
-
-		event := &models.PaymentEvent{
-
-			ID: uuid.New(),
-
-			Provider: "paypal",
-
-			EventID: payloadID,
-
-			Type: eventType,
-
-			Payload: string(body),
-
-			Processed: false,
-		}
-
-		err = h.service.CreatePaymentEvent(
-			c.Request.Context(),
-			event,
-		)
-
-		if err != nil {
-
-			c.JSON(
-				http.StatusOK,
-				gin.H{
-					"message": "duplicate event",
-				},
-			)
-
-			return true
-		}
 	}
 
 	return false

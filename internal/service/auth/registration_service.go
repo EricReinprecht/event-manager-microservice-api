@@ -7,7 +7,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/security"
@@ -19,6 +18,7 @@ type RegistrationService struct {
 	verification      *VerificationService
 	emailService      EmailSender
 	passwordValidator *security.PasswordValidator
+	unitOfWork        *repository.AuthUnitOfWork
 }
 
 func NewRegistrationService(
@@ -27,6 +27,7 @@ func NewRegistrationService(
 	verification *VerificationService,
 	emailService EmailSender,
 	passwordValidator *security.PasswordValidator,
+	unitOfWork *repository.AuthUnitOfWork,
 ) *RegistrationService {
 
 	return &RegistrationService{
@@ -35,6 +36,7 @@ func NewRegistrationService(
 		verification:      verification,
 		emailService:      emailService,
 		passwordValidator: passwordValidator,
+		unitOfWork:        unitOfWork,
 	}
 }
 
@@ -94,17 +96,10 @@ func (s *RegistrationService) Register(
 		Username:     req.Username,
 	}
 
-	err = s.users.Transaction(
+	err = s.unitOfWork.Transaction(
 		ctx,
-		func(tx database.DBExecutor) error {
-
-			userRepository :=
-				repository.NewUserRepository(tx)
-
-			verificationRepository :=
-				repository.NewEmailVerificationRepository(tx)
-
-			if err := userRepository.Create(
+		func(repositories *repository.AuthTransactionRepositories) error {
+			if err := repositories.Users.Create(
 				ctx,
 				user,
 			); err != nil {
@@ -116,7 +111,7 @@ func (s *RegistrationService) Register(
 					user.ID,
 				)
 
-			if err := verificationRepository.Create(
+			if err := repositories.Verifications.Create(
 				verification,
 			); err != nil {
 				return err

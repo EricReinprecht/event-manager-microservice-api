@@ -8,6 +8,7 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type UserRepository struct {
@@ -27,6 +28,9 @@ func (r *UserRepository) Create(
 	ctx context.Context,
 	user *models.User,
 ) error {
+	if len(user.Roles) == 0 {
+		user.Roles = []models.UserRole{{Role: enum.UserRoleDefault}}
+	}
 
 	return r.db.
 		WithContext(ctx).
@@ -55,6 +59,8 @@ func (r *UserRepository) FindByID(
 
 	err := r.db.
 		WithContext(ctx).
+		Preload("Roles").
+		Preload("ArtistProfile").
 		First(
 			&user,
 			"id = ?",
@@ -79,6 +85,8 @@ func (r *UserRepository) FindByEmail(
 
 	err := r.db.
 		WithContext(ctx).
+		Preload("Roles").
+		Preload("ArtistProfile").
 		Where(
 			"email = ?",
 			email,
@@ -105,6 +113,8 @@ func (r *UserRepository) FindByUsername(
 
 	err := r.db.
 		WithContext(ctx).
+		Preload("Roles").
+		Preload("ArtistProfile").
 		Where(
 			"username = ?",
 			username,
@@ -134,6 +144,8 @@ func (r *UserRepository) FindByIdentifier(
 
 	err := r.db.
 		WithContext(ctx).
+		Preload("Roles").
+		Preload("ArtistProfile").
 		Where(
 			"LOWER(email) = ? OR LOWER(username) = ?",
 			identifier,

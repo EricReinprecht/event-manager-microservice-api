@@ -2,6 +2,7 @@ package ticket_scan_repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+	"gorm.io/gorm"
 )
 
 type TicketScanRepository struct {
@@ -83,6 +85,9 @@ func (r *TicketScanRepository) FindByID(
 		Error()
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 

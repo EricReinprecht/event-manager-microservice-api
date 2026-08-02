@@ -10,10 +10,11 @@ func Migrate(
 	db *gorm.DB,
 ) error {
 
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 
 		// auth
 		&models.User{},
+		&models.UserRole{},
 		&models.RefreshToken{},
 		&models.PasswordResetToken{},
 		&models.EmailVerification{},
@@ -52,5 +53,30 @@ func Migrate(
 
 		// payments
 		&models.PaymentEvent{},
-	)
+	); err != nil {
+		return err
+	}
+
+	return migrateLegacyUserRoles(db)
+}
+
+func migrateLegacyUserRoles(db *gorm.DB) error {
+	return db.Exec(`
+		DO $$
+		BEGIN
+			IF EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = current_schema()
+				  AND table_name = 'users'
+				  AND column_name = 'role'
+			) THEN
+				INSERT INTO user_roles (id, user_id, role, created_at)
+				SELECT gen_random_uuid(), id, role, NOW()
+				FROM users
+				WHERE role IS NOT NULL
+				ON CONFLICT (user_id, role) DO NOTHING;
+			END IF;
+		END $$;
+	`).Error
 }

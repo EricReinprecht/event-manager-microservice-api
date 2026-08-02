@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
-	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/dto"
+	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
@@ -32,62 +32,43 @@ func (h *CategoryHandler) GetAll(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.HandleDomainError(c, err)
 		return
 	}
 
-	c.JSON(
-		http.StatusOK,
-		categories,
-	)
+	responses.Success(c, http.StatusOK, categories)
 }
 
 func (h *CategoryHandler) Create(c *gin.Context) {
 
-	var req struct {
-		Name string `json:"name"`
-	}
+	var req dto.CreateCategoryRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(400, gin.H{
-			"error": err.Error(),
-		})
-
+		responses.BadRequest(c, err)
 		return
 	}
 
-	category := &models.PartyCategory{
-		Name: req.Name,
-	}
-
-	err := h.service.Create(
+	category, err := h.service.Create(
 		c.Request.Context(),
-		category,
+		req,
 	)
 
 	if err != nil {
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
-
+		responses.HandleDomainError(c, err)
 		return
 	}
 
-	c.JSON(201, category)
+	responses.Success(c, http.StatusCreated, category)
 }
 
 func (h *CategoryHandler) GetByID(c *gin.Context) {
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := helpers.UUIDParam(c, "id")
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid id",
-		})
+		responses.BadRequest(c, err)
 		return
 	}
 
@@ -97,112 +78,62 @@ func (h *CategoryHandler) GetByID(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "category not found",
-		})
+		responses.HandleDomainError(c, err)
 		return
 	}
 
-	c.JSON(
-		http.StatusOK,
-		category,
-	)
+	responses.Success(c, http.StatusOK, category)
 }
 
 func (h *CategoryHandler) Update(c *gin.Context) {
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := helpers.UUIDParam(c, "id")
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid id",
-		})
+		responses.BadRequest(c, err)
 		return
 	}
 
-	category, err := h.service.FindByID(
-		c.Request.Context(),
-		id,
-	)
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "category not found",
-		})
-		return
-	}
-
-	var req struct {
-		Name string `json:"name"`
-	}
+	var req dto.UpdateCategoryRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
-
+		responses.BadRequest(c, err)
 		return
 	}
 
-	category.Name = req.Name
-
-	err = h.service.Update(
+	category, err := h.service.Update(
 		c.Request.Context(),
-		category,
+		id,
+		req,
 	)
 
 	if err != nil {
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-
+		responses.HandleDomainError(c, err)
 		return
 	}
 
-	c.JSON(
-		http.StatusOK,
-		category,
-	)
+	responses.Success(c, http.StatusOK, category)
 }
 
 func (h *CategoryHandler) Delete(c *gin.Context) {
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := helpers.UUIDParam(c, "id")
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid id",
-		})
-		return
-	}
-
-	category, err := h.service.FindByID(
-		c.Request.Context(),
-		id,
-	)
-
-	if err != nil {
-
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "category not found",
-		})
-
+		responses.BadRequest(c, err)
 		return
 	}
 
 	err = h.service.Delete(
 		c.Request.Context(),
-		category,
+		id,
 	)
 
 	if err != nil {
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-
+		responses.HandleDomainError(c, err)
 		return
 	}
 

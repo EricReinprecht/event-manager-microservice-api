@@ -2,10 +2,13 @@ package ticket_category_repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm/clause"
 
+	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
@@ -28,12 +31,13 @@ func (r *TicketCategoryRepository) Create(
 	category *models.TicketCategory,
 ) error {
 
-	return r.db.
+	err := r.db.
 		WithContext(ctx).
 		Create(
 			category,
 		).
 		Error()
+	return mapDatabaseError(err)
 }
 
 func (r *TicketCategoryRepository) FindByID(
@@ -120,7 +124,7 @@ func (r *TicketCategoryRepository) Update(
 	category *models.TicketCategory,
 ) error {
 
-	return r.db.
+	err := r.db.
 		WithContext(ctx).
 		Model(
 			&models.TicketCategory{},
@@ -145,6 +149,15 @@ func (r *TicketCategoryRepository) Update(
 			},
 		).
 		Error()
+	return mapDatabaseError(err)
+}
+
+func mapDatabaseError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return appErrors.ErrTicketCategoryExists
+	}
+	return err
 }
 
 func (r *TicketCategoryRepository) Delete(

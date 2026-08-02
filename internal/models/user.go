@@ -27,10 +27,21 @@ type User struct {
 	FirstName string
 	LastName  string
 
+	Roles []UserRole `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+
+	ArtistProfile *Artist `gorm:"foreignKey:UserID"`
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
 	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
 
-	Role enum.UserRole `gorm:"type:varchar(20);not null;default:'DEFAULT';check:user_role_check,role IN ('DEFAULT','PREMIUM','PLATINUM')"`
+func (u *User) HasRole(role enum.UserRole) bool {
+	for _, assigned := range u.Roles {
+		if assigned.Role == role {
+			return true
+		}
+	}
+	return false
 }

@@ -8,25 +8,20 @@ import (
 	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/mapper"
-	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
 type TicketCategoryHandler struct {
-	service    *service.TicketCategoryService
-	permission *service.PermissionService
+	service *service.TicketCategoryService
 }
 
 func NewTicketCategoryHandler(
 	service *service.TicketCategoryService,
-	permission *service.PermissionService,
 ) *TicketCategoryHandler {
 
 	return &TicketCategoryHandler{
-		service:    service,
-		permission: permission,
+		service: service,
 	}
 }
 
@@ -52,22 +47,6 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if err := h.permission.RequirePartyRole(
-		ctx,
-		partyID,
-		userID,
-		enum.PartyRoleOrganizer,
-		enum.PartyRoleAdmin,
-	); err != nil {
-
-		responses.HandleDomainError(
-			c,
-			err,
-		)
-
-		return
-	}
-
 	var req dto.CreateTicketCategoryRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -80,21 +59,13 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 		return
 	}
 
-	category := &models.TicketCategory{
-		Name:                 req.Name,
-		Price:                req.Price,
-		Capacity:             req.Capacity,
-		RequiresVerification: req.RequiresVerification,
-		PartyID:              partyID,
-		AccessWindows: mapper.AccessWindowsFromRequest(
-			req.AccessWindows,
-		),
-	}
-
-	if err := h.service.Create(
+	category, err := h.service.CreateFromRequest(
 		ctx,
-		category,
-	); err != nil {
+		partyID,
+		userID,
+		req,
+	)
+	if err != nil {
 
 		responses.HandleDomainError(
 			c,
@@ -199,40 +170,9 @@ func (h *TicketCategoryHandler) Update(c *gin.Context) {
 		return
 	}
 
-	category, err := h.service.FindByID(
-		ctx,
-		id,
-	)
-
-	if err != nil {
-
-		responses.HandleDomainError(
-			c,
-			err,
-		)
-
-		return
-	}
-
 	userID, ok := helpers.MustUserID(c)
 
 	if !ok {
-		return
-	}
-
-	if err := h.permission.RequirePartyRole(
-		ctx,
-		category.PartyID,
-		userID,
-		enum.PartyRoleOrganizer,
-		enum.PartyRoleAdmin,
-	); err != nil {
-
-		responses.HandleDomainError(
-			c,
-			err,
-		)
-
 		return
 	}
 
@@ -248,23 +188,13 @@ func (h *TicketCategoryHandler) Update(c *gin.Context) {
 		return
 	}
 
-	category.Name = req.Name
-
-	category.Price = req.Price
-
-	category.Capacity = req.Capacity
-
-	category.RequiresVerification = req.RequiresVerification
-
-	category.AccessWindows =
-		mapper.AccessWindowsFromUpdateRequest(
-			req.AccessWindows,
-		)
-
-	if err := h.service.Update(
+	category, err := h.service.UpdateFromRequest(
 		ctx,
-		category,
-	); err != nil {
+		id,
+		userID,
+		req,
+	)
+	if err != nil {
 
 		responses.HandleDomainError(
 			c,
@@ -297,45 +227,16 @@ func (h *TicketCategoryHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	category, err := h.service.FindByID(
-		ctx,
-		id,
-	)
-
-	if err != nil {
-
-		responses.HandleDomainError(
-			c,
-			err,
-		)
-
-		return
-	}
-
 	userID, ok := helpers.MustUserID(c)
 
 	if !ok {
 		return
 	}
 
-	if err := h.permission.RequirePartyRole(
+	if err := h.service.DeleteByID(
 		ctx,
-		category.PartyID,
+		id,
 		userID,
-		enum.PartyRoleOrganizer,
-		enum.PartyRoleAdmin,
-	); err != nil {
-
-		responses.HandleDomainError(
-			c,
-			err,
-		)
-
-		return
-	}
-	if err := h.service.Delete(
-		ctx,
-		category,
 	); err != nil {
 
 		responses.HandleDomainError(

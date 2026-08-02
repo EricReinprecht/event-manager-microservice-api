@@ -22,11 +22,21 @@ func NewMediaService(
 
 func (s *MediaService) Create(
 	ctx context.Context,
-	media *models.Media,
-) error {
+	filename string,
+	path string,
+	mimeType string,
+	size int64,
+) (*models.Media, error) {
+	media := &models.Media{
+		Filename: filename,
+		Path:     path,
+		URL:      "/" + path,
+		MimeType: mimeType,
+		Size:     size,
+	}
 
-	return s.repository.Create(
-		ctx,
-		media,
-	)
+	if err := s.repository.Create(ctx, media); err != nil {
+		return nil, err
+	}
+	return media, nil
 }

@@ -16,7 +16,6 @@ func registerTicketCategoryRoutes(
 
 	handler := handlers.NewTicketCategoryHandler(
 		deps.TicketCategoryService,
-		deps.PermissionService,
 	)
 
 	partyOwner.POST(

@@ -9,18 +9,19 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/auth"
 	"github.com/reinp/event-platform/backend/internal/clock"
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
+	refreshTokenRepository "github.com/reinp/event-platform/backend/internal/repository/refresh_token"
 )
 
 const defaultDeviceName = "Unknown"
 
 type TokenService struct {
-	users         *repository.UserRepository
-	refreshTokens *repository.RefreshTokenRepository
-	jwt           *auth.JWT
-	clock         clock.Clock
+	users              *repository.UserRepository
+	refreshTokens      *repository.RefreshTokenRepository
+	refreshTokenWriter *refreshTokenRepository.RefreshTokenWriteRepository
+	jwt                *auth.JWT
+	clock              clock.Clock
 
 	refreshTokenDuration time.Duration
 }
@@ -28,6 +29,7 @@ type TokenService struct {
 func NewTokenService(
 	users *repository.UserRepository,
 	refreshTokens *repository.RefreshTokenRepository,
+	refreshTokenWriter *refreshTokenRepository.RefreshTokenWriteRepository,
 	jwt *auth.JWT,
 	clock clock.Clock,
 	refreshTokenDuration time.Duration,
@@ -36,6 +38,7 @@ func NewTokenService(
 	return &TokenService{
 		users:                users,
 		refreshTokens:        refreshTokens,
+		refreshTokenWriter:   refreshTokenWriter,
 		jwt:                  jwt,
 		clock:                clock,
 		refreshTokenDuration: refreshTokenDuration,
@@ -190,23 +193,10 @@ func (s *TokenService) Refresh(
 			storedToken.DeviceName,
 		)
 
-	err = s.refreshTokens.Transaction(
+	err = s.refreshTokenWriter.Rotate(
 		ctx,
-		func(tx database.DBExecutor) error {
-
-			repository :=
-				repository.NewRefreshTokenRepository(tx)
-
-			if err := repository.Revoke(
-				storedToken.ID,
-			); err != nil {
-				return err
-			}
-
-			return repository.Create(
-				newRefreshToken,
-			)
-		},
+		storedToken,
+		newRefreshToken,
 	)
 
 	if err != nil {

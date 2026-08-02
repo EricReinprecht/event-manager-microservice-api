@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
@@ -31,9 +31,7 @@ func (h *MediaHandler) Upload(
 
 	if err != nil {
 
-		c.JSON(400, gin.H{
-			"error": "file missing",
-		})
+		responses.BadRequest(c, err)
 
 		return
 	}
@@ -51,42 +49,25 @@ func (h *MediaHandler) Upload(
 
 	if err != nil {
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.HandleDomainError(c, err)
 
 		return
 	}
 
-	media := &models.Media{
-
-		Filename: filename,
-
-		Path: path,
-
-		URL: "/" + path,
-
-		MimeType: file.Header.Get("Content-Type"),
-
-		Size: file.Size,
-	}
-
-	err = h.service.Create(
+	media, err := h.service.Create(
 		c.Request.Context(),
-		media,
+		filename,
+		path,
+		file.Header.Get("Content-Type"),
+		file.Size,
 	)
 
 	if err != nil {
 
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		responses.HandleDomainError(c, err)
 
 		return
 	}
 
-	c.JSON(
-		http.StatusCreated,
-		media,
-	)
+	responses.Success(c, http.StatusCreated, media)
 }

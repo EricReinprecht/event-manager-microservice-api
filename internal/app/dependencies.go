@@ -51,6 +51,7 @@ func BuildDependencies(
 	refreshTokenRepositories :=
 		refreshTokenRepository.NewFacade(
 			executor,
+			transactionManager,
 		)
 	refreshTokenRepository := refreshTokenRepositories.Repository
 
@@ -59,6 +60,8 @@ func BuildDependencies(
 			executor,
 		)
 	passwordResetRepository := passwordResetRepositories.Repository
+
+	authUnitOfWork := repository.NewAuthUnitOfWork(transactionManager)
 
 	mediaRepositories :=
 		mediaRepository.NewFacade(
@@ -154,6 +157,7 @@ func BuildDependencies(
 		auth_service.NewTokenService(
 			userRepository,
 			refreshTokenRepository,
+			refreshTokenRepositories.Write,
 			clients.JWT,
 			clients.Clock,
 			cfg.RefreshTokenDuration,
@@ -196,6 +200,7 @@ func BuildDependencies(
 			verificationService,
 			emailService,
 			clients.PasswordValidator,
+			authUnitOfWork,
 		)
 
 	authService :=
@@ -265,6 +270,7 @@ func BuildDependencies(
 	ticketCategoryService :=
 		service.NewTicketCategoryService(
 			ticketCategoryRepositories,
+			permissionService,
 		)
 
 	ticketService :=
