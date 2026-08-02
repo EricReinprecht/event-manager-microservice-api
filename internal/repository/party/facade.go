@@ -3,6 +3,7 @@ package party_repository
 import (
 	"github.com/reinp/event-platform/backend/internal/database"
 	baseRepository "github.com/reinp/event-platform/backend/internal/repository"
+	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
@@ -15,7 +16,7 @@ func NewFacade(
 	db database.DBExecutor,
 	transactionManager *database.TransactionManager,
 	partyImages *baseRepository.PartyImageRepository,
-	partyCategories *baseRepository.PartyCategoryRepository,
+	partyCategories *partyCategoryRepository.PartyCategoryWriteRepository,
 	ticketCategories *ticketCategoryRepository.TicketCategoryWriteRepository,
 ) *Facade {
 

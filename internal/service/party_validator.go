@@ -6,22 +6,24 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+
 	"github.com/reinp/event-platform/backend/internal/repository"
+	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
 )
 
 type PartyValidator struct {
-	categoryRepository *repository.CategoryRepository
-	mediaRepository    *repository.MediaRepository
+	categories *partyCategoryRepository.Facade
+	media      *repository.MediaRepository
 }
 
 func NewPartyValidator(
-	categoryRepository *repository.CategoryRepository,
-	mediaRepository *repository.MediaRepository,
+	categories *partyCategoryRepository.Facade,
+	media *repository.MediaRepository,
 ) *PartyValidator {
 
 	return &PartyValidator{
-		categoryRepository: categoryRepository,
-		mediaRepository:    mediaRepository,
+		categories: categories,
+		media:      media,
 	}
 }
 
@@ -32,7 +34,7 @@ func (v *PartyValidator) Validate(
 	imageIDs []uuid.UUID,
 ) error {
 
-	_, err := v.categoryRepository.FindByID(
+	_, err := v.categories.Repository.FindByID(
 		ctx,
 		categoryID,
 	)
@@ -43,7 +45,7 @@ func (v *PartyValidator) Validate(
 
 	if thumbnailID != nil {
 
-		_, err = v.mediaRepository.FindByID(
+		_, err = v.media.FindByID(
 			ctx,
 			*thumbnailID,
 		)
@@ -55,7 +57,7 @@ func (v *PartyValidator) Validate(
 
 	for _, imageID := range imageIDs {
 
-		_, err = v.mediaRepository.FindByID(
+		_, err = v.media.FindByID(
 			ctx,
 			imageID,
 		)

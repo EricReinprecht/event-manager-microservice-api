@@ -8,15 +8,16 @@ import (
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/repository"
+
+	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
 )
 
 type PartyAccessService struct {
-	parties *repository.PartyQueryRepository
+	parties *partyRepository.Facade
 }
 
 func NewPartyAccessService(
-	parties *repository.PartyQueryRepository,
+	parties *partyRepository.Facade,
 ) *PartyAccessService {
 
 	return &PartyAccessService{
@@ -30,7 +31,7 @@ func (s *PartyAccessService) RequireOwnership(
 	userID uuid.UUID,
 ) (*models.Party, error) {
 
-	party, err := s.parties.FindByID(
+	party, err := s.parties.Repository.FindByID(
 		ctx,
 		partyID,
 	)
@@ -54,7 +55,7 @@ func (s *PartyAccessService) FindOwnedParty(
 	userID uuid.UUID,
 ) (*models.Party, error) {
 
-	party, err := s.parties.FindByID(
+	party, err := s.parties.Repository.FindByID(
 		ctx,
 		partyID,
 	)

@@ -6,15 +6,16 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/repository"
+
+	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
 )
 
 type PartyQueryService struct {
-	parties *repository.PartyQueryRepository
+	parties *partyRepository.Facade
 }
 
 func NewPartyQueryService(
-	parties *repository.PartyQueryRepository,
+	parties *partyRepository.Facade,
 ) *PartyQueryService {
 
 	return &PartyQueryService{
@@ -26,7 +27,7 @@ func (s *PartyQueryService) FindAll(
 	ctx context.Context,
 ) ([]models.Party, error) {
 
-	return s.parties.FindAll(
+	return s.parties.Repository.FindAll(
 		ctx,
 	)
 }
@@ -36,7 +37,7 @@ func (s *PartyQueryService) FindByID(
 	id uuid.UUID,
 ) (*models.Party, error) {
 
-	return s.parties.FindByID(
+	return s.parties.Repository.FindByID(
 		ctx,
 		id,
 	)
@@ -53,7 +54,7 @@ func (s *PartyQueryService) FindForUser(
 	limit int,
 ) ([]models.Party, int64, error) {
 
-	return s.parties.FindForUser(
+	return s.parties.Repository.FindForUser(
 		ctx,
 		userID,
 		name,
@@ -77,7 +78,7 @@ func (s *PartyQueryService) FindOrganizedByUser(
 	limit int,
 ) ([]models.Party, int64, error) {
 
-	return s.parties.FindOrganizedByUser(
+	return s.parties.Repository.FindOrganizedByUser(
 		ctx,
 		userID,
 		name,

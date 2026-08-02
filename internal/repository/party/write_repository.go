@@ -8,23 +8,23 @@ import (
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+
 	baseRepository "github.com/reinp/event-platform/backend/internal/repository"
+	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
 type PartyWriteRepository struct {
 	transactionManager *database.TransactionManager
-
-	partyImages     *baseRepository.PartyImageRepository
-	partyCategories *baseRepository.PartyCategoryRepository
-
-	ticketCategories *ticketCategoryRepository.TicketCategoryWriteRepository
+	partyImages        *baseRepository.PartyImageRepository
+	partyCategories    *partyCategoryRepository.PartyCategoryWriteRepository
+	ticketCategories   *ticketCategoryRepository.TicketCategoryWriteRepository
 }
 
 func NewPartyWriteRepository(
 	transactionManager *database.TransactionManager,
 	partyImages *baseRepository.PartyImageRepository,
-	partyCategories *baseRepository.PartyCategoryRepository,
+	partyCategories *partyCategoryRepository.PartyCategoryWriteRepository,
 	ticketCategories *ticketCategoryRepository.TicketCategoryWriteRepository,
 ) *PartyWriteRepository {
 
@@ -47,20 +47,24 @@ func (r *PartyWriteRepository) CreateWithRelations(
 		ctx,
 		func(tx database.DBExecutor) error {
 
-			parties := NewPartyRepository(tx)
+			parties := NewPartyRepository(
+				tx,
+			)
 
 			if err := parties.Create(
 				ctx,
 				party,
 			); err != nil {
+
 				return err
 			}
 
-			if err := r.partyCategories.Replace(
+			if err := r.partyCategories.ReplaceForParty(
 				tx,
 				party.ID,
 				categoryIDs,
 			); err != nil {
+
 				return err
 			}
 
@@ -69,6 +73,7 @@ func (r *PartyWriteRepository) CreateWithRelations(
 				party.ID,
 				imageIDs,
 			); err != nil {
+
 				return err
 			}
 
@@ -93,20 +98,24 @@ func (r *PartyWriteRepository) UpdateWithRelations(
 		ctx,
 		func(tx database.DBExecutor) error {
 
-			parties := NewPartyRepository(tx)
+			parties := NewPartyRepository(
+				tx,
+			)
 
 			if err := parties.Update(
 				ctx,
 				party,
 			); err != nil {
+
 				return err
 			}
 
-			if err := r.partyCategories.Replace(
+			if err := r.partyCategories.ReplaceForParty(
 				tx,
 				party.ID,
 				categoryIDs,
 			); err != nil {
+
 				return err
 			}
 
@@ -115,6 +124,7 @@ func (r *PartyWriteRepository) UpdateWithRelations(
 				party.ID,
 				imageIDs,
 			); err != nil {
+
 				return err
 			}
 
@@ -123,42 +133,13 @@ func (r *PartyWriteRepository) UpdateWithRelations(
 				party.ID,
 				ticketCategories,
 			); err != nil {
+
 				return err
 			}
 
 			return nil
 		},
 	)
-}
-
-func createOrganizerMembership(
-	tx database.DBExecutor,
-	partyID uuid.UUID,
-	organizerID uuid.UUID,
-) error {
-
-	member := &models.PartyMember{
-		ID:      uuid.New(),
-		UserID:  organizerID,
-		PartyID: partyID,
-	}
-
-	if err := tx.
-		Create(member).
-		Error(); err != nil {
-
-		return err
-	}
-
-	role := &models.PartyMemberRole{
-		ID:            uuid.New(),
-		PartyMemberID: member.ID,
-		Role:          enum.PartyRoleOrganizer,
-	}
-
-	return tx.
-		Create(role).
-		Error()
 }
 
 func (r *PartyWriteRepository) ReplaceImages(
@@ -190,11 +171,45 @@ func (r *PartyWriteRepository) ReplaceCategories(
 		ctx,
 		func(tx database.DBExecutor) error {
 
-			return r.partyCategories.Replace(
+			return r.partyCategories.ReplaceForParty(
 				tx,
 				partyID,
 				categoryIDs,
 			)
 		},
 	)
+}
+
+func createOrganizerMembership(
+	tx database.DBExecutor,
+	partyID uuid.UUID,
+	organizerID uuid.UUID,
+) error {
+
+	member := &models.PartyMember{
+		ID:      uuid.New(),
+		UserID:  organizerID,
+		PartyID: partyID,
+	}
+
+	if err := tx.
+		Create(
+			member,
+		).
+		Error(); err != nil {
+
+		return err
+	}
+
+	role := &models.PartyMemberRole{
+		ID:            uuid.New(),
+		PartyMemberID: member.ID,
+		Role:          enum.PartyRoleOrganizer,
+	}
+
+	return tx.
+		Create(
+			role,
+		).
+		Error()
 }

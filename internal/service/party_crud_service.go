@@ -10,17 +10,18 @@ import (
 	"github.com/reinp/event-platform/backend/internal/repository"
 
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
+	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
 )
 
 type PartyCRUDService struct {
 	parties    *partyRepository.Facade
-	categories *repository.CategoryRepository
+	categories *partyCategoryRepository.Facade
 	media      *repository.MediaRepository
 }
 
 func NewPartyCRUDService(
 	parties *partyRepository.Facade,
-	categories *repository.CategoryRepository,
+	categories *partyCategoryRepository.Facade,
 	media *repository.MediaRepository,
 ) *PartyCRUDService {
 
@@ -169,7 +170,7 @@ func (s *PartyCRUDService) validateCategories(
 
 	for _, categoryID := range categoryIDs {
 
-		if _, err := s.categories.FindByID(
+		if _, err := s.categories.Repository.FindByID(
 			ctx,
 			categoryID,
 		); err != nil {

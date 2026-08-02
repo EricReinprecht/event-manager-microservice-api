@@ -7,6 +7,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
+	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
 	partyMemberRepository "github.com/reinp/event-platform/backend/internal/repository/party_member"
 	purchaseRepository "github.com/reinp/event-platform/backend/internal/repository/purchase"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
@@ -46,28 +47,13 @@ func BuildDependencies(
 			executor,
 		)
 
-	partyQueryRepository :=
-		repository.NewPartyQueryRepository(
+	mediaRepository :=
+		repository.NewMediaRepository(
 			executor,
 		)
 
 	partyImageRepository :=
 		repository.NewPartyImageRepository(
-			executor,
-		)
-
-	categoryRepository :=
-		repository.NewCategoryRepository(
-			executor,
-		)
-
-	partyCategoryRepository :=
-		repository.NewPartyCategoryRepository(
-			executor,
-		)
-
-	mediaRepository :=
-		repository.NewMediaRepository(
 			executor,
 		)
 
@@ -97,12 +83,17 @@ func BuildDependencies(
 			transactionManager,
 		)
 
+	partyCategoryRepositories :=
+		partyCategoryRepository.NewFacade(
+			executor,
+		)
+
 	partyRepositories :=
 		partyRepository.NewFacade(
 			executor,
 			transactionManager,
 			partyImageRepository,
-			partyCategoryRepository,
+			partyCategoryRepositories.Write,
 			ticketCategoryRepositories.Write,
 		)
 
@@ -216,18 +207,18 @@ func BuildDependencies(
 
 	partyCRUDService := service.NewPartyCRUDService(
 		partyRepositories,
-		categoryRepository,
+		partyCategoryRepositories,
 		mediaRepository,
 	)
 
 	partyQueryService :=
 		service.NewPartyQueryService(
-			partyQueryRepository,
+			partyRepositories,
 		)
 
 	partyAccessService :=
 		service.NewPartyAccessService(
-			partyQueryRepository,
+			partyRepositories,
 		)
 
 	partyService :=
@@ -245,7 +236,7 @@ func BuildDependencies(
 
 	categoryService :=
 		service.NewCategoryService(
-			categoryRepository,
+			partyCategoryRepositories,
 		)
 
 	mediaService :=

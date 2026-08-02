@@ -6,19 +6,19 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/repository"
+	partyCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/party_category"
 )
 
 type CategoryService struct {
-	repository *repository.CategoryRepository
+	categories *partyCategoryRepository.Facade
 }
 
 func NewCategoryService(
-	repository *repository.CategoryRepository,
+	categories *partyCategoryRepository.Facade,
 ) *CategoryService {
 
 	return &CategoryService{
-		repository: repository,
+		categories: categories,
 	}
 }
 
@@ -26,7 +26,7 @@ func (s *CategoryService) FindAll(
 	ctx context.Context,
 ) ([]models.PartyCategory, error) {
 
-	return s.repository.FindAll(ctx)
+	return s.categories.Repository.FindAll(ctx)
 }
 
 func (s *CategoryService) FindByID(
@@ -34,7 +34,7 @@ func (s *CategoryService) FindByID(
 	id uuid.UUID,
 ) (*models.PartyCategory, error) {
 
-	return s.repository.FindByID(ctx, id)
+	return s.categories.Repository.FindByID(ctx, id)
 }
 
 func (s *CategoryService) Create(
@@ -42,7 +42,7 @@ func (s *CategoryService) Create(
 	category *models.PartyCategory,
 ) error {
 
-	return s.repository.Create(ctx, category)
+	return s.categories.Repository.Create(ctx, category)
 }
 
 func (s *CategoryService) Update(
@@ -50,7 +50,7 @@ func (s *CategoryService) Update(
 	category *models.PartyCategory,
 ) error {
 
-	return s.repository.Update(ctx, category)
+	return s.categories.Repository.Update(ctx, category)
 }
 
 func (s *CategoryService) Delete(
@@ -58,7 +58,7 @@ func (s *CategoryService) Delete(
 	category *models.PartyCategory,
 ) error {
 
-	return s.repository.Delete(ctx, category)
+	return s.categories.Repository.Delete(ctx, category)
 }
 
 func (s *CategoryService) FindPaginatedByPopularity(
@@ -66,7 +66,7 @@ func (s *CategoryService) FindPaginatedByPopularity(
 	limit int,
 ) ([]models.PartyCategory, error) {
 
-	return s.repository.FindPaginatedByPopularity(
+	return s.categories.Repository.FindPaginatedByPopularity(
 		ctx,
 		limit,
 	)
