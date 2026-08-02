@@ -172,13 +172,19 @@ func (s *PartyService) Update(
 		return nil, err
 	}
 
+	now := time.Now()
+	if party.PublishedAt != nil ||
+		(party.PublishAt != nil && !party.PublishAt.After(now)) {
+		return nil, appErrors.ErrForbidden
+	}
+
 	if !optionalTimesEqual(party.PublishAt, req.PublishAt) {
 		if _, err := s.access.RequireOwnership(ctx, id, userID); err != nil {
 			return nil, err
 		}
 
 		if req.PublishAt != nil &&
-			(!req.PublishAt.After(time.Now()) || !req.PublishAt.Before(req.EndAt)) {
+			(!req.PublishAt.After(now) || !req.PublishAt.Before(req.EndAt)) {
 			return nil, appErrors.NewValidationError(appErrors.ValidationErrors{
 				"publishDate": "party.publish_at_invalid",
 			})
@@ -264,16 +270,18 @@ func optionalTimesEqual(left, right *time.Time) bool {
 func (s *PartyService) Delete(
 	ctx context.Context,
 	id uuid.UUID,
+	userID uuid.UUID,
 ) error {
-
-	party, err := s.query.FindByID(
-		ctx,
-		id,
-	)
+	party, err := s.access.RequireOwnership(ctx, id, userID)
 
 	if err != nil {
-
 		return err
+	}
+
+	now := time.Now()
+	if party.PublishedAt != nil ||
+		(party.PublishAt != nil && !party.PublishAt.After(now)) {
+		return appErrors.ErrForbidden
 	}
 
 	return s.crud.Delete(

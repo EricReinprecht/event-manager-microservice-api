@@ -78,6 +78,9 @@ func HandleDomainError(
 	case errors.Is(
 		err,
 		appErrors.ErrUnauthorized,
+	), errors.Is(
+		err,
+		appErrors.ErrForbidden,
 	):
 
 		Error(

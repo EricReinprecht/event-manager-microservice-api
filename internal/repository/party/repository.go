@@ -60,8 +60,8 @@ func (r *PartyRepository) Update(
 			"longitude": party.Longitude,
 			"timezone":  party.Timezone,
 
-			"start_at": party.StartAt,
-			"end_at":    party.EndAt,
+			"start_at":   party.StartAt,
+			"end_at":     party.EndAt,
 			"publish_at": party.PublishAt,
 		}).
 		Error()
@@ -172,7 +172,8 @@ func (r *PartyRepository) FindForUser(
 		return nil, 0, err
 	}
 	page, limit = normalizePagination(page, limit)
-	err := query.Order("parties.start_at DESC").Limit(limit).Offset((page - 1) * limit).
+	err := query.Order("parties.start_at DESC").Order("parties.id ASC").
+		Limit(limit).Offset((page - 1) * limit).
 		Preload("Organizer").Preload("Categories").Preload("Thumbnail").Preload("Images").
 		Find(&parties).Error()
 	return parties, total, err
@@ -225,7 +226,7 @@ func applyPartySorts(query database.DBExecutor, sorts string) database.DBExecuto
 		"endAt": "parties.end_at", "location": "parties.location_name",
 	}
 	if sorts == "" {
-		return query.Order("parties.start_at DESC")
+		return query.Order("parties.start_at DESC").Order("parties.id ASC")
 	}
 	for _, sort := range strings.Split(sorts, ",") {
 		parts := strings.Split(sort, ":")
@@ -242,5 +243,5 @@ func applyPartySorts(query database.DBExecutor, sorts string) database.DBExecuto
 		}
 		query = query.Order(column + " " + direction)
 	}
-	return query
+	return query.Order("parties.id ASC")
 }

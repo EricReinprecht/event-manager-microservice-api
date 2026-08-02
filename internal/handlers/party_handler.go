@@ -242,9 +242,16 @@ func (h *PartyHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	userID, ok := helpers.RequireUserID(c)
+	if !ok {
+		responses.Unauthorized(c)
+		return
+	}
+
 	err = h.partyService.Delete(
 		c.Request.Context(),
 		id,
+		userID,
 	)
 
 	if err != nil {
@@ -287,7 +294,6 @@ func (h *PartyHandler) Publish(c *gin.Context) {
 
 	responses.Success(c, http.StatusOK, response)
 }
-
 
 func (h *PartyHandler) GetMyParties(c *gin.Context) {
 
