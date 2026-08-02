@@ -13,24 +13,25 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
+	purchaseRepository "github.com/reinp/event-platform/backend/internal/repository/purchase"
 )
 
 type PurchaseService struct {
-	repository  *repository.PurchaseRepository
+	purchases   *purchaseRepository.Facade
 	unitOfWork  *repository.PurchaseUnitOfWork
 	clock       clock.Clock
 	purchaseTTL time.Duration
 }
 
 func NewPurchaseService(
-	repository *repository.PurchaseRepository,
+	purchases *purchaseRepository.Facade,
 	unitOfWork *repository.PurchaseUnitOfWork,
 	clock clock.Clock,
 	purchaseTTL time.Duration,
 ) *PurchaseService {
 
 	return &PurchaseService{
-		repository:  repository,
+		purchases:   purchases,
 		unitOfWork:  unitOfWork,
 		clock:       clock,
 		purchaseTTL: purchaseTTL,
@@ -197,7 +198,7 @@ func (s *PurchaseService) GetPurchase(
 	id uuid.UUID,
 ) (*models.Purchase, error) {
 
-	return s.repository.FindByID(
+	return s.purchases.Repository.FindByID(
 		ctx,
 		id,
 	)
@@ -208,7 +209,7 @@ func (s *PurchaseService) FindByPaymentID(
 	paymentID string,
 ) (*models.Purchase, error) {
 
-	return s.repository.FindByPaymentID(
+	return s.purchases.Repository.FindByPaymentID(
 		ctx,
 		paymentID,
 	)

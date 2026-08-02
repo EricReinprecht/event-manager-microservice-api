@@ -8,6 +8,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/repository"
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
 	partyMemberRepository "github.com/reinp/event-platform/backend/internal/repository/party_member"
+	purchaseRepository "github.com/reinp/event-platform/backend/internal/repository/purchase"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 	"github.com/reinp/event-platform/backend/internal/service"
 	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
@@ -80,11 +81,6 @@ func BuildDependencies(
 			executor,
 		)
 
-	purchaseRepository :=
-		repository.NewPurchaseRepository(
-			executor,
-		)
-
 	paymentEventRepository :=
 		repository.NewPaymentEventRepository(
 			executor,
@@ -109,6 +105,13 @@ func BuildDependencies(
 			partyCategoryRepository,
 			ticketCategoryRepositories.Write,
 		)
+
+	purchaseRepositories :=
+		purchaseRepository.NewFacade(
+			executor,
+			transactionManager,
+		)
+
 	ticketUnitOfWork :=
 		repository.NewTicketUnitOfWork(
 			transactionManager,
@@ -267,7 +270,7 @@ func BuildDependencies(
 
 	purchaseService :=
 		service.NewPurchaseService(
-			purchaseRepository,
+			purchaseRepositories,
 			purchaseUnitOfWork,
 			clients.Clock,
 			cfg.PurchasePendingDuration,

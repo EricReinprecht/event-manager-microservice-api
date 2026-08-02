@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/reinp/event-platform/backend/internal/database"
+
+	purchaseRepository "github.com/reinp/event-platform/backend/internal/repository/purchase"
 )
 
 type RefundTransactionRepositories struct {
-	Tx database.DBExecutor
-
-	Purchases *PurchaseRepository
+	Purchases *purchaseRepository.PurchaseRepository
 	Tickets   *TicketRepository
 }
 
@@ -28,24 +28,25 @@ func NewRefundUnitOfWork(
 
 func (u *RefundUnitOfWork) Transaction(
 	ctx context.Context,
-	fn func(repositories *RefundTransactionRepositories) error,
+	fn func(
+		repositories *RefundTransactionRepositories,
+	) error,
 ) error {
 
 	return u.transactionManager.Transaction(
 		ctx,
 		func(tx database.DBExecutor) error {
 
-			repositories := &RefundTransactionRepositories{
-				Tx: tx,
+			repositories :=
+				&RefundTransactionRepositories{
+					Purchases: purchaseRepository.NewPurchaseRepository(
+						tx,
+					),
 
-				Purchases: NewPurchaseRepository(
-					tx,
-				),
-
-				Tickets: NewTicketRepository(
-					tx,
-				),
-			}
+					Tickets: NewTicketRepository(
+						tx,
+					),
+				}
 
 			return fn(
 				repositories,

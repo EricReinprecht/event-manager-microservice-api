@@ -180,39 +180,21 @@ func (r *TicketRepository) CountByCategoryTx(
 }
 
 func (r *TicketRepository) CancelByPurchase(
-	tx database.DBExecutor,
+	ctx context.Context,
 	purchaseID uuid.UUID,
 ) error {
 
-	var tickets []models.Ticket
-
-	err := tx.
+	return r.db.
+		WithContext(ctx).
+		Model(&models.Ticket{}).
 		Where(
 			"purchase_id = ?",
 			purchaseID,
 		).
-		Find(
-			&tickets,
+		Updates(
+			map[string]any{
+				"status": enum.TicketStatusCancelled,
+			},
 		).
 		Error()
-
-	if err != nil {
-		return err
-	}
-
-	for i := range tickets {
-
-		tickets[i].Status = enum.TicketStatusCancelled
-
-		if err := tx.
-			Save(
-				&tickets[i],
-			).
-			Error(); err != nil {
-
-			return err
-		}
-	}
-
-	return nil
 }

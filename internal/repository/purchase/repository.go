@@ -1,4 +1,4 @@
-package repository
+package purchase_repository
 
 import (
 	"context"
@@ -184,20 +184,6 @@ func (r *PurchaseRepository) UpdatePayment(
 		Error()
 }
 
-func mapPurchaseDatabaseError(
-	err error,
-) error {
-
-	if errors.Is(
-		err,
-		gorm.ErrRecordNotFound,
-	) {
-		return appErrors.ErrPurchaseNotFound
-	}
-
-	return err
-}
-
 func (r *PurchaseRepository) ReservedQuantity(
 	ctx context.Context,
 	categoryID uuid.UUID,
@@ -229,4 +215,18 @@ func (r *PurchaseRepository) ReservedQuantity(
 		Error()
 
 	return quantity, err
+}
+
+func mapPurchaseDatabaseError(
+	err error,
+) error {
+
+	if errors.Is(
+		err,
+		gorm.ErrRecordNotFound,
+	) {
+		return appErrors.ErrPurchaseNotFound
+	}
+
+	return err
 }

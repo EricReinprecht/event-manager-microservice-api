@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
@@ -14,11 +13,6 @@ type TicketRepositoryInterface interface {
 		ctx context.Context,
 		ticket *models.Ticket,
 	) error
-
-	FindByID(
-		ctx context.Context,
-		id uuid.UUID,
-	) (*models.Ticket, error)
 
 	FindByCode(
 		ctx context.Context,
@@ -30,8 +24,13 @@ type TicketRepositoryInterface interface {
 		userID uuid.UUID,
 	) ([]models.Ticket, error)
 
+	CountByCategory(
+		ctx context.Context,
+		categoryID uuid.UUID,
+	) (int64, error)
+
 	CancelByPurchase(
-		tx database.DBExecutor,
+		ctx context.Context,
 		purchaseID uuid.UUID,
 	) error
 }

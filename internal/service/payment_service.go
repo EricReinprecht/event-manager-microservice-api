@@ -307,7 +307,7 @@ func (s *PaymentService) RefundPayment(
 			}
 
 			return repositories.Tickets.CancelByPurchase(
-				repositories.Tx,
+				ctx,
 				purchase.ID,
 			)
 		},

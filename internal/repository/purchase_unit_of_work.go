@@ -5,11 +5,12 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/database"
 
+	purchaseRepository "github.com/reinp/event-platform/backend/internal/repository/purchase"
 	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
 type PurchaseTransactionRepositories struct {
-	Purchases        *PurchaseRepository
+	Purchases        *purchaseRepository.PurchaseRepository
 	TicketCategories *ticketCategoryRepository.TicketCategoryRepository
 	Tickets          *TicketRepository
 }
@@ -39,7 +40,7 @@ func (u *PurchaseUnitOfWork) Transaction(
 		func(tx database.DBExecutor) error {
 
 			repositories := &PurchaseTransactionRepositories{
-				Purchases: NewPurchaseRepository(
+				Purchases: purchaseRepository.NewPurchaseRepository(
 					tx,
 				),
 
