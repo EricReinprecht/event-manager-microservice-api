@@ -11,21 +11,23 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
+
+	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
 )
 
 type PartyMemberService struct {
-	repository      *repository.PartyMemberRepository
-	partyRepository *repository.PartyRepository
+	repository *repository.PartyMemberRepository
+	parties    *partyRepository.Facade
 }
 
 func NewPartyMemberService(
 	repository *repository.PartyMemberRepository,
-	partyRepository *repository.PartyRepository,
+	parties *partyRepository.Facade,
 ) *PartyMemberService {
 
 	return &PartyMemberService{
-		repository:      repository,
-		partyRepository: partyRepository,
+		repository: repository,
+		parties:    parties,
 	}
 }
 
@@ -110,7 +112,7 @@ func (s *PartyMemberService) Delete(
 		return err
 	}
 
-	party, err := s.partyRepository.FindByID(
+	party, err := s.parties.Repository.FindByID(
 		ctx,
 		member.PartyID,
 	)

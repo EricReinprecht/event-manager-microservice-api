@@ -252,7 +252,7 @@ func (s *PaymentService) RefundPayment(
 		func(repositories *repository.RefundTransactionRepositories) error {
 
 			purchase, err := repositories.Purchases.FindByID(
-				repositories.Tx,
+				ctx,
 				purchaseID,
 			)
 
@@ -300,7 +300,7 @@ func (s *PaymentService) RefundPayment(
 				&now
 
 			if err := repositories.Purchases.Update(
-				repositories.Tx,
+				ctx,
 				purchase,
 			); err != nil {
 				return err

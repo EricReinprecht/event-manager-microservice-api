@@ -8,25 +8,24 @@ import (
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/repository"
+
+	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
 )
 
 type PartyCRUDService struct {
-	parties    *repository.PartyRepository
-	writer     *repository.PartyWriteRepository
+	parties    *partyRepository.Facade
 	categories *repository.CategoryRepository
 	media      *repository.MediaRepository
 }
 
 func NewPartyCRUDService(
-	parties *repository.PartyRepository,
-	writer *repository.PartyWriteRepository,
+	parties *partyRepository.Facade,
 	categories *repository.CategoryRepository,
 	media *repository.MediaRepository,
 ) *PartyCRUDService {
 
 	return &PartyCRUDService{
 		parties:    parties,
-		writer:     writer,
 		categories: categories,
 		media:      media,
 	}
@@ -37,7 +36,7 @@ func (s *PartyCRUDService) FindByID(
 	id uuid.UUID,
 ) (*models.Party, error) {
 
-	return s.parties.FindByID(
+	return s.parties.Repository.FindByID(
 		ctx,
 		id,
 	)
@@ -48,7 +47,7 @@ func (s *PartyCRUDService) Delete(
 	party *models.Party,
 ) error {
 
-	return s.parties.Delete(
+	return s.parties.Repository.Delete(
 		ctx,
 		party,
 	)
@@ -78,7 +77,7 @@ func (s *PartyCRUDService) CreateRelations(
 		return err
 	}
 
-	return s.writer.CreateWithRelations(
+	return s.parties.Write.CreateWithRelations(
 		ctx,
 		party,
 		categoryIDs,
@@ -111,7 +110,7 @@ func (s *PartyCRUDService) UpdateRelations(
 		return err
 	}
 
-	return s.writer.UpdateWithRelations(
+	return s.parties.Write.UpdateWithRelations(
 		ctx,
 		party,
 		categoryIDs,
@@ -135,7 +134,7 @@ func (s *PartyCRUDService) UpdateImages(
 		return err
 	}
 
-	return s.writer.ReplaceImages(
+	return s.parties.Write.ReplaceImages(
 		ctx,
 		partyID,
 		imageIDs,
@@ -156,7 +155,7 @@ func (s *PartyCRUDService) UpdateCategories(
 		return err
 	}
 
-	return s.writer.ReplaceCategories(
+	return s.parties.Write.ReplaceCategories(
 		ctx,
 		partyID,
 		categoryIDs,

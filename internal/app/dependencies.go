@@ -6,6 +6,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/dependencies"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
+	party_repository "github.com/reinp/event-platform/backend/internal/repository/party"
 	"github.com/reinp/event-platform/backend/internal/service"
 	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
 )
@@ -39,11 +40,6 @@ func BuildDependencies(
 
 	passwordResetRepository :=
 		repository.NewPasswordResetTokenRepository(
-			executor,
-		)
-
-	partyRepository :=
-		repository.NewPartyRepository(
 			executor,
 		)
 
@@ -116,8 +112,9 @@ func BuildDependencies(
 			executor,
 		)
 
-	partyWriteRepository :=
-		repository.NewPartyWriteRepository(
+	partyRepositories :=
+		party_repository.NewFacade(
+			executor,
 			transactionManager,
 			partyImageRepository,
 			partyCategoryRepository,
@@ -223,16 +220,14 @@ func BuildDependencies(
 	partyMemberService :=
 		service.NewPartyMemberService(
 			partyMemberRepository,
-			partyRepository,
+			partyRepositories,
 		)
 
-	partyCRUDService :=
-		service.NewPartyCRUDService(
-			partyRepository,
-			partyWriteRepository,
-			categoryRepository,
-			mediaRepository,
-		)
+	partyCRUDService := service.NewPartyCRUDService(
+		partyRepositories,
+		categoryRepository,
+		mediaRepository,
+	)
 
 	partyQueryService :=
 		service.NewPartyQueryService(
@@ -253,7 +248,7 @@ func BuildDependencies(
 
 	permissionService :=
 		service.NewPermissionService(
-			partyRepository,
+			partyRepositories,
 			partyMemberRepository,
 		)
 
