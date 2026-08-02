@@ -7,6 +7,7 @@ import (
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/dto"
+	"github.com/reinp/event-platform/backend/internal/mapper"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
@@ -34,28 +35,10 @@ func (s *PartyMemberService) Create(
 	req dto.CreatePartyMemberRequest,
 ) (*models.PartyMember, error) {
 
-	member := &models.PartyMember{
-		ID:      uuid.New(),
-		UserID:  req.UserID,
-		PartyID: partyID,
-		Roles: make(
-			[]models.PartyMemberRole,
-			0,
-			len(req.Roles),
-		),
-	}
-
-	for _, role := range req.Roles {
-
-		member.Roles = append(
-			member.Roles,
-			models.PartyMemberRole{
-				ID:            uuid.New(),
-				PartyMemberID: member.ID,
-				Role:          role,
-			},
-		)
-	}
+	member := mapper.CreatePartyMember(
+		partyID,
+		req,
+	)
 
 	if err := s.repository.Create(
 		ctx,
@@ -156,6 +139,7 @@ func (s *PartyMemberService) SyncRoles(
 		ctx,
 		memberID,
 	); err != nil {
+
 		return err
 	}
 
@@ -163,34 +147,11 @@ func (s *PartyMemberService) SyncRoles(
 		return appErrors.ErrInvalidPartyMemberRole
 	}
 
-	uniqueRoles := make(
-		[]enum.PartyMemberRole,
-		0,
-		len(roles),
-	)
-
-	seenRoles := make(
-		map[enum.PartyMemberRole]struct{},
-		len(roles),
-	)
-
-	for _, role := range roles {
-
-		if _, exists := seenRoles[role]; exists {
-			continue
-		}
-
-		seenRoles[role] = struct{}{}
-
-		uniqueRoles = append(
-			uniqueRoles,
-			role,
-		)
-	}
-
 	return s.repository.SyncRoles(
 		ctx,
 		memberID,
-		uniqueRoles,
+		mapper.UniquePartyRoles(
+			roles,
+		),
 	)
 }
