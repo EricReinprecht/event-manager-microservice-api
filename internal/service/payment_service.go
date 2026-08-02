@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/payment"
@@ -23,7 +22,7 @@ type PaymentService struct {
 	permissionService      *PermissionService
 	paymentGateway         payment.Gateway
 	paymentEventRepository *repository.PaymentEventRepository
-	purchaseRepository     *repository.PurchaseRepository
+	refundUnitOfWork       *repository.RefundUnitOfWork
 	refundService          *RefundService
 }
 
@@ -33,7 +32,7 @@ func NewPaymentService(
 	permissionService *PermissionService,
 	paymentGateway payment.Gateway,
 	paymentEventRepository *repository.PaymentEventRepository,
-	purchaseRepository *repository.PurchaseRepository,
+	refundUnitOfWork *repository.RefundUnitOfWork,
 	refundService *RefundService,
 ) *PaymentService {
 
@@ -43,7 +42,7 @@ func NewPaymentService(
 		permissionService:      permissionService,
 		paymentGateway:         paymentGateway,
 		paymentEventRepository: paymentEventRepository,
-		purchaseRepository:     purchaseRepository,
+		refundUnitOfWork:       refundUnitOfWork,
 		refundService:          refundService,
 	}
 }
@@ -101,6 +100,7 @@ func (s *PaymentService) CreateCheckout(
 		"paypal",
 		order.ID,
 	); err != nil {
+
 		return "", err
 	}
 
@@ -146,6 +146,7 @@ func (s *PaymentService) ConfirmPayment(
 		ctx,
 		purchase,
 	); err != nil {
+
 		return nil, err
 	}
 
@@ -230,15 +231,7 @@ func (s *PaymentService) RefundPayment(
 	)
 
 	if err != nil {
-
-		if errors.Is(
-			err,
-			gorm.ErrRecordNotFound,
-		) {
-			return appErrors.ErrPurchaseNotFound
-		}
-
-		return err
+		return mapPurchaseNotFoundError(err)
 	}
 
 	if err := s.permissionService.RequireManageRefunds(
@@ -246,6 +239,7 @@ func (s *PaymentService) RefundPayment(
 		purchase.PartyID,
 		userID,
 	); err != nil {
+
 		return err
 	}
 
@@ -253,34 +247,29 @@ func (s *PaymentService) RefundPayment(
 		return appErrors.ErrPurchaseAlreadyRefunded
 	}
 
-	return s.purchaseRepository.Transaction(
+	return s.refundUnitOfWork.Transaction(
 		ctx,
-		func(tx database.DBExecutor) error {
+		func(repositories *repository.RefundTransactionRepositories) error {
 
-			purchase, err := s.purchaseRepository.FindByID(
-				tx,
+			purchase, err := repositories.Purchases.FindByID(
+				repositories.Tx,
 				purchaseID,
 			)
 
 			if err != nil {
-
-				if errors.Is(
-					err,
-					gorm.ErrRecordNotFound,
-				) {
-					return appErrors.ErrPurchaseNotFound
-				}
-
-				return err
+				return mapPurchaseNotFoundError(err)
 			}
 
+			// Repeat the check inside the transaction to reduce
+			// the chance of processing the same refund twice.
 			if purchase.Status == enum.PurchaseStatusRefunded {
 				return appErrors.ErrPurchaseAlreadyRefunded
 			}
 
-			refundAmount, err := s.refundService.CalculateRefundAmount(
-				purchase,
-			)
+			refundAmount, err :=
+				s.refundService.CalculateRefundAmount(
+					purchase,
+				)
 
 			if err != nil {
 				return err
@@ -296,24 +285,49 @@ func (s *PaymentService) RefundPayment(
 				return err
 			}
 
-			now := time.Now()
+			now := time.Now().UTC()
 
-			purchase.Status = enum.PurchaseStatusRefunded
-			purchase.RefundID = refundID
-			purchase.RefundProvider = purchase.PaymentProvider
-			purchase.RefundedAt = &now
+			purchase.Status =
+				enum.PurchaseStatusRefunded
 
-			if err := s.purchaseRepository.Update(
-				tx,
+			purchase.RefundID =
+				refundID
+
+			purchase.RefundProvider =
+				purchase.PaymentProvider
+
+			purchase.RefundedAt =
+				&now
+
+			if err := repositories.Purchases.Update(
+				repositories.Tx,
 				purchase,
 			); err != nil {
 				return err
 			}
 
-			return s.ticketService.CancelByPurchase(
-				tx,
+			return repositories.Tickets.CancelByPurchase(
+				repositories.Tx,
 				purchase.ID,
 			)
 		},
 	)
+}
+
+func mapPurchaseNotFoundError(
+	err error,
+) error {
+
+	if errors.Is(
+		err,
+		gorm.ErrRecordNotFound,
+	) || errors.Is(
+		err,
+		appErrors.ErrPurchaseNotFound,
+	) {
+
+		return appErrors.ErrPurchaseNotFound
+	}
+
+	return err
 }

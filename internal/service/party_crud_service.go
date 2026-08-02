@@ -6,156 +6,30 @@ import (
 	"github.com/google/uuid"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
 )
 
 type PartyCRUDService struct {
-	parties          *repository.PartyRepository
-	images           *repository.PartyImageRepository
-	members          *repository.PartyMemberRepository
-	roles            *repository.PartyMemberRoleRepository
-	categories       *repository.CategoryRepository
-	partyCategories  *repository.PartyCategoryRepository
-	media            *repository.MediaRepository
-	ticketCategories *repository.TicketCategoryRepository
-
-	tx *database.TransactionManager
+	parties    *repository.PartyRepository
+	writer     *repository.PartyWriteRepository
+	categories *repository.CategoryRepository
+	media      *repository.MediaRepository
 }
 
 func NewPartyCRUDService(
 	parties *repository.PartyRepository,
-	images *repository.PartyImageRepository,
-	members *repository.PartyMemberRepository,
-	roles *repository.PartyMemberRoleRepository,
+	writer *repository.PartyWriteRepository,
 	categories *repository.CategoryRepository,
-	partyCategories *repository.PartyCategoryRepository,
 	media *repository.MediaRepository,
-	ticketCategories *repository.TicketCategoryRepository,
-	tx *database.TransactionManager,
 ) *PartyCRUDService {
 
 	return &PartyCRUDService{
-		parties:          parties,
-		images:           images,
-		members:          members,
-		roles:            roles,
-		categories:       categories,
-		partyCategories:  partyCategories,
-		media:            media,
-		ticketCategories: ticketCategories,
-		tx:               tx,
+		parties:    parties,
+		writer:     writer,
+		categories: categories,
+		media:      media,
 	}
-}
-
-func (s *PartyCRUDService) Create(
-	ctx context.Context,
-	party *models.Party,
-	imageIDs []uuid.UUID,
-) error {
-
-	for _, category := range party.Categories {
-
-		_, err := s.categories.FindByID(
-			ctx,
-			category.ID,
-		)
-
-		if err != nil {
-
-			return appErrors.ErrCategoryNotFound
-		}
-	}
-
-	if party.ThumbnailID != nil {
-
-		_, err := s.media.FindByID(
-			ctx,
-			*party.ThumbnailID,
-		)
-
-		if err != nil {
-
-			return appErrors.ErrMediaNotFound
-		}
-	}
-
-	for _, imageID := range imageIDs {
-
-		_, err := s.media.FindByID(
-			ctx,
-			imageID,
-		)
-
-		if err != nil {
-
-			return appErrors.ErrMediaNotFound
-		}
-	}
-
-	return s.tx.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
-
-			if err := s.parties.Create(
-				tx,
-				party,
-			); err != nil {
-
-				return err
-			}
-
-			if err := tx.
-				Model(party).
-				Association("Categories").
-				Replace(
-					party.Categories,
-				); err != nil {
-
-				return err
-			}
-
-			if err := s.images.Replace(
-				tx,
-				party.ID,
-				imageIDs,
-			); err != nil {
-
-				return err
-			}
-
-			member := &models.PartyMember{
-				ID: uuid.New(),
-
-				UserID: party.OrganizerID,
-
-				PartyID: party.ID,
-			}
-
-			if err := s.members.Create(
-				tx,
-				member,
-			); err != nil {
-
-				return err
-			}
-
-			role := &models.PartyMemberRole{
-				ID: uuid.New(),
-
-				PartyMemberID: member.ID,
-
-				Role: enum.PartyRoleOrganizer,
-			}
-
-			return s.roles.Create(
-				tx,
-				role,
-			)
-		},
-	)
 }
 
 func (s *PartyCRUDService) FindByID(
@@ -166,55 +40,6 @@ func (s *PartyCRUDService) FindByID(
 	return s.parties.FindByID(
 		ctx,
 		id,
-	)
-}
-
-func (s *PartyCRUDService) Update(
-	ctx context.Context,
-	party *models.Party,
-) error {
-
-	return s.parties.Update(
-		ctx,
-		party,
-	)
-}
-
-func (s *PartyCRUDService) UpdateImages(
-	ctx context.Context,
-	partyID uuid.UUID,
-	imageIDs []uuid.UUID,
-) error {
-
-	return s.tx.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
-
-			return s.images.Replace(
-				tx,
-				partyID,
-				imageIDs,
-			)
-		},
-	)
-}
-
-func (s *PartyCRUDService) UpdateCategories(
-	ctx context.Context,
-	partyID uuid.UUID,
-	categoryIDs []uuid.UUID,
-) error {
-
-	return s.tx.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
-
-			return s.partyCategories.Replace(
-				tx,
-				partyID,
-				categoryIDs,
-			)
-		},
 	)
 }
 
@@ -229,6 +54,38 @@ func (s *PartyCRUDService) Delete(
 	)
 }
 
+func (s *PartyCRUDService) CreateRelations(
+	ctx context.Context,
+	party *models.Party,
+	categoryIDs []uuid.UUID,
+	imageIDs []uuid.UUID,
+) error {
+
+	if err := s.validateCategories(
+		ctx,
+		categoryIDs,
+	); err != nil {
+
+		return err
+	}
+
+	if err := s.validateMedia(
+		ctx,
+		party.ThumbnailID,
+		imageIDs,
+	); err != nil {
+
+		return err
+	}
+
+	return s.writer.CreateWithRelations(
+		ctx,
+		party,
+		categoryIDs,
+		imageIDs,
+	)
+}
+
 func (s *PartyCRUDService) UpdateRelations(
 	ctx context.Context,
 	party *models.Party,
@@ -237,111 +94,121 @@ func (s *PartyCRUDService) UpdateRelations(
 	ticketCategories []models.TicketCategory,
 ) error {
 
-	return s.tx.Transaction(
+	if err := s.validateCategories(
 		ctx,
-		func(tx database.DBExecutor) error {
+		categoryIDs,
+	); err != nil {
 
-			if err := s.parties.Update(
-				ctx,
-				party,
-			); err != nil {
-				return err
-			}
+		return err
+	}
 
-			if err := s.partyCategories.Replace(
-				tx,
-				party.ID,
-				categoryIDs,
-			); err != nil {
-				return err
-			}
+	if err := s.validateMedia(
+		ctx,
+		party.ThumbnailID,
+		imageIDs,
+	); err != nil {
 
-			if err := s.images.Replace(
-				tx,
-				party.ID,
-				imageIDs,
-			); err != nil {
-				return err
-			}
+		return err
+	}
 
-			if err := s.ticketCategories.Replace(
-				tx,
-				party.ID,
-				ticketCategories,
-			); err != nil {
-				return err
-			}
-
-			return nil
-		},
+	return s.writer.UpdateWithRelations(
+		ctx,
+		party,
+		categoryIDs,
+		imageIDs,
+		ticketCategories,
 	)
 }
 
-func (s *PartyCRUDService) CreateRelations(
+func (s *PartyCRUDService) UpdateImages(
 	ctx context.Context,
-	party *models.Party,
-	categoryIDs []uuid.UUID,
+	partyID uuid.UUID,
 	imageIDs []uuid.UUID,
 ) error {
 
-	return s.tx.Transaction(
+	if err := s.validateMedia(
 		ctx,
-		func(tx database.DBExecutor) error {
+		nil,
+		imageIDs,
+	); err != nil {
 
-			if err := s.parties.Create(
-				tx,
-				party,
-			); err != nil {
-				return err
-			}
+		return err
+	}
 
-			// save categories in party_categories
-			if err := s.partyCategories.Replace(
-				tx,
-				party.ID,
-				categoryIDs,
-			); err != nil {
-				return err
-			}
-
-			// save images in party_media
-			if err := s.images.Replace(
-				tx,
-				party.ID,
-				imageIDs,
-			); err != nil {
-				return err
-			}
-
-			// create organizer membership
-			member := &models.PartyMember{
-				ID: uuid.New(),
-
-				UserID: party.OrganizerID,
-
-				PartyID: party.ID,
-			}
-
-			if err := s.members.Create(
-				tx,
-				member,
-			); err != nil {
-				return err
-			}
-
-			// assign organizer role
-			role := &models.PartyMemberRole{
-				ID: uuid.New(),
-
-				PartyMemberID: member.ID,
-
-				Role: enum.PartyRoleOrganizer,
-			}
-
-			return s.roles.Create(
-				tx,
-				role,
-			)
-		},
+	return s.writer.ReplaceImages(
+		ctx,
+		partyID,
+		imageIDs,
 	)
+}
+
+func (s *PartyCRUDService) UpdateCategories(
+	ctx context.Context,
+	partyID uuid.UUID,
+	categoryIDs []uuid.UUID,
+) error {
+
+	if err := s.validateCategories(
+		ctx,
+		categoryIDs,
+	); err != nil {
+
+		return err
+	}
+
+	return s.writer.ReplaceCategories(
+		ctx,
+		partyID,
+		categoryIDs,
+	)
+}
+
+func (s *PartyCRUDService) validateCategories(
+	ctx context.Context,
+	categoryIDs []uuid.UUID,
+) error {
+
+	for _, categoryID := range categoryIDs {
+
+		if _, err := s.categories.FindByID(
+			ctx,
+			categoryID,
+		); err != nil {
+
+			return appErrors.ErrCategoryNotFound
+		}
+	}
+
+	return nil
+}
+
+func (s *PartyCRUDService) validateMedia(
+	ctx context.Context,
+	thumbnailID *uuid.UUID,
+	imageIDs []uuid.UUID,
+) error {
+
+	if thumbnailID != nil {
+
+		if _, err := s.media.FindByID(
+			ctx,
+			*thumbnailID,
+		); err != nil {
+
+			return appErrors.ErrMediaNotFound
+		}
+	}
+
+	for _, imageID := range imageIDs {
+
+		if _, err := s.media.FindByID(
+			ctx,
+			imageID,
+		); err != nil {
+
+			return appErrors.ErrMediaNotFound
+		}
+	}
+
+	return nil
 }

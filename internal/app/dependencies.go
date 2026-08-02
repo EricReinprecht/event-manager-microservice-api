@@ -78,10 +78,10 @@ func BuildDependencies(
 			transactionManager,
 		)
 
-	partyMemberRoleRepository :=
-		repository.NewPartyMemberRoleRepository(
-			executor,
-		)
+	// partyMemberRoleRepository :=
+	// 	repository.NewPartyMemberRoleRepository(
+	// 		executor,
+	// 	)
 
 	ticketCategoryRepository :=
 		repository.NewTicketCategoryRepository(
@@ -98,10 +98,10 @@ func BuildDependencies(
 			executor,
 		)
 
-	ticketAccessWindowRepository :=
-		repository.NewTicketAccessWindowRepository(
-			executor,
-		)
+	// ticketAccessWindowRepository :=
+	// 	repository.NewTicketAccessWindowRepository(
+	// 		executor,
+	// 	)
 
 	purchaseRepository :=
 		repository.NewPurchaseRepository(
@@ -111,6 +111,24 @@ func BuildDependencies(
 	paymentEventRepository :=
 		repository.NewPaymentEventRepository(
 			executor,
+		)
+
+	partyWriteRepository :=
+		repository.NewPartyWriteRepository(
+			transactionManager,
+			partyImageRepository,
+			partyCategoryRepository,
+			ticketCategoryRepository,
+		)
+
+	ticketUnitOfWork :=
+		repository.NewTicketUnitOfWork(
+			transactionManager,
+		)
+
+	refundUnitOfWork :=
+		repository.NewRefundUnitOfWork(
+			transactionManager,
 		)
 
 	// clients
@@ -203,14 +221,9 @@ func BuildDependencies(
 	partyCRUDService :=
 		service.NewPartyCRUDService(
 			partyRepository,
-			partyImageRepository,
-			partyMemberRepository,
-			partyMemberRoleRepository,
+			partyWriteRepository,
 			categoryRepository,
-			partyCategoryRepository,
 			mediaRepository,
-			ticketCategoryRepository,
-			transactionManager,
 		)
 
 	partyQueryService :=
@@ -254,10 +267,9 @@ func BuildDependencies(
 	ticketService :=
 		service.NewTicketService(
 			ticketRepository,
-			partyMemberRepository,
 			ticketScanRepository,
-			ticketAccessWindowRepository,
-			executor,
+			permissionService,
+			ticketUnitOfWork,
 			clients.Clock,
 			cfg.TicketVerificationTTL,
 		)
@@ -286,7 +298,7 @@ func BuildDependencies(
 			permissionService,
 			paypalClient,
 			paymentEventRepository,
-			purchaseRepository,
+			refundUnitOfWork,
 			refundService,
 		)
 
