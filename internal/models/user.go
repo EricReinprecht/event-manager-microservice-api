@@ -32,5 +32,5 @@ type User struct {
 
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
-	Roles enum.UserRole `gorm:"type:varchar(20);not null;default:'DEFAULT';check:ticket_status_check,status IN ('PREMIUM','PLATIUM')"`
+	Role enum.UserRole `gorm:"type:varchar(20);not null;default:'DEFAULT';check:user_role_check,role IN ('DEFAULT','PREMIUM','PLATINUM')"`
 }
