@@ -12,21 +12,21 @@ import (
 
 type PartyWriteRepository struct {
 	transactionManager *database.TransactionManager
-	images             *PartyImageRepository
+	partyImages        *PartyImageRepository
 	partyCategories    *PartyCategoryRepository
-	ticketCategories   *TicketCategoryRepository
+	ticketCategories   *TicketCategoryWriteRepository
 }
 
 func NewPartyWriteRepository(
 	transactionManager *database.TransactionManager,
-	images *PartyImageRepository,
+	partyImages *PartyImageRepository,
 	partyCategories *PartyCategoryRepository,
-	ticketCategories *TicketCategoryRepository,
+	ticketCategories *TicketCategoryWriteRepository,
 ) *PartyWriteRepository {
 
 	return &PartyWriteRepository{
 		transactionManager: transactionManager,
-		images:             images,
+		partyImages:        partyImages,
 		partyCategories:    partyCategories,
 		ticketCategories:   ticketCategories,
 	}
@@ -44,7 +44,9 @@ func (r *PartyWriteRepository) CreateWithRelations(
 		func(tx database.DBExecutor) error {
 
 			if err := tx.
-				Create(party).
+				Create(
+					party,
+				).
 				Error(); err != nil {
 
 				return err
@@ -59,7 +61,7 @@ func (r *PartyWriteRepository) CreateWithRelations(
 				return err
 			}
 
-			if err := r.images.Replace(
+			if err := r.partyImages.Replace(
 				tx,
 				party.ID,
 				imageIDs,
@@ -90,7 +92,18 @@ func (r *PartyWriteRepository) UpdateWithRelations(
 		func(tx database.DBExecutor) error {
 
 			if err := tx.
-				Save(party).
+				Model(
+					&models.Party{},
+				).
+				Where(
+					"id = ?",
+					party.ID,
+				).
+				Updates(
+					partyUpdateValues(
+						party,
+					),
+				).
 				Error(); err != nil {
 
 				return err
@@ -105,7 +118,7 @@ func (r *PartyWriteRepository) UpdateWithRelations(
 				return err
 			}
 
-			if err := r.images.Replace(
+			if err := r.partyImages.Replace(
 				tx,
 				party.ID,
 				imageIDs,
@@ -114,7 +127,7 @@ func (r *PartyWriteRepository) UpdateWithRelations(
 				return err
 			}
 
-			if err := r.ticketCategories.Replace(
+			if err := r.ticketCategories.SyncCategories(
 				tx,
 				party.ID,
 				ticketCategories,
@@ -138,7 +151,7 @@ func (r *PartyWriteRepository) ReplaceImages(
 		ctx,
 		func(tx database.DBExecutor) error {
 
-			return r.images.Replace(
+			return r.partyImages.Replace(
 				tx,
 				partyID,
 				imageIDs,
@@ -179,7 +192,9 @@ func createOrganizerMembership(
 	}
 
 	if err := tx.
-		Create(member).
+		Create(
+			member,
+		).
 		Error(); err != nil {
 
 		return err
@@ -192,6 +207,43 @@ func createOrganizerMembership(
 	}
 
 	return tx.
-		Create(role).
+		Create(
+			role,
+		).
 		Error()
+}
+
+func partyUpdateValues(
+	party *models.Party,
+) map[string]any {
+
+	return map[string]any{
+		"title": party.Title,
+
+		"description": party.Description,
+
+		"thumbnail_id": party.ThumbnailID,
+
+		"location_name": party.LocationName,
+
+		"street": party.Street,
+
+		"house_number": party.HouseNumber,
+
+		"city": party.City,
+
+		"country": party.Country,
+
+		"postal_code": party.PostalCode,
+
+		"latitude": party.Latitude,
+
+		"longitude": party.Longitude,
+
+		"timezone": party.Timezone,
+
+		"start_at": party.StartAt,
+
+		"end_at": party.EndAt,
+	}
 }

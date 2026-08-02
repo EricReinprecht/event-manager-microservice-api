@@ -78,6 +78,9 @@ func BuildDependencies(
 			transactionManager,
 		)
 
+	ticketCategoryWriteRepository :=
+		repository.NewTicketCategoryWriteRepository()
+
 	// partyMemberRoleRepository :=
 	// 	repository.NewPartyMemberRoleRepository(
 	// 		executor,
@@ -118,7 +121,7 @@ func BuildDependencies(
 			transactionManager,
 			partyImageRepository,
 			partyCategoryRepository,
-			ticketCategoryRepository,
+			ticketCategoryWriteRepository,
 		)
 
 	ticketUnitOfWork :=

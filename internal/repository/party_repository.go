@@ -23,11 +23,12 @@ func NewPartyRepository(
 }
 
 func (r *PartyRepository) Create(
-	tx database.DBExecutor,
+	ctx context.Context,
 	party *models.Party,
 ) error {
 
-	return tx.
+	return r.db.
+		WithContext(ctx).
 		Create(party).
 		Error()
 }

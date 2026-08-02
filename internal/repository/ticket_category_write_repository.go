@@ -3,12 +3,12 @@ package repository
 import (
 	"github.com/google/uuid"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 )
 
-type TicketCategoryWriteRepository struct {
-}
+type TicketCategoryWriteRepository struct{}
 
 func NewTicketCategoryWriteRepository() *TicketCategoryWriteRepository {
 
@@ -21,7 +21,7 @@ func (r *TicketCategoryWriteRepository) SyncCategories(
 	categories []models.TicketCategory,
 ) error {
 
-	var existing []models.TicketCategory
+	var existingCategories []models.TicketCategory
 
 	if err := tx.
 		Where(
@@ -29,15 +29,26 @@ func (r *TicketCategoryWriteRepository) SyncCategories(
 			partyID,
 		).
 		Find(
-			&existing,
+			&existingCategories,
 		).
 		Error(); err != nil {
 
 		return err
 	}
 
-	keepCategories := make(
-		map[uuid.UUID]bool,
+	existingCategoryIDs := make(
+		map[uuid.UUID]struct{},
+		len(existingCategories),
+	)
+
+	for _, category := range existingCategories {
+		existingCategoryIDs[category.ID] =
+			struct{}{}
+	}
+
+	keepCategoryIDs := make(
+		map[uuid.UUID]struct{},
+		len(categories),
 	)
 
 	for _, category := range categories {
@@ -56,17 +67,25 @@ func (r *TicketCategoryWriteRepository) SyncCategories(
 			continue
 		}
 
-		keepCategories[category.ID] = true
+		if _, exists :=
+			existingCategoryIDs[category.ID]; !exists {
+
+			return appErrors.ErrTicketCategoryNotFound
+		}
+
+		keepCategoryIDs[category.ID] =
+			struct{}{}
 
 		if err := r.updateCategory(
 			tx,
+			partyID,
 			category,
 		); err != nil {
 
 			return err
 		}
 
-		if err := r.syncWindows(
+		if err := r.syncAccessWindows(
 			tx,
 			category,
 		); err != nil {
@@ -75,9 +94,11 @@ func (r *TicketCategoryWriteRepository) SyncCategories(
 		}
 	}
 
-	for _, existingCategory := range existing {
+	for _, existingCategory := range existingCategories {
 
-		if keepCategories[existingCategory.ID] {
+		if _, keep :=
+			keepCategoryIDs[existingCategory.ID]; keep {
+
 			continue
 		}
 
@@ -102,7 +123,9 @@ func (r *TicketCategoryWriteRepository) createCategory(
 	category.ID = uuid.New()
 	category.PartyID = partyID
 
-	windows := category.AccessWindows
+	accessWindows :=
+		category.AccessWindows
+
 	category.AccessWindows = nil
 
 	if err := tx.
@@ -114,10 +137,11 @@ func (r *TicketCategoryWriteRepository) createCategory(
 		return err
 	}
 
-	for _, window := range windows {
+	for _, window := range accessWindows {
 
 		window.ID = uuid.New()
-		window.TicketCategoryID = category.ID
+		window.TicketCategoryID =
+			category.ID
 
 		if err := tx.
 			Create(
@@ -134,36 +158,52 @@ func (r *TicketCategoryWriteRepository) createCategory(
 
 func (r *TicketCategoryWriteRepository) updateCategory(
 	tx database.DBExecutor,
+	partyID uuid.UUID,
 	category models.TicketCategory,
 ) error {
 
-	return tx.
+	result := tx.
 		Model(
 			&models.TicketCategory{},
 		).
 		Where(
-			"id = ?",
+			"id = ? AND party_id = ?",
 			category.ID,
+			partyID,
 		).
 		Updates(
-			map[string]interface{}{
-				"name":                     category.Name,
-				"price":                    category.Price,
-				"capacity":                 category.Capacity,
-				"requires_verification":    category.RequiresVerification,
+			map[string]any{
+				"name": category.Name,
+
+				"price": category.Price,
+
+				"capacity": category.Capacity,
+
+				"requires_verification": category.RequiresVerification,
+
 				"refund_requires_approval": category.RefundRequiresApproval,
-				"refund_policy_id":         category.RefundPolicyID,
+
+				"refund_policy_id": category.RefundPolicyID,
 			},
-		).
-		Error()
+		)
+
+	if err := result.Error(); err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return appErrors.ErrTicketCategoryNotFound
+	}
+
+	return nil
 }
 
-func (r *TicketCategoryWriteRepository) syncWindows(
+func (r *TicketCategoryWriteRepository) syncAccessWindows(
 	tx database.DBExecutor,
 	category models.TicketCategory,
 ) error {
 
-	var existing []models.TicketAccessWindow
+	var existingWindows []models.TicketAccessWindow
 
 	if err := tx.
 		Where(
@@ -171,15 +211,26 @@ func (r *TicketCategoryWriteRepository) syncWindows(
 			category.ID,
 		).
 		Find(
-			&existing,
+			&existingWindows,
 		).
 		Error(); err != nil {
 
 		return err
 	}
 
-	keep := make(
-		map[uuid.UUID]bool,
+	existingWindowIDs := make(
+		map[uuid.UUID]struct{},
+		len(existingWindows),
+	)
+
+	for _, window := range existingWindows {
+		existingWindowIDs[window.ID] =
+			struct{}{}
+	}
+
+	keepWindowIDs := make(
+		map[uuid.UUID]struct{},
+		len(category.AccessWindows),
 	)
 
 	for _, window := range category.AccessWindows {
@@ -187,7 +238,9 @@ func (r *TicketCategoryWriteRepository) syncWindows(
 		if window.ID == uuid.Nil {
 
 			window.ID = uuid.New()
-			window.TicketCategoryID = category.ID
+
+			window.TicketCategoryID =
+				category.ID
 
 			if err := tx.
 				Create(
@@ -201,31 +254,46 @@ func (r *TicketCategoryWriteRepository) syncWindows(
 			continue
 		}
 
-		keep[window.ID] = true
+		if _, exists :=
+			existingWindowIDs[window.ID]; !exists {
 
-		if err := tx.
+			return appErrors.ErrInvalidAccessWindow
+		}
+
+		keepWindowIDs[window.ID] =
+			struct{}{}
+
+		result := tx.
 			Model(
 				&models.TicketAccessWindow{},
 			).
 			Where(
-				"id = ?",
+				"id = ? AND ticket_category_id = ?",
 				window.ID,
+				category.ID,
 			).
 			Updates(
-				map[string]interface{}{
+				map[string]any{
 					"starts_at": window.StartsAt,
-					"ends_at":   window.EndsAt,
-				},
-			).
-			Error(); err != nil {
 
+					"ends_at": window.EndsAt,
+				},
+			)
+
+		if err := result.Error(); err != nil {
 			return err
+		}
+
+		if result.RowsAffected() == 0 {
+			return appErrors.ErrInvalidAccessWindow
 		}
 	}
 
-	for _, old := range existing {
+	for _, existingWindow := range existingWindows {
 
-		if keep[old.ID] {
+		if _, keep :=
+			keepWindowIDs[existingWindow.ID]; keep {
+
 			continue
 		}
 
@@ -233,8 +301,9 @@ func (r *TicketCategoryWriteRepository) syncWindows(
 			Unscoped().
 			Delete(
 				&models.TicketAccessWindow{},
-				"id = ?",
-				old.ID,
+				"id = ? AND ticket_category_id = ?",
+				existingWindow.ID,
+				category.ID,
 			).
 			Error(); err != nil {
 
