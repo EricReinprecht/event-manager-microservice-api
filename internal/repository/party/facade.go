@@ -3,7 +3,7 @@ package party_repository
 import (
 	"github.com/reinp/event-platform/backend/internal/database"
 	baseRepository "github.com/reinp/event-platform/backend/internal/repository"
-	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
 type Facade struct {

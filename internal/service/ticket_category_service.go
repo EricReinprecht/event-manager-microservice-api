@@ -9,7 +9,7 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
-	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
 type TicketCategoryService struct {

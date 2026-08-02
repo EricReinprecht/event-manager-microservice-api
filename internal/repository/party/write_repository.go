@@ -9,7 +9,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	baseRepository "github.com/reinp/event-platform/backend/internal/repository"
-	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
 type PartyWriteRepository struct {

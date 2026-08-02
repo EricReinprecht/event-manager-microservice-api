@@ -5,7 +5,7 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/database"
 
-	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 )
 
 type PurchaseTransactionRepositories struct {

@@ -8,7 +8,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/repository"
 	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
 	partyMemberRepository "github.com/reinp/event-platform/backend/internal/repository/party_member"
-	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticket_category"
 	"github.com/reinp/event-platform/backend/internal/service"
 	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
 )
