@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"gorm.io/gorm"
 )
 
@@ -30,4 +31,6 @@ type User struct {
 	UpdatedAt time.Time
 
 	DeletedAt gorm.DeletedAt `gorm:"index"`
+
+	Roles enum.UserRole `gorm:"type:varchar(20);not null;default:'DEFAULT';check:ticket_status_check,status IN ('PREMIUM','PLATIUM')"`
 }

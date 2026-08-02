@@ -1,11 +1,10 @@
 package enum
 
-type PartyRole string
+type PartyMemberRole string
 
 const (
-	RoleOrganizer PartyRole = "ORGANIZER"
-	RoleAdmin     PartyRole = "ADMIN"
-	RoleStaff     PartyRole = "STAFF"
-	RoleAttendee  PartyRole = "ATTENDEE"
-	RoleRefunder  PartyRole = "REFUNDER"
+	PartyRoleOrganizer PartyMemberRole = "ORGANIZER"
+	PartyRoleAdmin     PartyMemberRole = "ADMIN"
+	PartyRoleRefunder  PartyMemberRole = "REFUNDER"
+	PartyRoleScanner   PartyMemberRole = "SCANNER"
 )

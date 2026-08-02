@@ -11,5 +11,5 @@ type PartyMemberRole struct {
 
 	PartyMemberID uuid.UUID `gorm:"type:uuid;not null"`
 
-	Role enum.PartyRole `gorm:"type:varchar(20);not null"`
+	Role enum.PartyMemberRole `gorm:"type:varchar(20);not null"`
 }

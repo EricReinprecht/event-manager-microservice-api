@@ -23,7 +23,7 @@ type PartyMember struct {
 }
 
 func (m *PartyMember) HasRole(
-	role enum.PartyRole,
+	role enum.PartyMemberRole,
 ) bool {
 
 	for _, r := range m.Roles {
