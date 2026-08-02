@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Category struct {
+type PartyCategory struct {
 	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
 	Name string `gorm:"unique;not null" json:"name"`

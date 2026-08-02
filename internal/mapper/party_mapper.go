@@ -35,7 +35,7 @@ func NewParty(
 
 		ThumbnailID: req.ThumbnailID,
 
-		Categories: []models.Category{},
+		Categories: []models.PartyCategory{},
 	}
 }
 
@@ -132,7 +132,7 @@ func PartyResponses(
 }
 
 func CategoryResponses(
-	categories []models.Category,
+	categories []models.PartyCategory,
 ) []dto.CategoryResponse {
 
 	result := make([]dto.CategoryResponse, 0, len(categories))

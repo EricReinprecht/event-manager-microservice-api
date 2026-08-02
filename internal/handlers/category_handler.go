@@ -59,7 +59,7 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 		return
 	}
 
-	category := &models.Category{
+	category := &models.PartyCategory{
 		Name: req.Name,
 	}
 

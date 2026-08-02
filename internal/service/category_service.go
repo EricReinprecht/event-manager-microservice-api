@@ -24,7 +24,7 @@ func NewCategoryService(
 
 func (s *CategoryService) FindAll(
 	ctx context.Context,
-) ([]models.Category, error) {
+) ([]models.PartyCategory, error) {
 
 	return s.repository.FindAll(ctx)
 }
@@ -32,14 +32,14 @@ func (s *CategoryService) FindAll(
 func (s *CategoryService) FindByID(
 	ctx context.Context,
 	id uuid.UUID,
-) (*models.Category, error) {
+) (*models.PartyCategory, error) {
 
 	return s.repository.FindByID(ctx, id)
 }
 
 func (s *CategoryService) Create(
 	ctx context.Context,
-	category *models.Category,
+	category *models.PartyCategory,
 ) error {
 
 	return s.repository.Create(ctx, category)
@@ -47,7 +47,7 @@ func (s *CategoryService) Create(
 
 func (s *CategoryService) Update(
 	ctx context.Context,
-	category *models.Category,
+	category *models.PartyCategory,
 ) error {
 
 	return s.repository.Update(ctx, category)
@@ -55,7 +55,7 @@ func (s *CategoryService) Update(
 
 func (s *CategoryService) Delete(
 	ctx context.Context,
-	category *models.Category,
+	category *models.PartyCategory,
 ) error {
 
 	return s.repository.Delete(ctx, category)
@@ -64,7 +64,7 @@ func (s *CategoryService) Delete(
 func (s *CategoryService) FindPaginatedByPopularity(
 	ctx context.Context,
 	limit int,
-) ([]models.Category, error) {
+) ([]models.PartyCategory, error) {
 
 	return s.repository.FindPaginatedByPopularity(
 		ctx,

@@ -34,7 +34,7 @@ func (r *PartyCategoryRepository) Replace(
 		return err
 	}
 
-	var categories []models.Category
+	var categories []models.PartyCategory
 
 	if len(categoryIDs) > 0 {
 		if err := tx.

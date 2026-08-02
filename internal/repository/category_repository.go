@@ -24,9 +24,9 @@ func NewCategoryRepository(
 
 func (r *CategoryRepository) FindAll(
 	ctx context.Context,
-) ([]models.Category, error) {
+) ([]models.PartyCategory, error) {
 
-	var categories []models.Category
+	var categories []models.PartyCategory
 
 	err := r.db.
 		WithContext(ctx).
@@ -39,9 +39,9 @@ func (r *CategoryRepository) FindAll(
 func (r *CategoryRepository) FindByID(
 	ctx context.Context,
 	id uuid.UUID,
-) (*models.Category, error) {
+) (*models.PartyCategory, error) {
 
-	var category models.Category
+	var category models.PartyCategory
 
 	err := r.db.
 		WithContext(ctx).
@@ -57,7 +57,7 @@ func (r *CategoryRepository) FindByID(
 
 func (r *CategoryRepository) Create(
 	ctx context.Context,
-	category *models.Category,
+	category *models.PartyCategory,
 ) error {
 
 	return r.db.
@@ -68,7 +68,7 @@ func (r *CategoryRepository) Create(
 
 func (r *CategoryRepository) Update(
 	ctx context.Context,
-	category *models.Category,
+	category *models.PartyCategory,
 ) error {
 
 	return r.db.
@@ -79,7 +79,7 @@ func (r *CategoryRepository) Update(
 
 func (r *CategoryRepository) Delete(
 	ctx context.Context,
-	category *models.Category,
+	category *models.PartyCategory,
 ) error {
 
 	return r.db.
@@ -91,13 +91,13 @@ func (r *CategoryRepository) Delete(
 func (r *CategoryRepository) FindPaginatedByPopularity(
 	ctx context.Context,
 	limit int,
-) ([]models.Category, error) {
+) ([]models.PartyCategory, error) {
 
-	var categories []models.Category
+	var categories []models.PartyCategory
 
 	err := r.db.
 		WithContext(ctx).
-		Model(&models.Category{}).
+		Model(&models.PartyCategory{}).
 		Select(
 			"categories.*, COUNT(parties.id) AS usage_count",
 		).

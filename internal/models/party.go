@@ -37,7 +37,7 @@ type Party struct {
 
 	TicketCategories []TicketCategory `gorm:"foreignKey:PartyID" json:"ticketCategories"`
 
-	Categories []Category `gorm:"many2many:party_categories;" json:"categories"`
+	Categories []PartyCategory `gorm:"many2many:party_categories;" json:"categories"`
 
 	OrganizerID uuid.UUID `json:"organizerId"`
 

@@ -25,7 +25,7 @@ func Migrate(
 		&models.Artist{},
 
 		// party system
-		&models.Category{},
+		&models.PartyCategory{},
 		&models.Party{},
 		&models.PartyMedia{},
 
