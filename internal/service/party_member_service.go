@@ -18,19 +18,16 @@ import (
 type PartyMemberService struct {
 	repository      *repository.PartyMemberRepository
 	partyRepository *repository.PartyRepository
-	roleRepository  *repository.PartyMemberRoleRepository
 }
 
 func NewPartyMemberService(
 	repository *repository.PartyMemberRepository,
 	partyRepository *repository.PartyRepository,
-	roleRepository *repository.PartyMemberRoleRepository,
 ) *PartyMemberService {
 
 	return &PartyMemberService{
 		repository:      repository,
 		partyRepository: partyRepository,
-		roleRepository:  roleRepository,
 	}
 }
 
@@ -41,11 +38,14 @@ func (s *PartyMemberService) Create(
 ) (*models.PartyMember, error) {
 
 	member := &models.PartyMember{
-		ID: uuid.New(),
-
-		UserID: req.UserID,
-
+		ID:      uuid.New(),
+		UserID:  req.UserID,
 		PartyID: partyID,
+		Roles: make(
+			[]models.PartyMemberRole,
+			0,
+			len(req.Roles),
+		),
 	}
 
 	for _, role := range req.Roles {
@@ -53,11 +53,9 @@ func (s *PartyMemberService) Create(
 		member.Roles = append(
 			member.Roles,
 			models.PartyMemberRole{
-				ID: uuid.New(),
-
+				ID:            uuid.New(),
 				PartyMemberID: member.ID,
-
-				Role: role,
+				Role:          role,
 			},
 		)
 	}
@@ -68,29 +66,21 @@ func (s *PartyMemberService) Create(
 	)
 
 	if err != nil {
-
-		var pgErr *pgconn.PgError
-
-		if errors.As(err, &pgErr) {
-
-			switch {
-
-			case pgErr.Code == "23505" &&
-				pgErr.ConstraintName == "idx_party_member_user_party":
-
-				return nil, appErrors.ErrPartyMemberAlreadyExists
-
-			case pgErr.Code == "23514" &&
-				pgErr.ConstraintName == "chk_party_members_role":
-
-				return nil, appErrors.ErrInvalidPartyMemberRole
-			}
-		}
-
-		return nil, err
+		return nil, mapPartyMemberDatabaseError(err)
 	}
 
 	return member, nil
+}
+
+func (s *PartyMemberService) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.PartyMember, error) {
+
+	return s.repository.FindByID(
+		ctx,
+		id,
+	)
 }
 
 func (s *PartyMemberService) FindByPartyAndUser(
@@ -161,17 +151,6 @@ func (s *PartyMemberService) Delete(
 	)
 }
 
-func (s *PartyMemberService) FindByID(
-	ctx context.Context,
-	id uuid.UUID,
-) (*models.PartyMember, error) {
-
-	return s.repository.FindByID(
-		ctx,
-		id,
-	)
-}
-
 func (s *PartyMemberService) SyncRoles(
 	ctx context.Context,
 	memberID uuid.UUID,
@@ -182,33 +161,29 @@ func (s *PartyMemberService) SyncRoles(
 		ctx,
 		func(tx database.DBExecutor) error {
 
-			roleRepo := repository.NewPartyMemberRoleRepository(tx)
+			roleRepository :=
+				repository.NewPartyMemberRoleRepository(tx)
 
-			if err := roleRepo.DeleteAll(
+			if err := roleRepository.DeleteAll(
 				tx,
 				memberID,
 			); err != nil {
-
 				return err
 			}
 
 			for _, role := range roles {
 
-				memberRole := models.PartyMemberRole{
-
-					ID: uuid.New(),
-
+				memberRole := &models.PartyMemberRole{
+					ID:            uuid.New(),
 					PartyMemberID: memberID,
-
-					Role: role,
+					Role:          role,
 				}
 
-				if err := roleRepo.Create(
+				if err := roleRepository.Create(
 					tx,
-					&memberRole,
+					memberRole,
 				); err != nil {
-
-					return err
+					return mapPartyMemberDatabaseError(err)
 				}
 			}
 
@@ -217,146 +192,32 @@ func (s *PartyMemberService) SyncRoles(
 	)
 }
 
-func (s *PartyMemberService) HasRole(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-	roles ...enum.PartyMemberRole,
-) bool {
+func mapPartyMemberDatabaseError(
+	err error,
+) error {
 
-	party, err := s.partyRepository.FindByID(
-		ctx,
-		partyID,
-	)
+	var pgErr *pgconn.PgError
 
-	if err == nil {
-
-		// organizer always has organizer permissions
-		if party.OrganizerID == userID {
-
-			for _, role := range roles {
-
-				if role == enum.PartyRoleOrganizer {
-					return true
-				}
-			}
-		}
+	if !errors.As(
+		err,
+		&pgErr,
+	) {
+		return err
 	}
 
-	member, err := s.repository.FindByPartyAndUser(
-		ctx,
-		partyID,
-		userID,
-	)
+	switch {
 
-	if err != nil {
-		return false
+	case pgErr.Code == "23505" &&
+		pgErr.ConstraintName == "idx_party_member_user_party":
+
+		return appErrors.ErrPartyMemberAlreadyExists
+
+	case pgErr.Code == "23514":
+
+		return appErrors.ErrInvalidPartyMemberRole
+
+	default:
+
+		return err
 	}
-
-	for _, wantedRole := range roles {
-
-		for _, memberRole := range member.Roles {
-
-			if memberRole.Role == wantedRole {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (s *PartyMemberService) CanManageParty(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-) bool {
-
-	return s.HasAnyRole(
-		ctx,
-		partyID,
-		userID,
-		enum.PartyRoleOrganizer,
-		enum.PartyRoleAdmin,
-	)
-}
-
-func (s *PartyMemberService) CanScanTickets(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-) bool {
-
-	return s.HasAnyRole(
-		ctx,
-		partyID,
-		userID,
-		enum.PartyRoleOrganizer,
-		enum.PartyRoleAdmin,
-	)
-}
-
-func (s *PartyMemberService) CanRefund(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-) bool {
-
-	return s.HasAnyRole(
-		ctx,
-		partyID,
-		userID,
-		enum.PartyRoleOrganizer,
-		enum.PartyRoleAdmin,
-		enum.PartyRoleRefunder,
-	)
-}
-
-func (s *PartyMemberService) HasAnyRole(
-	ctx context.Context,
-	partyID uuid.UUID,
-	userID uuid.UUID,
-	roles ...enum.PartyMemberRole,
-) bool {
-
-	party, err := s.partyRepository.FindByID(
-		ctx,
-		partyID,
-	)
-
-	if err == nil {
-
-		// organizer is stored directly on Party
-		if party.OrganizerID == userID {
-
-			for _, role := range roles {
-
-				if role == enum.PartyRoleOrganizer {
-					return true
-				}
-			}
-		}
-	}
-
-	member, err := s.repository.FindByPartyAndUser(
-		ctx,
-		partyID,
-		userID,
-	)
-
-	if err != nil {
-		return false
-	}
-
-	for _, wanted := range roles {
-
-		for _, memberRole := range member.Roles {
-
-			if memberRole.Role == wanted {
-				return true
-			}
-		}
-	}
-
-	return false
 }

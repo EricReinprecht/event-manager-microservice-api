@@ -8,21 +8,23 @@ import (
 	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/helpers"
 	"github.com/reinp/event-platform/backend/internal/mapper"
-	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
 type PartyMemberHandler struct {
 	partyMemberService *service.PartyMemberService
+	permissionService  *service.PermissionService
 }
 
 func NewPartyMemberHandler(
-	service *service.PartyMemberService,
+	partyMemberService *service.PartyMemberService,
+	permissionService *service.PermissionService,
 ) *PartyMemberHandler {
 
 	return &PartyMemberHandler{
-		partyMemberService: service,
+		partyMemberService: partyMemberService,
+		permissionService:  permissionService,
 	}
 }
 
@@ -56,15 +58,16 @@ func (h *PartyMemberHandler) Create(
 		return
 	}
 
-	if !h.partyMemberService.HasRole(
+	if err := h.permissionService.RequireManageParty(
 		ctx,
 		partyID,
 		userID,
-		enum.PartyRoleOrganizer,
-		enum.PartyRoleAdmin,
-	) {
+	); err != nil {
 
-		responses.Forbidden(c)
+		responses.HandleDomainError(
+			c,
+			err,
+		)
 
 		return
 	}
@@ -149,6 +152,46 @@ func (h *PartyMemberHandler) Delete(
 	c *gin.Context,
 ) {
 
+	ctx := c.Request.Context()
+
+	partyID, err := helpers.UUIDParam(
+		c,
+		"id",
+	)
+
+	if err != nil {
+
+		responses.BadRequest(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	userID, ok := helpers.RequireUserID(c)
+
+	if !ok {
+
+		responses.Unauthorized(c)
+
+		return
+	}
+
+	if err := h.permissionService.RequireManageParty(
+		ctx,
+		partyID,
+		userID,
+	); err != nil {
+
+		responses.HandleDomainError(
+			c,
+			err,
+		)
+
+		return
+	}
+
 	memberID, err := helpers.UUIDParam(
 		c,
 		"memberID",
@@ -165,7 +208,7 @@ func (h *PartyMemberHandler) Delete(
 	}
 
 	err = h.partyMemberService.Delete(
-		c.Request.Context(),
+		ctx,
 		memberID,
 	)
 
@@ -191,6 +234,46 @@ func (h *PartyMemberHandler) Delete(
 func (h *PartyMemberHandler) UpdateRoles(
 	c *gin.Context,
 ) {
+
+	ctx := c.Request.Context()
+
+	partyID, err := helpers.UUIDParam(
+		c,
+		"id",
+	)
+
+	if err != nil {
+
+		responses.BadRequest(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	userID, ok := helpers.RequireUserID(c)
+
+	if !ok {
+
+		responses.Unauthorized(c)
+
+		return
+	}
+
+	if err := h.permissionService.RequireManageParty(
+		ctx,
+		partyID,
+		userID,
+	); err != nil {
+
+		responses.HandleDomainError(
+			c,
+			err,
+		)
+
+		return
+	}
 
 	memberID, err := helpers.UUIDParam(
 		c,
@@ -220,7 +303,7 @@ func (h *PartyMemberHandler) UpdateRoles(
 	}
 
 	err = h.partyMemberService.SyncRoles(
-		c.Request.Context(),
+		ctx,
 		memberID,
 		req.Roles,
 	)

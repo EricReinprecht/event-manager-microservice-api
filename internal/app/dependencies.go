@@ -4,6 +4,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/config"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/dependencies"
+	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
 	"github.com/reinp/event-platform/backend/internal/service"
 	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
@@ -192,7 +193,6 @@ func BuildDependencies(
 		service.NewPartyMemberService(
 			partyMemberRepository,
 			partyRepository,
-			partyMemberRoleRepository,
 		)
 
 	partyCRUDService :=
@@ -229,8 +229,8 @@ func BuildDependencies(
 
 	permissionService :=
 		service.NewPermissionService(
-			partyService,
-			partyMemberService,
+			partyRepository,
+			partyMemberRepository,
 		)
 
 	categoryService :=
@@ -265,15 +265,26 @@ func BuildDependencies(
 			ticketRepository,
 		)
 
+	paypalClient := paypal.NewClient(
+		cfg.PayPalClientID,
+		cfg.PayPalClientSecret,
+		cfg.PayPalBaseURL,
+		cfg.PayPalReturnURL,
+		cfg.PayPalCancelURL,
+		cfg.PayPalWebhookID,
+	)
+
+	refundService := service.NewRefundService()
+
 	paymentService :=
 		service.NewPaymentService(
 			purchaseService,
 			ticketService,
-			partyMemberService,
-			clients.PayPalClient,
+			permissionService,
+			paypalClient,
 			paymentEventRepository,
 			purchaseRepository,
-			service.NewRefundService(),
+			refundService,
 		)
 
 	return &dependencies.Container{

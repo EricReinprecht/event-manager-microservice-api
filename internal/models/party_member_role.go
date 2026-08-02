@@ -7,9 +7,10 @@ import (
 )
 
 type PartyMemberRole struct {
-	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	ID uuid.UUID
 
-	PartyMemberID uuid.UUID `gorm:"type:uuid;not null"`
+	PartyMemberID uuid.UUID
+	PartyMember   PartyMember
 
-	Role enum.PartyMemberRole `gorm:"type:varchar(20);not null"`
+	Role enum.PartyMemberRole
 }

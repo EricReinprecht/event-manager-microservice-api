@@ -7,21 +7,22 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
+	"github.com/reinp/event-platform/backend/internal/repository"
 )
 
 type PermissionService struct {
-	partyService       *PartyService
-	partyMemberService *PartyMemberService
+	partyRepository       *repository.PartyRepository
+	partyMemberRepository *repository.PartyMemberRepository
 }
 
 func NewPermissionService(
-	partyService *PartyService,
-	partyMemberService *PartyMemberService,
+	partyRepository *repository.PartyRepository,
+	partyMemberRepository *repository.PartyMemberRepository,
 ) *PermissionService {
 
 	return &PermissionService{
-		partyService:       partyService,
-		partyMemberService: partyMemberService,
+		partyRepository:       partyRepository,
+		partyMemberRepository: partyMemberRepository,
 	}
 }
 
@@ -32,37 +33,42 @@ func (s *PermissionService) RequirePartyRole(
 	roles ...enum.PartyMemberRole,
 ) error {
 
-	party, err := s.partyService.FindByID(
-		ctx,
-		partyID,
-	)
-
-	if err == nil {
-
-		if party.OrganizerID == userID {
-
-			for _, role := range roles {
-
-				if role == enum.PartyRoleOrganizer {
-					return nil
-				}
-			}
-		}
+	if len(roles) == 0 {
+		return appErrors.ErrNotAllowed
 	}
 
-	member, err := s.partyMemberService.FindByPartyAndUser(
+	party, err := s.partyRepository.FindByID(
 		ctx,
 		partyID,
-		userID,
 	)
+
+	if err != nil {
+		return err
+	}
+
+	if party.OrganizerID == userID &&
+		containsPartyRole(
+			roles,
+			enum.PartyRoleOrganizer,
+		) {
+
+		return nil
+	}
+
+	member, err :=
+		s.partyMemberRepository.FindByPartyAndUser(
+			ctx,
+			partyID,
+			userID,
+		)
 
 	if err != nil {
 		return appErrors.ErrNotAllowed
 	}
 
-	for _, wanted := range roles {
+	for _, role := range roles {
 
-		if member.HasRole(wanted) {
+		if member.HasRole(role) {
 			return nil
 		}
 	}
@@ -83,4 +89,19 @@ func (s *PermissionService) HasPartyRole(
 		userID,
 		roles...,
 	) == nil
+}
+
+func containsPartyRole(
+	roles []enum.PartyMemberRole,
+	wanted enum.PartyMemberRole,
+) bool {
+
+	for _, role := range roles {
+
+		if role == wanted {
+			return true
+		}
+	}
+
+	return false
 }

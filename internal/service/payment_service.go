@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
@@ -13,13 +15,12 @@ import (
 	"github.com/reinp/event-platform/backend/internal/payment"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
-	"gorm.io/gorm"
 )
 
 type PaymentService struct {
 	purchaseService        *PurchaseService
 	ticketService          *TicketService
-	partyMemberService     *PartyMemberService
+	permissionService      *PermissionService
 	paymentGateway         payment.Gateway
 	paymentEventRepository *repository.PaymentEventRepository
 	purchaseRepository     *repository.PurchaseRepository
@@ -29,7 +30,7 @@ type PaymentService struct {
 func NewPaymentService(
 	purchaseService *PurchaseService,
 	ticketService *TicketService,
-	partyMemberService *PartyMemberService,
+	permissionService *PermissionService,
 	paymentGateway payment.Gateway,
 	paymentEventRepository *repository.PaymentEventRepository,
 	purchaseRepository *repository.PurchaseRepository,
@@ -39,7 +40,7 @@ func NewPaymentService(
 	return &PaymentService{
 		purchaseService:        purchaseService,
 		ticketService:          ticketService,
-		partyMemberService:     partyMemberService,
+		permissionService:      permissionService,
 		paymentGateway:         paymentGateway,
 		paymentEventRepository: paymentEventRepository,
 		purchaseRepository:     purchaseRepository,
@@ -61,17 +62,13 @@ func (s *PaymentService) CreateCheckout(
 		return "", err
 	}
 
-	// Already paid
 	if purchase.Status == enum.PurchaseStatusPaid {
 		return "", errors.New(
 			"purchase already paid",
 		)
 	}
 
-	// Already has PayPal order
 	if purchase.PaymentID != "" {
-
-		// optionally return existing approval URL later
 		return "", errors.New(
 			"checkout already created",
 		)
@@ -80,9 +77,7 @@ func (s *PaymentService) CreateCheckout(
 	var total int64
 
 	for _, item := range purchase.Items {
-
 		total += item.UnitPrice * int64(item.Quantity)
-
 	}
 
 	if total <= 0 {
@@ -100,14 +95,12 @@ func (s *PaymentService) CreateCheckout(
 		return "", err
 	}
 
-	err = s.purchaseService.AttachPayment(
+	if err := s.purchaseService.AttachPayment(
 		ctx,
 		purchase.ID,
 		"paypal",
 		order.ID,
-	)
-
-	if err != nil {
+	); err != nil {
 		return "", err
 	}
 
@@ -136,9 +129,7 @@ func (s *PaymentService) ConfirmPayment(
 		return nil, err
 	}
 
-	// idempotency
 	if purchase.Status == enum.PurchaseStatusPaid {
-
 		return purchase, nil
 	}
 
@@ -151,12 +142,10 @@ func (s *PaymentService) ConfirmPayment(
 		return nil, err
 	}
 
-	err = s.ticketService.GenerateFromPurchase(
+	if err := s.ticketService.GenerateFromPurchase(
 		ctx,
 		purchase,
-	)
-
-	if err != nil {
+	); err != nil {
 		return nil, err
 	}
 
@@ -252,16 +241,14 @@ func (s *PaymentService) RefundPayment(
 		return err
 	}
 
-	// permission check
-	if !s.partyMemberService.CanRefund(
+	if err := s.permissionService.RequireManageRefunds(
 		ctx,
 		purchase.PartyID,
 		userID,
-	) {
-		return appErrors.ErrNotAllowed
+	); err != nil {
+		return err
 	}
 
-	// prevent duplicate refunds
 	if purchase.Status == enum.PurchaseStatusRefunded {
 		return appErrors.ErrPurchaseAlreadyRefunded
 	}
@@ -287,11 +274,6 @@ func (s *PaymentService) RefundPayment(
 				return err
 			}
 
-			if err != nil {
-				return err
-			}
-
-			// protect against race condition:
 			if purchase.Status == enum.PurchaseStatusRefunded {
 				return appErrors.ErrPurchaseAlreadyRefunded
 			}

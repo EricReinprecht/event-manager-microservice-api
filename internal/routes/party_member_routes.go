@@ -15,6 +15,7 @@ func registerPartyMemberRoutes(
 
 	handler := handlers.NewPartyMemberHandler(
 		deps.PartyMemberService,
+		deps.PermissionService,
 	)
 
 	protected.POST(
