@@ -9,18 +9,19 @@ import (
 
 	"github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/models"
-	"github.com/reinp/event-platform/backend/internal/repository"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
 )
 
 type TicketCategoryService struct {
-	repo *repository.TicketCategoryRepository
+	ticketCategories *ticketCategoryRepository.Facade
 }
 
 func NewTicketCategoryService(
-	repo *repository.TicketCategoryRepository,
+	ticketCategories *ticketCategoryRepository.Facade,
 ) *TicketCategoryService {
+
 	return &TicketCategoryService{
-		repo: repo,
+		ticketCategories: ticketCategories,
 	}
 }
 
@@ -33,7 +34,7 @@ func (s *TicketCategoryService) Create(
 		return err
 	}
 
-	err := s.repo.Create(ctx, category)
+	err := s.ticketCategories.Repository.Create(ctx, category)
 
 	if err != nil {
 		return mapTicketCategoryError(err)
@@ -51,7 +52,7 @@ func (s *TicketCategoryService) Update(
 		return err
 	}
 
-	err := s.repo.Update(ctx, category)
+	err := s.ticketCategories.Repository.Update(ctx, category)
 
 	if err != nil {
 		return mapTicketCategoryError(err)
@@ -65,7 +66,7 @@ func (s *TicketCategoryService) FindByParty(
 	partyID uuid.UUID,
 ) ([]models.TicketCategory, error) {
 
-	return s.repo.FindByParty(
+	return s.ticketCategories.Repository.FindByParty(
 		ctx,
 		partyID,
 	)
@@ -76,7 +77,7 @@ func (s *TicketCategoryService) FindByID(
 	id uuid.UUID,
 ) (*models.TicketCategory, error) {
 
-	return s.repo.FindByID(
+	return s.ticketCategories.Repository.FindByID(
 		ctx,
 		id,
 	)
@@ -87,7 +88,7 @@ func (s *TicketCategoryService) Delete(
 	category *models.TicketCategory,
 ) error {
 
-	return s.repo.Delete(
+	return s.ticketCategories.Repository.Delete(
 		ctx,
 		category,
 	)

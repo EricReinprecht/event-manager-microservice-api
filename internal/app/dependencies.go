@@ -6,7 +6,8 @@ import (
 	"github.com/reinp/event-platform/backend/internal/dependencies"
 	"github.com/reinp/event-platform/backend/internal/payment/paypal"
 	"github.com/reinp/event-platform/backend/internal/repository"
-	party_repository "github.com/reinp/event-platform/backend/internal/repository/party"
+	partyRepository "github.com/reinp/event-platform/backend/internal/repository/party"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
 	"github.com/reinp/event-platform/backend/internal/service"
 	auth_service "github.com/reinp/event-platform/backend/internal/service/auth"
 )
@@ -74,19 +75,6 @@ func BuildDependencies(
 			transactionManager,
 		)
 
-	ticketCategoryWriteRepository :=
-		repository.NewTicketCategoryWriteRepository()
-
-	// partyMemberRoleRepository :=
-	// 	repository.NewPartyMemberRoleRepository(
-	// 		executor,
-	// 	)
-
-	ticketCategoryRepository :=
-		repository.NewTicketCategoryRepository(
-			executor,
-		)
-
 	ticketRepository :=
 		repository.NewTicketRepository(
 			executor,
@@ -96,11 +84,6 @@ func BuildDependencies(
 		repository.NewTicketScanRepository(
 			executor,
 		)
-
-	// ticketAccessWindowRepository :=
-	// 	repository.NewTicketAccessWindowRepository(
-	// 		executor,
-	// 	)
 
 	purchaseRepository :=
 		repository.NewPurchaseRepository(
@@ -112,15 +95,19 @@ func BuildDependencies(
 			executor,
 		)
 
+	ticketCategoryRepositories :=
+		ticketCategoryRepository.NewFacade(
+			executor,
+		)
+
 	partyRepositories :=
-		party_repository.NewFacade(
+		partyRepository.NewFacade(
 			executor,
 			transactionManager,
 			partyImageRepository,
 			partyCategoryRepository,
-			ticketCategoryWriteRepository,
+			ticketCategoryRepositories.Write,
 		)
-
 	ticketUnitOfWork :=
 		repository.NewTicketUnitOfWork(
 			transactionManager,
@@ -264,7 +251,7 @@ func BuildDependencies(
 
 	ticketCategoryService :=
 		service.NewTicketCategoryService(
-			ticketCategoryRepository,
+			ticketCategoryRepositories.Repository,
 		)
 
 	ticketService :=

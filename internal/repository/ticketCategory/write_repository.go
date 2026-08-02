@@ -1,4 +1,4 @@
-package repository
+package ticket_category_repository
 
 import (
 	"github.com/google/uuid"
@@ -42,6 +42,7 @@ func (r *TicketCategoryWriteRepository) SyncCategories(
 	)
 
 	for _, category := range existingCategories {
+
 		existingCategoryIDs[category.ID] =
 			struct{}{}
 	}
@@ -137,15 +138,16 @@ func (r *TicketCategoryWriteRepository) createCategory(
 		return err
 	}
 
-	for _, window := range accessWindows {
+	for _, accessWindow := range accessWindows {
 
-		window.ID = uuid.New()
-		window.TicketCategoryID =
+		accessWindow.ID = uuid.New()
+
+		accessWindow.TicketCategoryID =
 			category.ID
 
 		if err := tx.
 			Create(
-				&window,
+				&accessWindow,
 			).
 			Error(); err != nil {
 
@@ -224,6 +226,7 @@ func (r *TicketCategoryWriteRepository) syncAccessWindows(
 	)
 
 	for _, window := range existingWindows {
+
 		existingWindowIDs[window.ID] =
 			struct{}{}
 	}

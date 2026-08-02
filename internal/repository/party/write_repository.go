@@ -9,6 +9,7 @@ import (
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	baseRepository "github.com/reinp/event-platform/backend/internal/repository"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
 )
 
 type PartyWriteRepository struct {
@@ -17,14 +18,14 @@ type PartyWriteRepository struct {
 	partyImages     *baseRepository.PartyImageRepository
 	partyCategories *baseRepository.PartyCategoryRepository
 
-	ticketCategories *baseRepository.TicketCategoryWriteRepository
+	ticketCategories *ticketCategoryRepository.TicketCategoryWriteRepository
 }
 
 func NewPartyWriteRepository(
 	transactionManager *database.TransactionManager,
 	partyImages *baseRepository.PartyImageRepository,
 	partyCategories *baseRepository.PartyCategoryRepository,
-	ticketCategories *baseRepository.TicketCategoryWriteRepository,
+	ticketCategories *ticketCategoryRepository.TicketCategoryWriteRepository,
 ) *PartyWriteRepository {
 
 	return &PartyWriteRepository{

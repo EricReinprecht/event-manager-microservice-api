@@ -3,6 +3,7 @@ package party_repository
 import (
 	"github.com/reinp/event-platform/backend/internal/database"
 	baseRepository "github.com/reinp/event-platform/backend/internal/repository"
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
 )
 
 type Facade struct {
@@ -15,7 +16,7 @@ func NewFacade(
 	transactionManager *database.TransactionManager,
 	partyImages *baseRepository.PartyImageRepository,
 	partyCategories *baseRepository.PartyCategoryRepository,
-	ticketCategories *baseRepository.TicketCategoryWriteRepository,
+	ticketCategories *ticketCategoryRepository.TicketCategoryWriteRepository,
 ) *Facade {
 
 	return &Facade{

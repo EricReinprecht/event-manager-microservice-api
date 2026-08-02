@@ -1,4 +1,4 @@
-package repository
+package ticket_category_repository
 
 import (
 	"context"
@@ -30,7 +30,9 @@ func (r *TicketCategoryRepository) Create(
 
 	return r.db.
 		WithContext(ctx).
-		Create(category).
+		Create(
+			category,
+		).
 		Error()
 }
 
@@ -129,12 +131,17 @@ func (r *TicketCategoryRepository) Update(
 		).
 		Updates(
 			map[string]any{
-				"name":                     category.Name,
-				"price":                    category.Price,
-				"capacity":                 category.Capacity,
-				"requires_verification":    category.RequiresVerification,
+				"name": category.Name,
+
+				"price": category.Price,
+
+				"capacity": category.Capacity,
+
+				"requires_verification": category.RequiresVerification,
+
 				"refund_requires_approval": category.RefundRequiresApproval,
-				"refund_policy_id":         category.RefundPolicyID,
+
+				"refund_policy_id": category.RefundPolicyID,
 			},
 		).
 		Error()
@@ -147,6 +154,8 @@ func (r *TicketCategoryRepository) Delete(
 
 	return r.db.
 		WithContext(ctx).
-		Delete(category).
+		Delete(
+			category,
+		).
 		Error()
 }

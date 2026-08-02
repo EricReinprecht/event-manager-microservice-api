@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"github.com/reinp/event-platform/backend/internal/database"
+
+	ticketCategoryRepository "github.com/reinp/event-platform/backend/internal/repository/ticketCategory"
 )
 
 type PurchaseTransactionRepositories struct {
 	Purchases        *PurchaseRepository
-	TicketCategories *TicketCategoryRepository
+	TicketCategories *ticketCategoryRepository.TicketCategoryRepository
 	Tickets          *TicketRepository
 }
 
@@ -41,7 +43,7 @@ func (u *PurchaseUnitOfWork) Transaction(
 					tx,
 				),
 
-				TicketCategories: NewTicketCategoryRepository(
+				TicketCategories: ticketCategoryRepository.NewTicketCategoryRepository(
 					tx,
 				),
 
@@ -50,7 +52,9 @@ func (u *PurchaseUnitOfWork) Transaction(
 				),
 			}
 
-			return fn(repositories)
+			return fn(
+				repositories,
+			)
 		},
 	)
 }
