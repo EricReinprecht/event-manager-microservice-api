@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
-	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TicketCategoryRepository struct {
@@ -70,31 +70,26 @@ func (r *TicketCategoryRepository) Update(
 	category *models.TicketCategory,
 ) error {
 
-	tx := r.db.WithContext(ctx).Begin()
-
-	err := tx.
+	if err := r.db.
+		WithContext(ctx).
 		Where(
 			"ticket_category_id = ?",
 			category.ID,
 		).
-		Delete(&models.TicketAccessWindow{}).
-		Error()
+		Delete(
+			&models.TicketAccessWindow{},
+		).
+		Error(); err != nil {
 
-	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
-	err = tx.
-		Save(category).
+	return r.db.
+		WithContext(ctx).
+		Save(
+			category,
+		).
 		Error()
-
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit()
 }
 
 func (r *TicketCategoryRepository) Delete(
@@ -106,39 +101,6 @@ func (r *TicketCategoryRepository) Delete(
 		WithContext(ctx).
 		Delete(category).
 		Error()
-}
-
-func (r *TicketCategoryRepository) FindByIDForUpdate(
-	ctx context.Context,
-	id uuid.UUID,
-) (*models.TicketCategory, error) {
-
-	var category models.TicketCategory
-
-	err := r.db.
-		WithContext(ctx).
-		Raw(
-			`
-			SELECT *
-			FROM ticket_categories
-			WHERE id = ?
-			AND deleted_at IS NULL
-			FOR UPDATE
-			`,
-			id,
-		).
-		Scan(&category).
-		Error()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if category.ID == uuid.Nil {
-		return nil, gorm.ErrRecordNotFound
-	}
-
-	return &category, nil
 }
 
 func (r *TicketCategoryRepository) Replace(
@@ -363,4 +325,32 @@ func (r *TicketCategoryRepository) Replace(
 	}
 
 	return nil
+}
+
+func (r *TicketCategoryRepository) FindByIDForUpdate(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.TicketCategory, error) {
+
+	var category models.TicketCategory
+
+	err := r.db.
+		WithContext(ctx).
+		Clauses(
+			clause.Locking{
+				Strength: "UPDATE",
+			},
+		).
+		First(
+			&category,
+			"id = ?",
+			id,
+		).
+		Error()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &category, nil
 }

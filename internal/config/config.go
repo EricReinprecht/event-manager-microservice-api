@@ -49,6 +49,8 @@ type Config struct {
 	AccessTokenDuration  time.Duration
 	RefreshTokenDuration time.Duration
 	CookieSecure         bool
+
+	PurchasePendingDuration time.Duration
 }
 
 func Load() *Config {
@@ -205,6 +207,11 @@ func Load() *Config {
 		EmailVerificationCooldown: getEnvDuration(
 			"EMAIL_VERIFICATION_COOLDOWN",
 			5*time.Minute,
+		),
+
+		PurchasePendingDuration: getEnvDuration(
+			"PURCHASE_PENDING_DURATION",
+			30*time.Minute,
 		),
 	}
 }

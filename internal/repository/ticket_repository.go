@@ -145,12 +145,16 @@ func (r *TicketRepository) CountByCategory(
 
 	err := r.db.
 		WithContext(ctx).
-		Model(&models.Ticket{}).
+		Model(
+			&models.Ticket{},
+		).
 		Where(
 			"ticket_category_id = ?",
 			categoryID,
 		).
-		Count(&count).
+		Count(
+			&count,
+		).
 		Error()
 
 	return count, err

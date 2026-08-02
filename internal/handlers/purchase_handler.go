@@ -1,192 +1,153 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
-	"github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/requests"
+	"github.com/reinp/event-platform/backend/internal/dto"
+	"github.com/reinp/event-platform/backend/internal/helpers"
+	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
 )
 
 type PurchaseHandler struct {
-	service *service.PurchaseService
+	purchaseService *service.PurchaseService
 }
 
 func NewPurchaseHandler(
-	service *service.PurchaseService,
+	purchaseService *service.PurchaseService,
 ) *PurchaseHandler {
 
 	return &PurchaseHandler{
-		service: service,
+		purchaseService: purchaseService,
 	}
 }
 
-func (h *PurchaseHandler) Create(c *gin.Context) {
+func (h *PurchaseHandler) Create(
+	c *gin.Context,
+) {
 
-	partyID, err := uuid.Parse(
-		c.Param("id"),
+	partyID, err := helpers.UUIDParam(
+		c,
+		"id",
 	)
 
 	if err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": "invalid party id",
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	userID, err := uuid.Parse(
-		c.MustGet("user_id").(string),
+	userID, ok := helpers.RequireUserID(
+		c,
 	)
 
-	if err != nil {
+	if !ok {
 
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"error": "invalid user",
-			},
+		responses.Unauthorized(
+			c,
 		)
 
 		return
 	}
 
-	var req requests.PurchaseRequest
+	var req dto.CreatePurchaseRequest
 
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(
+		&req,
+	); err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
-
-		return
-	}
-
-	if len(req.Items) == 0 {
-
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": "purchase requires items",
-			},
-		)
-
-		return
-	}
-
-	purchase, err := h.service.CreatePurchase(
-		c.Request.Context(),
-		userID,
-		partyID,
-		req.Items,
-	)
-
-	if err != nil {
-
-		switch {
-
-		case errors.Is(
-			err,
-			appErrors.ErrPartyNotFound,
-		):
-
-			c.JSON(
-				http.StatusNotFound,
-				gin.H{
-					"error": err.Error(),
-				},
+		validationError :=
+			helpers.BindingValidationErrors(
+				err,
+				req,
 			)
 
-		case errors.Is(
-			err,
-			appErrors.ErrTicketCategoryNotFound,
-		):
+		if validationError != nil {
 
-			c.JSON(
-				http.StatusNotFound,
-				gin.H{
-					"error": err.Error(),
-				},
+			responses.HandleDomainError(
+				c,
+				validationError,
 			)
 
-		case errors.Is(
-			err,
-			appErrors.ErrNotEnoughTickets,
-		):
-
-			c.JSON(
-				http.StatusConflict,
-				gin.H{
-					"error": err.Error(),
-				},
-			)
-
-		default:
-
-			c.JSON(
-				http.StatusBadRequest,
-				gin.H{
-					"error": err.Error(),
-				},
-			)
+			return
 		}
 
+		responses.BadRequest(
+			c,
+			err,
+		)
+
 		return
 	}
 
-	c.JSON(
+	response, err :=
+		h.purchaseService.CreatePurchase(
+			c.Request.Context(),
+			userID,
+			partyID,
+			req.Items,
+		)
+
+	if err != nil {
+
+		responses.HandleDomainError(
+			c,
+			err,
+		)
+
+		return
+	}
+
+	responses.Success(
+		c,
 		http.StatusCreated,
-		purchase,
+		response,
 	)
 }
 
-func (h *PurchaseHandler) GetByID(c *gin.Context) {
+func (h *PurchaseHandler) GetByID(
+	c *gin.Context,
+) {
 
-	id, err := uuid.Parse(
-		c.Param("id"),
+	id, err := helpers.UUIDParam(
+		c,
+		"id",
 	)
 
 	if err != nil {
 
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"error": "invalid purchase id",
-			},
+		responses.BadRequest(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	purchase, err := h.service.GetPurchase(
-		c.Request.Context(),
-		id,
-	)
+	purchase, err :=
+		h.purchaseService.GetPurchase(
+			c.Request.Context(),
+			id,
+		)
 
 	if err != nil {
 
-		c.JSON(
-			http.StatusNotFound,
-			gin.H{
-				"error": err.Error(),
-			},
+		responses.HandleDomainError(
+			c,
+			err,
 		)
 
 		return
 	}
 
-	c.JSON(
+	responses.Success(
+		c,
 		http.StatusOK,
 		purchase,
 	)

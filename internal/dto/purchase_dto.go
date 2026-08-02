@@ -1,8 +1,8 @@
-package requests
+package dto
 
 import "github.com/google/uuid"
 
-type PurchaseRequest struct {
+type CreatePurchaseRequest struct {
 	Items []PurchaseItemRequest `json:"items" binding:"required,min=1"`
 }
 

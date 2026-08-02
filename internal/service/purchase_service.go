@@ -7,27 +7,33 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/database"
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
+	"github.com/reinp/event-platform/backend/internal/clock"
+	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
 	"github.com/reinp/event-platform/backend/internal/repository"
-	"github.com/reinp/event-platform/backend/internal/requests"
 )
 
 type PurchaseService struct {
-	repository       *repository.PurchaseRepository
-	ticketRepository *repository.TicketRepository
+	repository  *repository.PurchaseRepository
+	unitOfWork  *repository.PurchaseUnitOfWork
+	clock       clock.Clock
+	purchaseTTL time.Duration
 }
 
 func NewPurchaseService(
 	repository *repository.PurchaseRepository,
-	ticketRepository *repository.TicketRepository,
+	unitOfWork *repository.PurchaseUnitOfWork,
+	clock clock.Clock,
+	purchaseTTL time.Duration,
 ) *PurchaseService {
 
 	return &PurchaseService{
-		repository:       repository,
-		ticketRepository: ticketRepository,
+		repository:  repository,
+		unitOfWork:  unitOfWork,
+		clock:       clock,
+		purchaseTTL: purchaseTTL,
 	}
 }
 
@@ -35,34 +41,45 @@ func (s *PurchaseService) CreatePurchase(
 	ctx context.Context,
 	userID uuid.UUID,
 	partyID uuid.UUID,
-	items []requests.PurchaseItemRequest,
+	items []dto.PurchaseItemRequest,
 ) (*models.Purchase, error) {
 
-	var purchase models.Purchase
+	if len(items) == 0 {
+		return nil, appErrors.ErrPurchaseItemsRequired
+	}
 
-	err := s.repository.Transaction(
+	purchase := &models.Purchase{
+		ID:      uuid.New(),
+		UserID:  userID,
+		PartyID: partyID,
+		Status:  enum.PurchaseStatusPending,
+
+		ExpiresAt: s.clock.Now().Add(
+			s.purchaseTTL,
+		),
+
+		Items: make(
+			[]models.PurchaseItem,
+			0,
+			len(items),
+		),
+	}
+
+	err := s.unitOfWork.Transaction(
 		ctx,
-		func(tx database.DBExecutor) error {
-
-			purchase = models.Purchase{
-				ID:      uuid.New(),
-				UserID:  userID,
-				PartyID: partyID,
-				Status:  enum.PurchaseStatusPending,
-
-				ExpiresAt: time.Now().Add(
-					30 * time.Minute,
-				),
-			}
+		func(
+			repositories *repository.PurchaseTransactionRepositories,
+		) error {
 
 			var total int64
 
 			for _, item := range items {
 
-				category, err := s.repository.FindTicketCategory(
-					tx,
-					item.TicketCategoryID,
-				)
+				category, err :=
+					repositories.TicketCategories.FindByID(
+						ctx,
+						item.TicketCategoryID,
+					)
 
 				if err != nil {
 					return appErrors.ErrTicketCategoryNotFound
@@ -72,50 +89,49 @@ func (s *PurchaseService) CreatePurchase(
 					return appErrors.ErrTicketCategoryNotFound
 				}
 
-				// -----------------------------
-				// Sold-out protection
-				// -----------------------------
-
-				sold, err := s.ticketRepository.CountByCategoryTx(
-					tx,
-					category.ID,
-				)
+				sold, err :=
+					repositories.Tickets.CountByCategory(
+						ctx,
+						category.ID,
+					)
 
 				if err != nil {
 					return err
 				}
 
-				if sold+int64(item.Quantity) > int64(category.Capacity) {
+				if sold+int64(item.Quantity) >
+					int64(category.Capacity) {
 
 					return appErrors.ErrTicketSoldOut
 				}
 
-				// -----------------------------
-				// Create purchase item snapshot
-				// -----------------------------
+				purchaseItem := models.PurchaseItem{
+					ID: uuid.New(),
+
+					PurchaseID: purchase.ID,
+
+					TicketCategoryID: category.ID,
+
+					Quantity: item.Quantity,
+
+					UnitPrice: category.Price,
+				}
 
 				purchase.Items = append(
 					purchase.Items,
-					models.PurchaseItem{
-						ID: uuid.New(),
-
-						TicketCategoryID: category.ID,
-
-						Quantity: item.Quantity,
-
-						// price snapshot
-						UnitPrice: category.Price,
-					},
+					purchaseItem,
 				)
 
-				total += category.Price * int64(item.Quantity)
+				total +=
+					category.Price *
+						int64(item.Quantity)
 			}
 
 			purchase.TotalPrice = total
 
-			return s.repository.Create(
-				tx,
-				&purchase,
+			return repositories.Purchases.Create(
+				ctx,
+				purchase,
 			)
 		},
 	)
@@ -124,7 +140,7 @@ func (s *PurchaseService) CreatePurchase(
 		return nil, err
 	}
 
-	return &purchase, nil
+	return purchase, nil
 }
 
 func (s *PurchaseService) AttachPayment(
@@ -134,34 +150,40 @@ func (s *PurchaseService) AttachPayment(
 	paymentID string,
 ) error {
 
-	return s.repository.Transaction(
+	return s.unitOfWork.Transaction(
 		ctx,
-		func(tx database.DBExecutor) error {
+		func(
+			repositories *repository.PurchaseTransactionRepositories,
+		) error {
 
-			purchase, err := s.repository.FindByID(
-				tx,
-				purchaseID,
-			)
+			purchase, err :=
+				repositories.Purchases.FindByIDForUpdate(
+					ctx,
+					purchaseID,
+				)
 
 			if err != nil {
 				return err
 			}
 
-			if purchase.Status != enum.PurchaseStatusPending {
-				return errors.New("purchase is not pending")
+			if purchase.Status !=
+				enum.PurchaseStatusPending {
+
+				return appErrors.ErrPurchaseNotPending
 			}
 
-			if time.Now().After(
+			if s.clock.Now().After(
 				purchase.ExpiresAt,
 			) {
-
-				return errors.New(
-					"purchase expired",
-				)
+				return appErrors.ErrPurchaseExpired
 			}
 
-			return s.repository.UpdatePayment(
-				tx,
+			if purchase.PaymentID != "" {
+				return appErrors.ErrCheckoutAlreadyCreated
+			}
+
+			return repositories.Purchases.UpdatePayment(
+				ctx,
 				purchase,
 				provider,
 				paymentID,
@@ -175,7 +197,7 @@ func (s *PurchaseService) GetPurchase(
 	id uuid.UUID,
 ) (*models.Purchase, error) {
 
-	return s.repository.Find(
+	return s.repository.FindByID(
 		ctx,
 		id,
 	)
@@ -199,29 +221,50 @@ func (s *PurchaseService) ConfirmPayment(
 
 	var result *models.Purchase
 
-	err := s.repository.Transaction(
+	err := s.unitOfWork.Transaction(
 		ctx,
-		func(tx database.DBExecutor) error {
+		func(
+			repositories *repository.PurchaseTransactionRepositories,
+		) error {
 
-			purchase, err := s.repository.FindByPaymentIDForUpdate(
-				tx,
-				paymentID,
-			)
+			purchase, err :=
+				repositories.Purchases.
+					FindByPaymentIDForUpdate(
+						ctx,
+						paymentID,
+					)
 
 			if err != nil {
+
+				if errors.Is(
+					err,
+					appErrors.ErrPurchaseNotFound,
+				) {
+					return appErrors.ErrUnknownPaymentOrder
+				}
+
 				return err
 			}
 
-			if purchase.Status == enum.PurchaseStatusPaid {
+			if purchase.Status ==
+				enum.PurchaseStatusPaid {
 
 				result = purchase
+
 				return nil
 			}
 
-			purchase.Status = enum.PurchaseStatusPaid
+			if purchase.Status !=
+				enum.PurchaseStatusPending {
 
-			if err := s.repository.Update(
-				tx,
+				return appErrors.ErrPurchaseNotPending
+			}
+
+			purchase.Status =
+				enum.PurchaseStatusPaid
+
+			if err := repositories.Purchases.Update(
+				ctx,
 				purchase,
 			); err != nil {
 

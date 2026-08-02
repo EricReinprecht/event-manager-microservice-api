@@ -5,12 +5,13 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/reinp/event-platform/backend/internal/appErrors"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type PurchaseRepository struct {
@@ -27,90 +28,71 @@ func NewPurchaseRepository(
 }
 
 func (r *PurchaseRepository) Create(
-	db database.DBExecutor,
+	ctx context.Context,
 	purchase *models.Purchase,
 ) error {
 
-	return db.
+	return r.db.
+		WithContext(ctx).
 		Create(purchase).
 		Error()
 }
 
 func (r *PurchaseRepository) FindByID(
-	db database.DBExecutor,
+	ctx context.Context,
 	id uuid.UUID,
 ) (*models.Purchase, error) {
 
 	var purchase models.Purchase
 
-	err := db.
+	err := r.db.
+		WithContext(ctx).
+		Preload("Items").
+		Preload("Items.TicketCategory").
 		Preload("Items.TicketCategory.RefundPolicy").
-		First(&purchase, id).
-		Error()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &purchase, nil
-}
-
-func (r *PurchaseRepository) FindTicketCategory(
-	db database.DBExecutor,
-	id uuid.UUID,
-) (*models.TicketCategory, error) {
-
-	var category models.TicketCategory
-
-	err := db.
 		First(
-			&category,
+			&purchase,
 			"id = ?",
 			id,
 		).
 		Error()
 
 	if err != nil {
-		return nil, err
+		return nil, mapPurchaseDatabaseError(err)
 	}
 
-	return &category, nil
+	return &purchase, nil
 }
 
-func (r *PurchaseRepository) Transaction(
+func (r *PurchaseRepository) FindByIDForUpdate(
 	ctx context.Context,
-	fn func(tx database.DBExecutor) error,
-) error {
+	id uuid.UUID,
+) (*models.Purchase, error) {
 
-	tx := r.db.
+	var purchase models.Purchase
+
+	err := r.db.
 		WithContext(ctx).
-		Begin()
+		Clauses(
+			clause.Locking{
+				Strength: "UPDATE",
+			},
+		).
+		Preload("Items").
+		Preload("Items.TicketCategory").
+		Preload("Items.TicketCategory.RefundPolicy").
+		First(
+			&purchase,
+			"id = ?",
+			id,
+		).
+		Error()
 
-	if err := tx.Error(); err != nil {
-		return err
+	if err != nil {
+		return nil, mapPurchaseDatabaseError(err)
 	}
 
-	if err := fn(tx); err != nil {
-
-		tx.Rollback()
-
-		return err
-	}
-
-	return tx.Commit()
-}
-
-func (r *PurchaseRepository) UpdatePayment(
-	db database.DBExecutor,
-	purchase *models.Purchase,
-	provider string,
-	paymentID string,
-) error {
-
-	purchase.PaymentProvider = provider
-	purchase.PaymentID = paymentID
-
-	return db.Save(purchase).Error()
+	return &purchase, nil
 }
 
 func (r *PurchaseRepository) FindByPaymentID(
@@ -122,88 +104,6 @@ func (r *PurchaseRepository) FindByPaymentID(
 
 	err := r.db.
 		WithContext(ctx).
-		Where(
-			"payment_id = ?",
-			paymentID,
-		).
-		First(&purchase).
-		Error()
-
-	if err != nil {
-
-		if errors.Is(
-			err,
-			gorm.ErrRecordNotFound,
-		) {
-
-			return nil, appErrors.ErrPurchaseNotFound
-		}
-
-		return nil, err
-	}
-
-	return &purchase, nil
-}
-
-func (r *PurchaseRepository) UpdateStatus(
-	db database.DBExecutor,
-	purchase *models.Purchase,
-	status enum.PurchaseStatus,
-) error {
-
-	purchase.Status = status
-
-	return db.Save(purchase).Error()
-}
-
-func (r *PurchaseRepository) Find(
-	ctx context.Context,
-	id uuid.UUID,
-) (*models.Purchase, error) {
-
-	return r.FindByID(
-		r.db.WithContext(ctx),
-		id,
-	)
-}
-
-func (r *PurchaseRepository) FindByPaymentIDWithDB(
-	db database.DBExecutor,
-	paymentID string,
-) (*models.Purchase, error) {
-
-	var purchase models.Purchase
-
-	err := db.
-		Preload("Items").
-		Where(
-			"payment_id = ?",
-			paymentID,
-		).
-		First(&purchase).
-		Error()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &purchase, nil
-}
-
-func (r *PurchaseRepository) FindByPaymentIDForUpdate(
-	tx database.DBExecutor,
-	paymentID string,
-) (*models.Purchase, error) {
-
-	var purchase models.Purchase
-
-	err := tx.
-		WithContext(context.Background()).
-		Clauses(
-			clause.Locking{
-				Strength: "UPDATE",
-			},
-		).
 		Preload("Items").
 		Where(
 			"payment_id = ?",
@@ -215,13 +115,13 @@ func (r *PurchaseRepository) FindByPaymentIDForUpdate(
 		Error()
 
 	if err != nil {
-		return nil, err
+		return nil, mapPurchaseDatabaseError(err)
 	}
 
 	return &purchase, nil
 }
 
-func (r *PurchaseRepository) ConfirmPaymentAtomic(
+func (r *PurchaseRepository) FindByPaymentIDForUpdate(
 	ctx context.Context,
 	paymentID string,
 ) (*models.Purchase, error) {
@@ -235,6 +135,9 @@ func (r *PurchaseRepository) ConfirmPaymentAtomic(
 				Strength: "UPDATE",
 			},
 		).
+		Preload("Items").
+		Preload("Items.TicketCategory").
+		Preload("Items.TicketCategory.RefundPolicy").
 		Where(
 			"payment_id = ?",
 			paymentID,
@@ -245,41 +148,13 @@ func (r *PurchaseRepository) ConfirmPaymentAtomic(
 		Error()
 
 	if err != nil {
-		return nil, err
-	}
-
-	if purchase.Status == enum.PurchaseStatusPaid {
-		return &purchase, nil
-	}
-
-	purchase.Status = enum.PurchaseStatusPaid
-
-	if err := r.db.
-		WithContext(ctx).
-		Save(
-			&purchase,
-		).
-		Error(); err != nil {
-
-		return nil, err
+		return nil, mapPurchaseDatabaseError(err)
 	}
 
 	return &purchase, nil
 }
 
 func (r *PurchaseRepository) Update(
-	tx database.DBExecutor,
-	purchase *models.Purchase,
-) error {
-
-	return tx.
-		Save(
-			purchase,
-		).
-		Error()
-}
-
-func (r *PurchaseRepository) UpdateContext(
 	ctx context.Context,
 	purchase *models.Purchase,
 ) error {
@@ -290,50 +165,68 @@ func (r *PurchaseRepository) UpdateContext(
 		Error()
 }
 
-func (r *PurchaseRepository) ConfirmPayment(
+func (r *PurchaseRepository) UpdatePayment(
 	ctx context.Context,
+	purchase *models.Purchase,
+	provider string,
 	paymentID string,
-) (*models.Purchase, error) {
+) error {
 
-	var purchase models.Purchase
+	return r.db.
+		WithContext(ctx).
+		Model(purchase).
+		Updates(
+			map[string]any{
+				"payment_provider": provider,
+				"payment_id":       paymentID,
+			},
+		).
+		Error()
+}
 
-	err := r.Transaction(
-		ctx,
-		func(tx database.DBExecutor) error {
+func mapPurchaseDatabaseError(
+	err error,
+) error {
 
-			p, err := r.FindByPaymentIDForUpdate(
-				tx,
-				paymentID,
-			)
-
-			if err != nil {
-				return err
-			}
-
-			// already processed
-			if p.Status == enum.PurchaseStatusPaid {
-				purchase = *p
-				return nil
-			}
-
-			p.Status = enum.PurchaseStatusPaid
-
-			if err := r.Update(
-				tx,
-				p,
-			); err != nil {
-				return err
-			}
-
-			purchase = *p
-
-			return nil
-		},
-	)
-
-	if err != nil {
-		return nil, err
+	if errors.Is(
+		err,
+		gorm.ErrRecordNotFound,
+	) {
+		return appErrors.ErrPurchaseNotFound
 	}
 
-	return &purchase, nil
+	return err
+}
+
+func (r *PurchaseRepository) ReservedQuantity(
+	ctx context.Context,
+	categoryID uuid.UUID,
+) (int64, error) {
+
+	var quantity int64
+
+	err := r.db.
+		WithContext(ctx).
+		Model(&models.PurchaseItem{}).
+		Select("COALESCE(SUM(quantity),0)").
+		Joins(
+			"JOIN purchases ON purchases.id = purchase_items.purchase_id",
+		).
+		Where(
+			"purchase_items.ticket_category_id = ?",
+			categoryID,
+		).
+		Where(
+			"purchases.status = ?",
+			enum.PurchaseStatusPending,
+		).
+		Where(
+			"purchases.expires_at > NOW()",
+		).
+		Scan(
+			&quantity,
+		).
+		Error()
+
+	return quantity, err
 }

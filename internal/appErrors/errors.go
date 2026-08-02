@@ -32,4 +32,8 @@ var (
 	ErrTicketCategoryExists       = errors.New("ticket category already exists")
 	ErrAccessWindowInvalid        = errors.New("access window end must be after start")
 	ErrMissingToken               = errors.New("missing token")
+	ErrPurchaseItemsRequired      = errors.New("purchase requires at least one item")
+	ErrPurchaseNotPending         = errors.New("purchase is not pending")
+	ErrPurchaseExpired            = errors.New("purchase expired")
+	ErrCheckoutAlreadyCreated     = errors.New("checkout already created")
 )

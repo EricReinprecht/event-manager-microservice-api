@@ -131,6 +131,11 @@ func BuildDependencies(
 			transactionManager,
 		)
 
+	purchaseUnitOfWork :=
+		repository.NewPurchaseUnitOfWork(
+			transactionManager,
+		)
+
 	// clients
 
 	clients :=
@@ -277,7 +282,9 @@ func BuildDependencies(
 	purchaseService :=
 		service.NewPurchaseService(
 			purchaseRepository,
-			ticketRepository,
+			purchaseUnitOfWork,
+			clients.Clock,
+			cfg.PurchasePendingDuration,
 		)
 
 	paypalClient := paypal.NewClient(
