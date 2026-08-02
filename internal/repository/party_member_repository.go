@@ -2,42 +2,48 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
+	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
 	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/models"
+	"github.com/reinp/event-platform/backend/internal/models/enum"
 )
 
 type PartyMemberRepository struct {
-	db database.DBExecutor
+	db                 database.DBExecutor
+	transactionManager *database.TransactionManager
 }
 
 func NewPartyMemberRepository(
 	db database.DBExecutor,
+	transactionManager *database.TransactionManager,
 ) *PartyMemberRepository {
 
 	return &PartyMemberRepository{
-		db: db,
+		db:                 db,
+		transactionManager: transactionManager,
 	}
 }
 
-func (r *PartyMemberRepository) DB(
-	ctx context.Context,
-) database.DBExecutor {
-
-	return r.db.
-		WithContext(ctx)
-}
-
 func (r *PartyMemberRepository) Create(
-	tx database.DBExecutor,
+	ctx context.Context,
 	member *models.PartyMember,
 ) error {
 
-	return tx.
+	err := r.db.
+		WithContext(ctx).
 		Create(member).
 		Error()
+
+	if err != nil {
+		return mapPartyMemberDatabaseError(err)
+	}
+
+	return nil
 }
 
 func (r *PartyMemberRepository) FindByPartyAndUser(
@@ -59,7 +65,11 @@ func (r *PartyMemberRepository) FindByPartyAndUser(
 		First(&member).
 		Error()
 
-	return &member, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &member, nil
 }
 
 func (r *PartyMemberRepository) FindByParty(
@@ -69,7 +79,9 @@ func (r *PartyMemberRepository) FindByParty(
 
 	var members []models.PartyMember
 
-	err := r.db.WithContext(ctx).
+	err := r.db.
+		WithContext(ctx).
+		Preload("Roles").
 		Where(
 			"party_id = ?",
 			partyID,
@@ -77,7 +89,11 @@ func (r *PartyMemberRepository) FindByParty(
 		Find(&members).
 		Error()
 
-	return members, err
+	if err != nil {
+		return nil, err
+	}
+
+	return members, nil
 }
 
 func (r *PartyMemberRepository) FindByID(
@@ -87,7 +103,9 @@ func (r *PartyMemberRepository) FindByID(
 
 	var member models.PartyMember
 
-	err := r.db.WithContext(ctx).
+	err := r.db.
+		WithContext(ctx).
+		Preload("Roles").
 		First(
 			&member,
 			"id = ?",
@@ -102,45 +120,124 @@ func (r *PartyMemberRepository) FindByID(
 	return &member, nil
 }
 
-func (r *PartyMemberRepository) Delete(
-	ctx context.Context,
-	member *models.PartyMember,
-) error {
-
-	return r.db.WithContext(ctx).
-		Delete(member).
-		Error()
-}
-
 func (r *PartyMemberRepository) Update(
 	ctx context.Context,
 	member *models.PartyMember,
 ) error {
 
-	return r.db.WithContext(ctx).
+	err := r.db.
+		WithContext(ctx).
 		Save(member).
+		Error()
+
+	if err != nil {
+		return mapPartyMemberDatabaseError(err)
+	}
+
+	return nil
+}
+
+func (r *PartyMemberRepository) Delete(
+	ctx context.Context,
+	member *models.PartyMember,
+) error {
+
+	return r.db.
+		WithContext(ctx).
+		Delete(member).
 		Error()
 }
 
-func (r *PartyMemberRepository) Transaction(
+func (r *PartyMemberRepository) SyncRoles(
 	ctx context.Context,
-	fn func(tx database.DBExecutor) error,
+	memberID uuid.UUID,
+	roles []enum.PartyMemberRole,
 ) error {
 
-	tx := r.db.
-		WithContext(ctx).
-		Begin()
+	return r.transactionManager.Transaction(
+		ctx,
+		func(tx database.DBExecutor) error {
 
-	if tx.Error() != nil {
-		return tx.Error()
-	}
+			if err := tx.
+				Where(
+					"party_member_id = ?",
+					memberID,
+				).
+				Delete(
+					&models.PartyMemberRole{},
+				).
+				Error(); err != nil {
 
-	if err := fn(tx); err != nil {
+				return err
+			}
 
-		tx.Rollback()
+			if len(roles) == 0 {
+				return nil
+			}
 
+			memberRoles := make(
+				[]models.PartyMemberRole,
+				0,
+				len(roles),
+			)
+
+			for _, role := range roles {
+
+				memberRoles = append(
+					memberRoles,
+					models.PartyMemberRole{
+						ID:            uuid.New(),
+						PartyMemberID: memberID,
+						Role:          role,
+					},
+				)
+			}
+
+			if err := tx.
+				Create(
+					&memberRoles,
+				).
+				Error(); err != nil {
+
+				return mapPartyMemberDatabaseError(err)
+			}
+
+			return nil
+		},
+	)
+}
+
+func mapPartyMemberDatabaseError(
+	err error,
+) error {
+
+	var pgErr *pgconn.PgError
+
+	if !errors.As(
+		err,
+		&pgErr,
+	) {
 		return err
 	}
 
-	return tx.Commit()
+	switch {
+
+	case pgErr.Code == "23505" &&
+		pgErr.ConstraintName == "idx_party_member_user_party":
+
+		return appErrors.ErrPartyMemberAlreadyExists
+
+	case pgErr.Code == "23505" &&
+		pgErr.ConstraintName == "idx_party_member_role":
+
+		return appErrors.ErrInvalidPartyMemberRole
+
+	case pgErr.Code == "23514":
+
+		return appErrors.ErrInvalidPartyMemberRole
+
+	default:
+
+		return err
+	}
 }

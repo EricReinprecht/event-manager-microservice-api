@@ -15,8 +15,13 @@ func BuildDependencies(
 	executor database.DBExecutor,
 ) (*dependencies.Container, error) {
 
-	// repositories
+	// manager
+	transactionManager :=
+		database.NewTransactionManager(
+			executor,
+		)
 
+	// repositories
 	userRepository :=
 		repository.NewUserRepository(
 			executor,
@@ -70,6 +75,7 @@ func BuildDependencies(
 	partyMemberRepository :=
 		repository.NewPartyMemberRepository(
 			executor,
+			transactionManager,
 		)
 
 	partyMemberRoleRepository :=
@@ -116,11 +122,10 @@ func BuildDependencies(
 
 	// services
 
-	emailService :=
-		service.NewEmailService(
-			clients.Mailer,
-			cfg.FrontendURL,
-		)
+	emailService := service.NewEmailService(
+		clients.Mailer,
+		cfg.FrontendURL,
+	)
 
 	tokenService :=
 		auth_service.NewTokenService(
@@ -205,9 +210,7 @@ func BuildDependencies(
 			partyCategoryRepository,
 			mediaRepository,
 			ticketCategoryRepository,
-			database.NewTransactionManager(
-				executor,
-			),
+			transactionManager,
 		)
 
 	partyQueryService :=

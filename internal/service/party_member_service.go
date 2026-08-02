@@ -2,13 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	appErrors "github.com/reinp/event-platform/backend/internal/appErrors"
-	"github.com/reinp/event-platform/backend/internal/database"
 	"github.com/reinp/event-platform/backend/internal/dto"
 	"github.com/reinp/event-platform/backend/internal/models"
 	"github.com/reinp/event-platform/backend/internal/models/enum"
@@ -60,13 +57,11 @@ func (s *PartyMemberService) Create(
 		)
 	}
 
-	err := s.repository.Create(
-		s.repository.DB(ctx),
+	if err := s.repository.Create(
+		ctx,
 		member,
-	)
-
-	if err != nil {
-		return nil, mapPartyMemberDatabaseError(err)
+	); err != nil {
+		return nil, err
 	}
 
 	return member, nil
@@ -157,67 +152,45 @@ func (s *PartyMemberService) SyncRoles(
 	roles []enum.PartyMemberRole,
 ) error {
 
-	return s.repository.Transaction(
+	if _, err := s.repository.FindByID(
 		ctx,
-		func(tx database.DBExecutor) error {
-
-			roleRepository :=
-				repository.NewPartyMemberRoleRepository(tx)
-
-			if err := roleRepository.DeleteAll(
-				tx,
-				memberID,
-			); err != nil {
-				return err
-			}
-
-			for _, role := range roles {
-
-				memberRole := &models.PartyMemberRole{
-					ID:            uuid.New(),
-					PartyMemberID: memberID,
-					Role:          role,
-				}
-
-				if err := roleRepository.Create(
-					tx,
-					memberRole,
-				); err != nil {
-					return mapPartyMemberDatabaseError(err)
-				}
-			}
-
-			return nil
-		},
-	)
-}
-
-func mapPartyMemberDatabaseError(
-	err error,
-) error {
-
-	var pgErr *pgconn.PgError
-
-	if !errors.As(
-		err,
-		&pgErr,
-	) {
+		memberID,
+	); err != nil {
 		return err
 	}
 
-	switch {
-
-	case pgErr.Code == "23505" &&
-		pgErr.ConstraintName == "idx_party_member_user_party":
-
-		return appErrors.ErrPartyMemberAlreadyExists
-
-	case pgErr.Code == "23514":
-
+	if len(roles) == 0 {
 		return appErrors.ErrInvalidPartyMemberRole
-
-	default:
-
-		return err
 	}
+
+	uniqueRoles := make(
+		[]enum.PartyMemberRole,
+		0,
+		len(roles),
+	)
+
+	seenRoles := make(
+		map[enum.PartyMemberRole]struct{},
+		len(roles),
+	)
+
+	for _, role := range roles {
+
+		if _, exists := seenRoles[role]; exists {
+			continue
+		}
+
+		seenRoles[role] = struct{}{}
+
+		uniqueRoles = append(
+			uniqueRoles,
+			role,
+		)
+	}
+
+	return s.repository.SyncRoles(
+		ctx,
+		memberID,
+		uniqueRoles,
+	)
 }
