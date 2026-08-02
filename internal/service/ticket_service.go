@@ -104,21 +104,35 @@ func (s *TicketService) Scan(
 
 			now := s.clock.Now()
 
-			window, err := repositories.AccessWindows.FindCurrent(
-				ctx,
-				ticket.TicketCategoryID,
-				now,
-			)
+			var window *models.TicketAccessWindow
 
-			if err != nil {
-				return appErrors.ErrTicketNotValidNow
+			if len(ticket.TicketCategory.AccessWindows) == 0 {
+				party := ticket.TicketCategory.Party
+				if now.Before(party.StartAt) || now.After(party.EndAt) {
+					return appErrors.ErrTicketNotValidNow
+				}
+			} else {
+				window, err = repositories.AccessWindows.FindCurrent(
+					ctx,
+					ticket.TicketCategoryID,
+					now,
+				)
+
+				if err != nil {
+					return appErrors.ErrTicketNotValidNow
+				}
+			}
+
+			var windowID *uuid.UUID
+			if window != nil {
+				windowID = &window.ID
 			}
 
 			if err := ensureTicketNotAlreadyScanned(
 				ctx,
 				repositories.Scans,
 				ticket.ID,
-				window.ID,
+				windowID,
 				now,
 			); err != nil {
 
@@ -251,12 +265,15 @@ func (s *TicketService) newTicketScan(
 ) *models.TicketScan {
 
 	scan := &models.TicketScan{
-		ID:                   uuid.New(),
-		TicketID:             ticket.ID,
-		TicketAccessWindowID: window.ID,
-		ScannedByID:          scannerID,
-		ScannedAt:            now,
-		Status:               enum.TicketScanPending,
+		ID:          uuid.New(),
+		TicketID:    ticket.ID,
+		ScannedByID: scannerID,
+		ScannedAt:   now,
+		Status:      enum.TicketScanPending,
+	}
+
+	if window != nil {
+		scan.TicketAccessWindowID = &window.ID
 	}
 
 	expiry := now.Add(
@@ -312,7 +329,7 @@ func ensureTicketNotAlreadyScanned(
 	ctx context.Context,
 	scans *repository.TicketScanRepository,
 	ticketID uuid.UUID,
-	windowID uuid.UUID,
+	windowID *uuid.UUID,
 	now time.Time,
 ) error {
 

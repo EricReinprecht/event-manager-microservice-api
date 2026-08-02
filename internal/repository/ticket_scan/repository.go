@@ -140,25 +140,36 @@ func (r *TicketScanRepository) ExistsForWindow(
 func (r *TicketScanRepository) FindLatestVerifiedInWindow(
 	ctx context.Context,
 	ticketID uuid.UUID,
-	windowID uuid.UUID,
+	windowID *uuid.UUID,
 	now time.Time,
 ) (*models.TicketScan, error) {
 
 	var scan models.TicketScan
 
-	err := r.db.
+	query := r.db.
 		WithContext(ctx).
 		Where(
-			"ticket_id = ? AND ticket_access_window_id = ? AND status = ? AND verified_until > ?",
+			"ticket_id = ? AND status = ? AND verified_until > ?",
 			ticketID,
-			windowID,
 			enum.TicketScanVerified,
 			now,
-		).
+		)
+
+	if windowID == nil {
+		query = query.Where("ticket_access_window_id IS NULL")
+	} else {
+		query = query.Where("ticket_access_window_id = ?", *windowID)
+	}
+
+	err := query.
 		First(&scan).
 		Error()
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
@@ -168,20 +179,27 @@ func (r *TicketScanRepository) FindLatestVerifiedInWindow(
 func (r *TicketScanRepository) ExistsPendingInWindow(
 	ctx context.Context,
 	ticketID uuid.UUID,
-	windowID uuid.UUID,
+	windowID *uuid.UUID,
 ) (bool, error) {
 
 	var count int64
 
-	err := r.db.
+	query := r.db.
 		WithContext(ctx).
 		Model(&models.TicketScan{}).
 		Where(
-			"ticket_id = ? AND ticket_access_window_id = ? AND status = ?",
+			"ticket_id = ? AND status = ?",
 			ticketID,
-			windowID,
 			enum.TicketScanPending,
-		).
+		)
+
+	if windowID == nil {
+		query = query.Where("ticket_access_window_id IS NULL")
+	} else {
+		query = query.Where("ticket_access_window_id = ?", *windowID)
+	}
+
+	err := query.
 		Count(&count).
 		Error()
 

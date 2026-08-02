@@ -56,6 +56,7 @@ func (r *TicketRepository) FindByCode(
 				return db.Unscoped()
 			},
 		).
+		Preload("TicketCategory.AccessWindows").
 		Where(
 			"code = ?",
 			code,

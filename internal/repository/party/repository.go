@@ -90,6 +90,7 @@ func (r *PartyRepository) FindByID(
 		Preload("Categories").
 		Preload("Organizer").
 		Preload("TicketCategories").
+		Preload("TicketCategories.AccessWindows").
 		First(
 			&party,
 			"id = ?",

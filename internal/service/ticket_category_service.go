@@ -143,13 +143,9 @@ func (s *TicketCategoryService) validateCategory(
 	category *models.TicketCategory,
 ) error {
 
-	if len(category.AccessWindows) == 0 {
-		return appErrors.ErrTicketAccessWindowRequired
-	}
-
 	for _, window := range category.AccessWindows {
 
-		if window.EndsAt.Before(window.StartsAt) {
+		if !window.EndsAt.After(window.StartsAt) {
 			return appErrors.ErrAccessWindowInvalid
 		}
 	}
