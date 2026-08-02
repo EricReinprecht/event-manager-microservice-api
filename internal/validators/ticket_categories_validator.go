@@ -107,6 +107,38 @@ func ValidateUpdateTicketCategories(
 	return validateTicketCategories(items)
 }
 
+func ValidateCreateTicketCategorySchedule(
+	categories []dto.CreateTicketCategoryRequest,
+	partyStart, partyEnd time.Time,
+) appErrors.ValidationErrors {
+	errors := appErrors.ValidationErrors{}
+	for categoryIndex, category := range categories {
+		for windowIndex, window := range category.AccessWindows {
+			if window.StartsAt.Before(partyStart) || window.EndsAt.After(partyEnd) {
+				errors[fmt.Sprintf("ticketCategories.%d.accessWindows.%d._repeater", categoryIndex, windowIndex)] =
+					"access window must be inside the party schedule"
+			}
+		}
+	}
+	return errors
+}
+
+func ValidateUpdateTicketCategorySchedule(
+	categories []dto.UpdateTicketCategoryRequest,
+	partyStart, partyEnd time.Time,
+) appErrors.ValidationErrors {
+	errors := appErrors.ValidationErrors{}
+	for categoryIndex, category := range categories {
+		for windowIndex, window := range category.AccessWindows {
+			if window.StartsAt.Before(partyStart) || window.EndsAt.After(partyEnd) {
+				errors[fmt.Sprintf("ticketCategories.%d.accessWindows.%d._repeater", categoryIndex, windowIndex)] =
+					"access window must be inside the party schedule"
+			}
+		}
+	}
+	return errors
+}
+
 func validateTicketCategories(
 	categories []ticketCategoryValidationItem,
 ) appErrors.ValidationErrors {

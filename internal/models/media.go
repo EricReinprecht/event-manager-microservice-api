@@ -7,17 +7,17 @@ import (
 )
 
 type Media struct {
-	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
-	Filename string
+	Filename string `json:"filename"`
 
-	Path string
+	Path string `json:"path"`
 
-	URL string
+	URL string `json:"url"`
 
-	MimeType string
+	MimeType string `json:"mimeType"`
 
-	Size int64
+	Size int64 `json:"size"`
 
 	Width int
 

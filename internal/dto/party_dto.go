@@ -67,6 +67,12 @@ type PartyResponse struct {
 
 	ThumbnailID *uuid.UUID `json:"thumbnailId"`
 
+	ImageIDs []uuid.UUID `json:"imageIds"`
+
+	Thumbnail *MediaResponse `json:"thumbnail"`
+
+	Images []MediaResponse `json:"images"`
+
 	OrganizerID uuid.UUID `json:"organizerId"`
 
 	Categories []CategoryResponse `json:"categories"`

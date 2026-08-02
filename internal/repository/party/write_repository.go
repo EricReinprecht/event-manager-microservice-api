@@ -41,6 +41,7 @@ func (r *PartyWriteRepository) CreateWithRelations(
 	party *models.Party,
 	categoryIDs []uuid.UUID,
 	imageIDs []uuid.UUID,
+	ticketCategories []models.TicketCategory,
 ) error {
 
 	return r.transactionManager.Transaction(
@@ -74,6 +75,10 @@ func (r *PartyWriteRepository) CreateWithRelations(
 				imageIDs,
 			); err != nil {
 
+				return err
+			}
+
+			if err := r.ticketCategories.SyncCategories(tx, party.ID, ticketCategories); err != nil {
 				return err
 			}
 

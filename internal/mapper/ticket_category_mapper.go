@@ -122,6 +122,30 @@ func TicketCategories(
 	return result
 }
 
+func CreateTicketCategories(
+	categories []dto.CreateTicketCategoryRequest,
+	partyID uuid.UUID,
+) []models.TicketCategory {
+	result := make([]models.TicketCategory, 0, len(categories))
+	for _, category := range categories {
+		model := models.TicketCategory{
+			PartyID: partyID, Name: category.Name, Price: category.Price,
+			Capacity:               category.Capacity,
+			RequiresVerification:   category.RequiresVerification,
+			RefundRequiresApproval: category.RefundRequiresApproval,
+			RefundPolicyID:         category.RefundPolicyID,
+		}
+		model.AccessWindows = make([]models.TicketAccessWindow, 0, len(category.AccessWindows))
+		for _, window := range category.AccessWindows {
+			model.AccessWindows = append(model.AccessWindows, models.TicketAccessWindow{
+				StartsAt: window.StartsAt, EndsAt: window.EndsAt,
+			})
+		}
+		result = append(result, model)
+	}
+	return result
+}
+
 func AccessWindow(
 	window dto.UpdateAccessWindowRequest,
 	ticketCategoryID uuid.UUID,

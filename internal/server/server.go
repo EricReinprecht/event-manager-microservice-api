@@ -20,6 +20,7 @@ func New(
 ) (*Server, error) {
 
 	router := gin.Default()
+	router.Static("/uploads", "./uploads")
 
 	translationRegistry, err := i18n.NewRegistry(
 		"en",

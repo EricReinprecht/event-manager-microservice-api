@@ -77,7 +77,7 @@ func Register(
 	)
 
 	registerMediaRoutes(
-		router,
+		protected,
 		deps,
 	)
 }

@@ -12,11 +12,15 @@ type PartyCategory struct {
 
 	Name string `gorm:"unique;not null" json:"name"`
 
-	Parties []Party `gorm:"many2many:party_categories;" json:"-"`
+	Parties []Party `gorm:"many2many:party_categories;joinForeignKey:CategoryID;joinReferences:PartyID" json:"-"`
 
 	CreatedAt time.Time `json:"createdAt"`
 
 	UpdatedAt time.Time `json:"updatedAt"`
 
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (PartyCategory) TableName() string {
+	return "categories"
 }

@@ -104,6 +104,12 @@ func PartyResponse(
 
 		ThumbnailID: party.ThumbnailID,
 
+		ImageIDs: mediaIDs(party.Images),
+
+		Thumbnail: MediaResponse(party.Thumbnail),
+
+		Images: MediaResponses(party.Images),
+
 		OrganizerID: party.OrganizerID,
 
 		Categories: CategoryResponses(party.Categories),
@@ -112,6 +118,29 @@ func PartyResponse(
 			party.TicketCategories,
 		),
 	}
+}
+
+func MediaResponse(media *models.Media) *dto.MediaResponse {
+	if media == nil {
+		return nil
+	}
+	return &dto.MediaResponse{ID: media.ID, Filename: media.Filename, URL: media.URL, MimeType: media.MimeType}
+}
+
+func MediaResponses(media []models.Media) []dto.MediaResponse {
+	result := make([]dto.MediaResponse, 0, len(media))
+	for index := range media {
+		result = append(result, *MediaResponse(&media[index]))
+	}
+	return result
+}
+
+func mediaIDs(media []models.Media) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(media))
+	for _, item := range media {
+		ids = append(ids, item.ID)
+	}
+	return ids
 }
 
 func PartyResponses(

@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/reinp/event-platform/backend/internal/responses"
 	"github.com/reinp/event-platform/backend/internal/service"
@@ -39,8 +41,16 @@ func (h *MediaHandler) Upload(
 	filename := filepath.Base(
 		file.Filename,
 	)
+	if file.Size > 10*1024*1024 {
+		responses.BadRequest(c, errors.New("file exceeds 10 MB limit"))
+		return
+	}
+	if contentType := file.Header.Get("Content-Type"); len(contentType) < 6 || contentType[:6] != "image/" {
+		responses.BadRequest(c, errors.New("only image uploads are supported"))
+		return
+	}
 
-	path := "uploads/" + filename
+	path := "uploads/" + uuid.NewString() + filepath.Ext(filename)
 
 	err = c.SaveUploadedFile(
 		file,

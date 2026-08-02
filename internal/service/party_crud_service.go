@@ -59,6 +59,7 @@ func (s *PartyCRUDService) CreateRelations(
 	party *models.Party,
 	categoryIDs []uuid.UUID,
 	imageIDs []uuid.UUID,
+	ticketCategories []models.TicketCategory,
 ) error {
 
 	if err := s.validateCategories(
@@ -83,6 +84,7 @@ func (s *PartyCRUDService) CreateRelations(
 		party,
 		categoryIDs,
 		imageIDs,
+		ticketCategories,
 	)
 }
 

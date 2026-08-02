@@ -65,6 +65,8 @@ func (s *PartyService) Create(
 			req.TicketCategories,
 		),
 	)
+	validators.MergeValidationErrors(validationErrors,
+		validators.ValidateCreateTicketCategorySchedule(req.TicketCategories, req.StartAt, req.EndAt))
 
 	if len(validationErrors) > 0 {
 		return nil,
@@ -78,6 +80,7 @@ func (s *PartyService) Create(
 		party,
 		categoryIDs,
 		req.ImageIDs,
+		mapper.CreateTicketCategories(req.TicketCategories, party.ID),
 	); err != nil {
 		return nil, err
 	}
@@ -165,6 +168,8 @@ func (s *PartyService) Update(
 			req.TicketCategories,
 		),
 	)
+	validators.MergeValidationErrors(validationErrors,
+		validators.ValidateUpdateTicketCategorySchedule(req.TicketCategories, req.StartAt, req.EndAt))
 
 	if len(validationErrors) > 0 {
 		return nil,

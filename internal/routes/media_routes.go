@@ -9,7 +9,7 @@ import (
 )
 
 func registerMediaRoutes(
-	router *gin.Engine,
+	router *gin.RouterGroup,
 	deps *dependencies.Container,
 ) {
 

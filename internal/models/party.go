@@ -42,7 +42,7 @@ type Party struct {
 	Stages      []PartyStage  `gorm:"foreignKey:PartyID;constraint:OnDelete:CASCADE" json:"stages"`
 	ArtistSlots []ArtistSlot  `gorm:"foreignKey:PartyID;constraint:OnDelete:CASCADE" json:"artistSlots"`
 
-	Categories []PartyCategory `gorm:"many2many:party_categories;" json:"categories"`
+	Categories []PartyCategory `gorm:"many2many:party_categories;joinForeignKey:PartyID;joinReferences:CategoryID" json:"categories"`
 
 	OrganizerID uuid.UUID `json:"organizerId"`
 
