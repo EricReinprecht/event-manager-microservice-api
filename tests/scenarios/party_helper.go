@@ -17,7 +17,7 @@ func AddPartyRole(
 	db *gorm.DB,
 	userID uuid.UUID,
 	partyID uuid.UUID,
-	role enum.PartyRole,
+	role enum.PartyMemberRole,
 ) appModels.PartyMember {
 
 	member := appModels.PartyMember{
@@ -56,7 +56,7 @@ func MakeOrganizer(
 		t,
 		db,
 		s,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 }
 
@@ -69,7 +69,7 @@ func MakeAdmin(
 		t,
 		db,
 		s,
-		enum.RoleAdmin,
+		enum.PartyRoleAdmin,
 	)
 }
 
@@ -125,7 +125,7 @@ func ChangeStaffRole(
 	t *testing.T,
 	db *gorm.DB,
 	s *VerificationScenario,
-	role enum.PartyRole,
+	role enum.PartyMemberRole,
 ) {
 
 	if err := db.

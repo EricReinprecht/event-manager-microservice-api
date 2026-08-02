@@ -36,7 +36,7 @@ func TestPaymentRefundSuccess(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	// -------------------------
@@ -136,7 +136,7 @@ func TestPaymentRefundGatewayFailure(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	err = paymentService.RefundPayment(
@@ -222,7 +222,7 @@ func TestCannotRefundAlreadyRefundedPurchase(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	purchase := scenario.Purchase

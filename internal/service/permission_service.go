@@ -29,7 +29,7 @@ func (s *PermissionService) RequirePartyRole(
 	ctx context.Context,
 	partyID uuid.UUID,
 	userID uuid.UUID,
-	roles ...enum.PartyRole,
+	roles ...enum.PartyMemberRole,
 ) error {
 
 	party, err := s.partyService.FindByID(
@@ -43,7 +43,7 @@ func (s *PermissionService) RequirePartyRole(
 
 			for _, role := range roles {
 
-				if role == enum.RoleOrganizer {
+				if role == enum.PartyRoleOrganizer {
 					return nil
 				}
 			}
@@ -74,7 +74,7 @@ func (s *PermissionService) HasPartyRole(
 	ctx context.Context,
 	partyID uuid.UUID,
 	userID uuid.UUID,
-	roles ...enum.PartyRole,
+	roles ...enum.PartyMemberRole,
 ) bool {
 
 	return s.RequirePartyRole(

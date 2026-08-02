@@ -18,8 +18,8 @@ func (s *PermissionService) CanManageParty(
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	)
 }
 
@@ -33,9 +33,8 @@ func (s *PermissionService) CanScanTickets(
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
-		enum.RoleStaff,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	)
 }
 
@@ -49,8 +48,8 @@ func (s *PermissionService) CanRefund(
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
-		enum.RoleRefunder,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
+		enum.PartyRoleRefunder,
 	)
 }

@@ -11,11 +11,11 @@ import (
 type CreatePartyMemberRequest struct {
 	UserID uuid.UUID `json:"user_id" binding:"required"`
 
-	Roles []enum.PartyRole `json:"roles" binding:"required"`
+	Roles []enum.PartyMemberRole `json:"roles" binding:"required"`
 }
 
 type UpdatePartyMemberRolesRequest struct {
-	Roles []enum.PartyRole `json:"roles" binding:"required"`
+	Roles []enum.PartyMemberRole `json:"roles" binding:"required"`
 }
 
 type PartyMemberResponse struct {
@@ -25,13 +25,13 @@ type PartyMemberResponse struct {
 
 	PartyID uuid.UUID `json:"partyId"`
 
-	Roles []PartyRoleResponse `json:"roles"`
+	Roles []PartyMemberRoleResponse `json:"roles"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-type PartyRoleResponse struct {
+type PartyMemberRoleResponse struct {
 	ID uuid.UUID `json:"id"`
 
-	Role enum.PartyRole `json:"role"`
+	Role enum.PartyMemberRole `json:"role"`
 }

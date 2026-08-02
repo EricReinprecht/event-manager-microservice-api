@@ -117,7 +117,7 @@ func CreateScanScenario(
 		db,
 		organizer.ID,
 		party.ID,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	// IMPORTANT:
@@ -318,7 +318,7 @@ func AddOrganizerRole(
 		db,
 		userID,
 		partyID,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 }
 

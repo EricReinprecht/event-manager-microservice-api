@@ -45,8 +45,8 @@ func PartyOwnerMiddleware(
 			c.Request.Context(),
 			partyID,
 			userID,
-			enum.RoleOrganizer,
-			enum.RoleAdmin,
+			enum.PartyRoleOrganizer,
+			enum.PartyRoleAdmin,
 		)
 
 		if err != nil {

@@ -56,8 +56,8 @@ func (h *TicketCategoryHandler) Create(c *gin.Context) {
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	); err != nil {
 
 		responses.HandleDomainError(
@@ -224,8 +224,8 @@ func (h *TicketCategoryHandler) Update(c *gin.Context) {
 		ctx,
 		category.PartyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	); err != nil {
 
 		responses.HandleDomainError(
@@ -322,8 +322,8 @@ func (h *TicketCategoryHandler) Delete(c *gin.Context) {
 		ctx,
 		category.PartyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	); err != nil {
 
 		responses.HandleDomainError(

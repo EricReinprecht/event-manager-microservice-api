@@ -60,8 +60,8 @@ func (h *PartyMemberHandler) Create(
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	) {
 
 		responses.Forbidden(c)

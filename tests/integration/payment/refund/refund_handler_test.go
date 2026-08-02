@@ -41,7 +41,7 @@ func TestOrganizerReceivesHTTP200WhenRefunding(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	router := testhttp.RefundRouter(
@@ -96,7 +96,7 @@ func TestAdminReceivesHTTP200WhenRefunding(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleAdmin,
+		enum.PartyRoleAdmin,
 	)
 
 	router := testhttp.RefundRouter(
@@ -170,7 +170,7 @@ func TestRefunderReceivesHTTP200WhenRefunding(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleRefunder,
+		enum.PartyRoleRefunder,
 	)
 
 	router := testhttp.RefundRouter(
@@ -475,7 +475,7 @@ func TestUnauthenticatedUserReceivesHTTP401WhenRefunding(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	router := gin.New()
@@ -614,7 +614,7 @@ func TestAlreadyRefundedPurchaseReturnsHTTP400(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	// mark purchase already refunded

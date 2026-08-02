@@ -1446,7 +1446,7 @@ func TestOrganizerCanRejectPendingTicket(t *testing.T) {
 		db,
 		organizer.ID,
 		party.ID,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	// TICKET CATEGORY

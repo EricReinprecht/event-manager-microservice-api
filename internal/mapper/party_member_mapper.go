@@ -41,10 +41,10 @@ func PartyMemberResponses(
 
 func PartyMemberRoleResponses(
 	roles []models.PartyMemberRole,
-) []dto.PartyRoleResponse {
+) []dto.PartyMemberRoleResponse {
 
 	result := make(
-		[]dto.PartyRoleResponse,
+		[]dto.PartyMemberRoleResponse,
 		0,
 		len(roles),
 	)
@@ -53,7 +53,7 @@ func PartyMemberRoleResponses(
 
 		result = append(
 			result,
-			dto.PartyRoleResponse{
+			dto.PartyMemberRoleResponse{
 				ID:   role.ID,
 				Role: role.Role,
 			},

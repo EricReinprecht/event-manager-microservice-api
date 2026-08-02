@@ -132,9 +132,8 @@ func (s *TicketService) Scan(
 	}
 
 	hasPermission :=
-		member.HasRole(enum.RoleOrganizer) ||
-			member.HasRole(enum.RoleAdmin) ||
-			member.HasRole(enum.RoleStaff)
+		member.HasRole(enum.PartyRoleOrganizer) ||
+			member.HasRole(enum.PartyRoleAdmin)
 
 	if !hasPermission {
 
@@ -298,9 +297,8 @@ func (s *TicketService) VerifyScan(
 	}
 
 	hasPermission :=
-		member.HasRole(enum.RoleOrganizer) ||
-			member.HasRole(enum.RoleAdmin) ||
-			member.HasRole(enum.RoleStaff)
+		member.HasRole(enum.PartyRoleOrganizer) ||
+			member.HasRole(enum.PartyRoleAdmin)
 
 	if !hasPermission {
 

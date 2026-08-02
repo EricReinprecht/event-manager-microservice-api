@@ -34,7 +34,7 @@ func (r *PartyMemberRoleRepository) Create(
 func (r *PartyMemberRoleRepository) Delete(
 	tx database.DBExecutor,
 	memberID uuid.UUID,
-	role enum.PartyRole,
+	role enum.PartyMemberRole,
 ) error {
 
 	return tx.

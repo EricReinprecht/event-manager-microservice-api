@@ -196,7 +196,7 @@ func TestAdminCanScanTicket(t *testing.T) {
 		db,
 		scenario.Staff.ID,
 		scenario.Party.ID,
-		enum.RoleAdmin,
+		enum.PartyRoleAdmin,
 	)
 
 	// scan

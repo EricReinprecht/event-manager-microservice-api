@@ -147,7 +147,7 @@ func (s *PartyCRUDService) Create(
 
 				PartyMemberID: member.ID,
 
-				Role: enum.RoleOrganizer,
+				Role: enum.PartyRoleOrganizer,
 			}
 
 			return s.roles.Create(
@@ -335,7 +335,7 @@ func (s *PartyCRUDService) CreateRelations(
 
 				PartyMemberID: member.ID,
 
-				Role: enum.RoleOrganizer,
+				Role: enum.PartyRoleOrganizer,
 			}
 
 			return s.roles.Create(

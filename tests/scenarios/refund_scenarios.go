@@ -30,13 +30,13 @@ type RefundScenario struct {
 
 	RefundPolicy models.RefundPolicy
 
-	Role enum.PartyRole
+	Role enum.PartyMemberRole
 }
 
 func CreateRefundScenario(
 	t *testing.T,
 	db *gorm.DB,
-	role enum.PartyRole,
+	role enum.PartyMemberRole,
 ) RefundScenario {
 
 	// -------------------------
@@ -58,11 +58,11 @@ func CreateRefundScenario(
 
 	actor := fixtures.User()
 
-	if role == enum.RoleOrganizer {
+	if role == enum.PartyRoleOrganizer {
 		actor = organizer
 	}
 
-	if role != enum.RoleOrganizer {
+	if role != enum.PartyRoleOrganizer {
 
 		if err := db.Create(
 			&actor,
@@ -106,7 +106,7 @@ func CreateRefundScenario(
 	// Add role if needed
 	// -------------------------
 
-	if role != enum.RoleOrganizer {
+	if role != enum.PartyRoleOrganizer {
 
 		member := models.PartyMember{
 			ID:      uuid.New(),

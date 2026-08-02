@@ -41,7 +41,7 @@ func TestOrganizerCanRefundPurchase(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleOrganizer,
+		enum.PartyRoleOrganizer,
 	)
 
 	scenarios.RefundPurchase(
@@ -143,7 +143,7 @@ func TestAdminCanRefundPurchase(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleAdmin,
+		enum.PartyRoleAdmin,
 	)
 
 	// -------------------------
@@ -257,7 +257,7 @@ func TestRefunderRoleCanRefundPurchase(t *testing.T) {
 	scenario := scenarios.CreateRefundScenario(
 		t,
 		db,
-		enum.RoleRefunder,
+		enum.PartyRoleRefunder,
 	)
 
 	// -------------------------

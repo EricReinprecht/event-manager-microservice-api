@@ -175,7 +175,7 @@ func (s *PartyMemberService) FindByID(
 func (s *PartyMemberService) SyncRoles(
 	ctx context.Context,
 	memberID uuid.UUID,
-	roles []enum.PartyRole,
+	roles []enum.PartyMemberRole,
 ) error {
 
 	return s.repository.Transaction(
@@ -221,7 +221,7 @@ func (s *PartyMemberService) HasRole(
 	ctx context.Context,
 	partyID uuid.UUID,
 	userID uuid.UUID,
-	roles ...enum.PartyRole,
+	roles ...enum.PartyMemberRole,
 ) bool {
 
 	party, err := s.partyRepository.FindByID(
@@ -236,7 +236,7 @@ func (s *PartyMemberService) HasRole(
 
 			for _, role := range roles {
 
-				if role == enum.RoleOrganizer {
+				if role == enum.PartyRoleOrganizer {
 					return true
 				}
 			}
@@ -276,8 +276,8 @@ func (s *PartyMemberService) CanManageParty(
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	)
 }
 
@@ -291,9 +291,8 @@ func (s *PartyMemberService) CanScanTickets(
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
-		enum.RoleStaff,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
 	)
 }
 
@@ -307,9 +306,9 @@ func (s *PartyMemberService) CanRefund(
 		ctx,
 		partyID,
 		userID,
-		enum.RoleOrganizer,
-		enum.RoleAdmin,
-		enum.RoleRefunder,
+		enum.PartyRoleOrganizer,
+		enum.PartyRoleAdmin,
+		enum.PartyRoleRefunder,
 	)
 }
 
@@ -317,7 +316,7 @@ func (s *PartyMemberService) HasAnyRole(
 	ctx context.Context,
 	partyID uuid.UUID,
 	userID uuid.UUID,
-	roles ...enum.PartyRole,
+	roles ...enum.PartyMemberRole,
 ) bool {
 
 	party, err := s.partyRepository.FindByID(
@@ -332,7 +331,7 @@ func (s *PartyMemberService) HasAnyRole(
 
 			for _, role := range roles {
 
-				if role == enum.RoleOrganizer {
+				if role == enum.PartyRoleOrganizer {
 					return true
 				}
 			}
